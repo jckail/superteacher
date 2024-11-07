@@ -1,111 +1,56 @@
-# edutrack
+# Super Teacher
 
-A full-stack web application for managing school-related tasks and information. 
-This is a proof of concept tool how AI can help teachers faciliate a better education for students. 
+A powerful web application designed to help teachers leverage AI to enhance student learning outcomes while saving time and reducing stress. This innovative platform combines classroom management with AI-powered insights to create a more efficient and effective teaching experience.
 
-The project consists of a React frontend with Material-UI components and a FastAPI backend with SQLite database.
+[try it out here](https://console.cloud.google.com/run/detail/us-central1/edutrack/metrics?project=portfolio-383615) 
 
-## Tech Stack
+![Super Teacher Dashboard](./frontend/public/screen_shot.png)
 
-### Frontend
+## Features
+
+### Current Features
+- **AI-Powered Chat Assistant**: Get instant help with lesson planning, student engagement strategies, and classroom management
+- **Student Progress Tracking**: Monitor individual student performance and identify areas needing attention
+- **Grade Management**: Easy-to-use interface for recording and analyzing student grades
+- **Classroom Organization**: Manage multiple sections and students efficiently
+- **AI Insights**: Receive personalized recommendations for each student based on their performance data
+- **Progress Reports**: Generate comprehensive student progress reports automatically
+
+### Coming Soon
+- **Lesson Plan Generator**: AI-assisted creation of engaging lesson plans tailored to your teaching style
+- **Behavioral Analytics**: Track and understand student engagement patterns
+- **Parent Communication Portal**: Streamline parent-teacher communication
+- **Assignment Generator**: Create customized assignments based on student needs
+- **Resource Library**: Access a curated collection of teaching materials and resources
+- **Integration with Popular Learning Management Systems**: Seamless data sync with existing educational platforms
+
+## Technical Overview
+
+### Architecture
+- **Frontend**: Modern React application with Material-UI components
+- **Backend**: FastAPI-powered Python backend with SQLite database
+- **Deployment**: Containerized with Docker, deployable to Google Cloud Platform
+
+### Tech Stack
+
+#### Frontend
 - React 18
 - Material-UI (MUI)
 - React Router
-- Axios for API calls
+- Vite for build tooling
+- Context API for state management
 
-### Backend
+#### Backend
 - FastAPI
-- SQLAlchemy
-- SQLite
+- SQLAlchemy ORM
+- SQLite database
 - Python 3.x
 
-## Project Structure
+#### DevOps
+- Docker containerization
+- Google Cloud Platform deployment
+- Automated CI/CD pipeline
 
-```
-edutrack/
-└── requirements.txt   # Python dependencies
-├── frontend/                # React frontend application
-│   ├── public/             # Static files
-│   ├── src/               
-│   │   ├── components/     # Reusable React components
-│   │   ├── pages/         # Page components
-│   │   ├── utils/         # Utility functions
-│   │   └── config.js      # Configuration file
-│   └── package.json       # Frontend dependencies
-│
-└── backend/                # FastAPI backend application
-    ├── app/
-    │   ├── models/        # Database models
-    │   ├── routers/       # API routes
-    │   └── schemas/       # Pydantic schemas
-    ├── main.py            # Application entry point
-
-```
-
-## Setup Instructions
-
-### Backend Setup
-
-1. Create a Python virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. Run the backend server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-   The API will be available at http://localhost:8000
-
-### Frontend Setup
-
-1. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. Start the development server:
-   ```bash
-   npm start
-   ```
-   The application will be available at http://localhost:3000
-
-## Available Scripts
-
-### Frontend
-
-- `npm start`: Runs the app in development mode
-- `npm test`: Launches the test runner
-- `npm run build`: Builds the app for production
-- `npm run eject`: Ejects from create-react-app
-
-### Backend
-
-- Development server: `uvicorn main:app --reload`
-- API documentation available at:
-  - Swagger UI: http://localhost:8000/docs
-  - ReDoc: http://localhost:8000/redoc
-
-## Environment Variables
-
-Create a `.env` file in the backend directory with the following variables:
-```
-SECRET_KEY=your_secret_key
-DATABASE_URL=sqlite:///edutrack.db
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+For detailed setup instructions and documentation:
+- [Frontend Documentation](./frontend/README.md)
+- [Backend Documentation](./backend/README.md)
