@@ -32,9 +32,12 @@ const Chat = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -52,20 +55,15 @@ const Chat = () => {
   }, []);
 
   const getPageContext = () => {
-    // Get the main content area, excluding the chat interface
     const mainContent = document.querySelector('#root');
     if (!mainContent) return '';
 
-    // Create a clone to avoid modifying the actual DOM
     const clone = mainContent.cloneNode(true);
-    
-    // Remove the chat dialog from the clone if it exists
     const chatDialog = clone.querySelector('[role="dialog"]');
     if (chatDialog) {
       chatDialog.remove();
     }
 
-    // Get both HTML structure and text content
     const context = {
       html: clone.innerHTML,
       text: clone.textContent?.trim() || ''
@@ -76,7 +74,6 @@ const Chat = () => {
 
   useEffect(() => {
     if (open && !webSocket) {
-      // Create WebSocket URL based on current window location
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/${clientId.current}`;
       
@@ -84,7 +81,6 @@ const Chat = () => {
       
       ws.onopen = () => {
         console.log('WebSocket Connected');
-        // Send initial context when connection opens
         if (!initialContextSent) {
           const pageContext = getPageContext();
           ws.send(JSON.stringify({
@@ -136,11 +132,9 @@ const Chat = () => {
 
   const handleSendMessage = async () => {
     if (message.trim() && webSocket && webSocket.readyState === WebSocket.OPEN) {
-      // Add user message to chat
       setMessages(prev => [...prev, { type: 'user', text: message }]);
       setIsLoading(true);
       
-      // Send message through WebSocket
       webSocket.send(JSON.stringify({
         type: 'message',
         content: message
@@ -214,6 +208,8 @@ const Chat = () => {
             maxHeight: isMobile ? '100%' : '70vh',
             borderRadius: isMobile ? 0 : 2,
             margin: isMobile ? 0 : 2,
+            display: 'flex',
+            flexDirection: 'column',
           }
         }}
       >
@@ -225,7 +221,8 @@ const Chat = () => {
             alignItems: 'center', 
             justifyContent: 'space-between',
             bgcolor: '#7e3af2',
-            color: 'white'
+            color: 'white',
+            flexShrink: 0,
           }}
         >
           <div style={{ 
@@ -249,24 +246,28 @@ const Chat = () => {
             <CloseIcon sx={{ fontSize: isMobile ? 28 : 24 }} />
           </IconButton>
         </DialogTitle>
+
         <DialogContent 
           sx={{ 
             p: 2,
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
-            height: isMobile ? 'calc(100% - 64px)' : '450px'
+            flexGrow: 1,
+            height: '100%',
+            overflow: 'hidden',
           }}
         >
           {/* Messages Container */}
           <Box 
+            ref={messagesContainerRef}
             sx={{ 
               flexGrow: 1,
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
               gap: 1,
-              mb: 2
+              mb: 2,
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             {messages.map((msg, index) => (
@@ -310,7 +311,18 @@ const Chat = () => {
           </Box>
 
           {/* Message Input */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 1, 
+              alignItems: 'flex-end',
+              position: 'sticky',
+              bottom: 0,
+              bgcolor: 'background.paper',
+              pt: 1,
+              flexShrink: 0,
+            }}
+          >
             <TextField
               fullWidth
               multiline
