@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict, Optional, Literal
 
 class StudentBase(BaseModel):
     name: str
@@ -28,3 +28,4 @@ class Grade(BaseModel):
     score: int
     totalPoints: int
     date: str
+    gradeType: Literal["homework", "test"]

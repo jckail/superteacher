@@ -36,7 +36,8 @@ async def create_student(student: StudentCreate, db: Session = Depends(get_db)):
     # Initialize academic performance
     initial_academic_performance = {
         "rank": "New Student",
-        "tests": {}
+        "tests": {},
+        "homework": {}
     }
     
     # Create new student with initialized fields
@@ -72,38 +73,50 @@ async def add_grade(student_id: str, grade: Grade, db: Session = Depends(get_db)
     # Get current academic performance or initialize if None
     academic_performance = student.academic_performance
     if academic_performance is None:
-        academic_performance = {"rank": "New Student", "tests": {}}
+        academic_performance = {"rank": "New Student", "tests": {}, "homework": {}}
     elif isinstance(academic_performance, str):
         academic_performance = json.loads(academic_performance)
     
-    # Ensure tests dictionary exists
+    # Ensure both dictionaries exist
     if "tests" not in academic_performance:
         academic_performance["tests"] = {}
+    if "homework" not in academic_performance:
+        academic_performance["homework"] = {}
     
-    # Update tests dictionary
-    academic_performance["tests"][grade.testName] = f"{percentage}%"
-    
-    # Recalculate GPA
-    test_scores = [
-        int(score.rstrip('%')) 
-        for score in academic_performance["tests"].values()
-    ]
-    avg_score = sum(test_scores) / len(test_scores)
-    new_gpa = round(avg_score / 25, 1)  # Convert percentage to 4.0 scale
-    
-    # Update rank based on new GPA
-    if new_gpa >= 3.7:
-        academic_performance["rank"] = "Top 5%"
-    elif new_gpa >= 3.3:
-        academic_performance["rank"] = "Top 10%"
-    elif new_gpa >= 3.0:
-        academic_performance["rank"] = "Top 25%"
-    else:
-        academic_performance["rank"] = "Average"
+    # Update appropriate category based on grade type
+    if grade.gradeType == "test":
+        academic_performance["tests"][grade.testName] = f"{percentage}%"
+        # Calculate GPA from tests only
+        test_scores = [
+            int(score.rstrip('%')) 
+            for score in academic_performance["tests"].values()
+        ]
+        if test_scores:
+            avg_score = sum(test_scores) / len(test_scores)
+            new_gpa = round(avg_score / 25, 1)  # Convert percentage to 4.0 scale
+            student.gpa = new_gpa
+            
+            # Update rank based on new GPA
+            if new_gpa >= 3.7:
+                academic_performance["rank"] = "Top 5%"
+            elif new_gpa >= 3.3:
+                academic_performance["rank"] = "Top 10%"
+            elif new_gpa >= 3.0:
+                academic_performance["rank"] = "Top 25%"
+            else:
+                academic_performance["rank"] = "Average"
+    else:  # homework
+        academic_performance["homework"][grade.testName] = f"{percentage}%"
+        # Update homework points and completed count
+        homework_scores = [
+            int(score.rstrip('%')) 
+            for score in academic_performance["homework"].values()
+        ]
+        student.homework_points = sum(homework_scores)
+        student.homework_completed = f"{len(homework_scores)}/{len(homework_scores)}"
     
     # Update student record
     student.academic_performance = academic_performance
-    student.gpa = new_gpa
     
     # Explicitly mark as modified
     db.add(student)

@@ -14,6 +14,8 @@ import {
   TextField,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
   Paper
 } from '@mui/material';
 import config from '../config';
@@ -27,7 +29,8 @@ function StudentTable({ students, onStudentUpdate }) {
     testName: '',
     score: '',
     totalPoints: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    gradeType: 'test'
   });
   const [newStudent, setNewStudent] = useState({
     name: '',
@@ -109,7 +112,8 @@ function StudentTable({ students, onStudentUpdate }) {
         testName: '',
         score: '',
         totalPoints: '',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        gradeType: 'test'
       });
       onStudentUpdate();
     } catch (error) {
@@ -139,8 +143,9 @@ function StudentTable({ students, onStudentUpdate }) {
               <TableCell>Student ID</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Academic Performance</TableCell>
-              <TableCell>Attendance</TableCell>
+              <TableCell>Tests</TableCell>
               <TableCell>Homework</TableCell>
+              <TableCell>Attendance</TableCell>
               <TableCell>AI Insights</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -157,12 +162,24 @@ function StudentTable({ students, onStudentUpdate }) {
                   <div>GPA: {student.gpa}</div>
                 </TableCell>
                 <TableCell>
-                  <div>{student.attendance_percentage}%</div>
-                  <div>{student.attendance_days}</div>
+                  {Object.entries(student.academic_performance.tests || {}).map(([subject, score]) => (
+                    <div key={subject}>
+                      {subject}: {score}
+                    </div>
+                  ))}
                 </TableCell>
                 <TableCell>
                   <div>Points: {student.homework_points}</div>
                   <div>Completed: {student.homework_completed}</div>
+                  {Object.entries(student.academic_performance.homework || {}).map(([name, score]) => (
+                    <div key={name}>
+                      {name}: {score}
+                    </div>
+                  ))}
+                </TableCell>
+                <TableCell>
+                  <div>{student.attendance_percentage}%</div>
+                  <div>{student.attendance_days}</div>
                 </TableCell>
                 <TableCell>
                   <div>Status: {student.ai_insights.status}</div>
@@ -238,11 +255,22 @@ function StudentTable({ students, onStudentUpdate }) {
       <Dialog open={openGradeDialog} onClose={() => setOpenGradeDialog(false)}>
         <DialogTitle>Add Grade for {selectedStudent?.name}</DialogTitle>
         <DialogContent>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Grade Type</InputLabel>
+            <Select
+              name="gradeType"
+              value={newGrade.gradeType}
+              onChange={handleGradeInputChange}
+            >
+              <MenuItem value="test">Test</MenuItem>
+              <MenuItem value="homework">Homework</MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             autoFocus
             margin="dense"
             name="testName"
-            label="Test Name"
+            label={newGrade.gradeType === 'test' ? "Test Name" : "Homework Name"}
             type="text"
             fullWidth
             value={newGrade.testName}

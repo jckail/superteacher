@@ -26,7 +26,7 @@ COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 
 # Install backend dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copy backend code including setup.py
 COPY backend/ ./backend/

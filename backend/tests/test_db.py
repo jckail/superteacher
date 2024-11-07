@@ -24,7 +24,7 @@ def db_student(db_session):
         attendance_days="19/20",
         homework_points=95,
         homework_completed="19/20",
-        academic_performance={"tests": {}, "rank": "Top 10%"},
+        academic_performance={"tests": {}, "homework": {}, "rank": "Top 10%"},
         ai_insights={"strengths": [], "areas_for_improvement": []}
     )
     db_session.add(student)
@@ -46,6 +46,8 @@ def test_create_student(client, sample_student):
     assert isinstance(data["academic_performance"], dict)
     assert "tests" in data["academic_performance"]
     assert isinstance(data["academic_performance"]["tests"], dict)
+    assert "homework" in data["academic_performance"]
+    assert isinstance(data["academic_performance"]["homework"], dict)
 
 def test_get_students(client, db_student):
     """Test getting all students"""
@@ -85,7 +87,8 @@ def test_add_grade_student_not_found(client):
         "testName": "Math Quiz 1",
         "score": 90,
         "totalPoints": 100,
-        "date": "2024-02-20"
+        "date": "2024-02-20",
+        "gradeType": "test"
     }
     
     response = client.post("/db/students/ST9999/grades", json=grade_data)
