@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from git import Repo
+from git import Repo, InvalidGitRepositoryError
 import os
 from dotenv import load_dotenv
 from ..schemas.version import VersionInfo
@@ -18,9 +18,13 @@ async def get_version():
         # Get version from environment variable
         version = os.getenv("VERSION", "unknown")
         
-        # Get git commit hash
-        repo = Repo(search_parent_directories=True)
-        git_commit = repo.head.object.hexsha  # Get full hash
+        try:
+            # Try to get git commit hash
+            repo = Repo(search_parent_directories=True)
+            git_commit = repo.head.object.hexsha
+        except (InvalidGitRepositoryError, Exception):
+            # If git info is not available, use a placeholder
+            git_commit = "development"
         
         return {"version": version, "git_commit": git_commit}
     except Exception as e:

@@ -8,6 +8,24 @@ else
     exit 1
 fi
 
+# Parse command line arguments
+SKIP_TESTS=false
+DEPLOY_PROD=false
+
+for arg in "$@"
+do
+    case $arg in
+        --skip-tests)
+        SKIP_TESTS=true
+        shift
+        ;;
+        --prod)
+        DEPLOY_PROD=true
+        shift
+        ;;
+    esac
+done
+
 # Function to check if Docker is running and start it if needed
 check_docker() {
     # First check if Docker is running
@@ -123,8 +141,12 @@ deploy_local() {
         exit 1
     fi
     
-    # Run tests first
-    run_backend_tests
+    # Run tests if not skipped
+    if [ "$SKIP_TESTS" = false ]; then
+        run_backend_tests
+    else
+        echo "⏩ Skipping tests as requested"
+    fi
     
     # Build frontend
     build_frontend
@@ -140,7 +162,7 @@ deploy_local() {
     fi
     
     echo "Building Docker image..."
-    if ! docker build --build-arg VERSION="${VERSION}" -t ${IMAGE_NAME}:${VERSION} .; then
+    if ! docker build --build-arg VERSION="${VERSION}" --build-arg ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" -t ${IMAGE_NAME}:${VERSION} .; then
         echo "❌ Local build failed"
         exit 1
     fi
@@ -169,8 +191,12 @@ deploy_prod() {
         exit 1
     fi
     
-    # Run tests first
-    run_backend_tests
+    # Run tests if not skipped
+    if [ "$SKIP_TESTS" = false ]; then
+        run_backend_tests
+    else
+        echo "⏩ Skipping tests as requested"
+    fi
     
     # Build frontend
     build_frontend
@@ -178,7 +204,7 @@ deploy_prod() {
     # Build image locally
     IMAGE_TAG="${GCR_HOSTNAME}/${PROJECT_ID}/${IMAGE_NAME}:${VERSION}"
     echo "Building image: ${IMAGE_TAG}"
-    if ! DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build --platform linux/amd64 --build-arg VERSION="${VERSION}" -t ${IMAGE_TAG} .; then
+    if ! DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build --platform linux/amd64 --build-arg VERSION="${VERSION}" --build-arg ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" -t ${IMAGE_TAG} .; then
         echo "❌ Local build failed"
         exit 1
     fi
@@ -212,7 +238,7 @@ deploy_prod() {
 }
 
 # Main script logic
-if [ "$1" == "--prod" ]; then
+if [ "$DEPLOY_PROD" = true ]; then
     deploy_prod
 else
     deploy_local

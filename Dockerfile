@@ -11,6 +11,7 @@ FROM python:3.11-slim
 
 # Get version from build arg
 ARG VERSION
+ARG ANTHROPIC_API_KEY
 LABEL version=${VERSION}
 
 # Install system dependencies
@@ -50,6 +51,7 @@ ENV HOST=0.0.0.0
 ENV VERSION=${VERSION}
 ENV GIT_PYTHON_REFRESH=quiet
 ENV NODE_ENV=production
+ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 
 # Add healthcheck
 HEALTHCHECK --interval=3s --timeout=3s --start-period=5s --retries=3 \

@@ -61,7 +61,11 @@ const Chat = () => {
 
   useEffect(() => {
     if (open && !webSocket) {
-      const ws = new WebSocket(`ws://localhost:8080/ws/${clientId.current}`);
+      // Create WebSocket URL based on current window location
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/${clientId.current}`;
+      
+      const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
         console.log('WebSocket Connected');
