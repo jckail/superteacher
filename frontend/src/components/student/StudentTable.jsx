@@ -11,7 +11,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 import config from '../../config';
 
 import { StyledTableContainer, StyledTableHead, StyledTableCell } from './StyledComponents';
-import ResizableColumn from './ResizableColumn';
+import HeaderCell from './HeaderCell';
 import StudentTableRow from './StudentTableRow';
 import AddGradeDialog from './AddGradeDialog';
 
@@ -35,6 +35,19 @@ const initialGradeState = {
   date: new Date().toISOString().split('T')[0],
   gradeType: 'test'
 };
+
+const columnConfig = [
+  { key: 'class_id', label: 'Class ID', mobileHide: true },
+  { key: 'section', label: 'Section', mobileHide: true },
+  { key: 'id', label: 'Student ID' },
+  { key: 'name', label: 'Name' },
+  { key: 'performance', label: 'Performance', sortKey: 'gpa' },
+  { key: 'tests', label: 'Tests', showSort: false, mobileHide: true },
+  { key: 'homework', label: 'Homework', showSort: false, mobileHide: true },
+  { key: 'attendance', label: 'Attendance', sortKey: 'attendance_percentage', mobileHide: true },
+  { key: 'insights', label: 'AI Insights', showSort: false, mobileHide: true },
+  { key: 'actions', label: 'Actions', showSort: false }
+];
 
 function StudentTable({ students, classes, sections, onStudentUpdate }) {
   const { showNotification } = useNotification();
@@ -139,132 +152,24 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
         <Table stickyHeader>
           <StyledTableHead>
             <TableRow>
-              {!isMobile && (
-                <>
-                  <StyledTableCell width={columnWidths.class_id}>
-                    <ResizableColumn 
-                      width={columnWidths.class_id}
-                      onResize={(width) => handleColumnResize('class_id', width)}
-                    >
-                      <Box
-                        className={`sortable ${sortConfig.key === 'class_id' ? `sorted-${sortConfig.direction}` : ''}`}
-                        onClick={() => handleSort('class_id')}
-                        sx={{ padding: '12px 16px', width: '100%' }}
-                      >
-                        Class ID
-                      </Box>
-                    </ResizableColumn>
-                  </StyledTableCell>
-                  <StyledTableCell width={columnWidths.section}>
-                    <ResizableColumn 
-                      width={columnWidths.section}
-                      onResize={(width) => handleColumnResize('section', width)}
-                    >
-                      <Box
-                        className={`sortable ${sortConfig.key === 'section' ? `sorted-${sortConfig.direction}` : ''}`}
-                        onClick={() => handleSort('section')}
-                        sx={{ padding: '12px 16px', width: '100%' }}
-                      >
-                        Section
-                      </Box>
-                    </ResizableColumn>
-                  </StyledTableCell>
-                </>
-              )}
-              <StyledTableCell width={columnWidths.id}>
-                <ResizableColumn 
-                  width={columnWidths.id}
-                  onResize={(width) => handleColumnResize('id', width)}
-                >
-                  <Box
-                    className={`sortable ${sortConfig.key === 'id' ? `sorted-${sortConfig.direction}` : ''}`}
-                    onClick={() => handleSort('id')}
-                    sx={{ padding: '12px 16px', width: '100%' }}
-                  >
-                    Student ID
-                  </Box>
-                </ResizableColumn>
-              </StyledTableCell>
-              <StyledTableCell width={columnWidths.name}>
-                <ResizableColumn 
-                  width={columnWidths.name}
-                  onResize={(width) => handleColumnResize('name', width)}
-                >
-                  <Box
-                    className={`sortable ${sortConfig.key === 'name' ? `sorted-${sortConfig.direction}` : ''}`}
-                    onClick={() => handleSort('name')}
-                    sx={{ padding: '12px 16px', width: '100%' }}
-                  >
-                    Name
-                  </Box>
-                </ResizableColumn>
-              </StyledTableCell>
-              <StyledTableCell width={columnWidths.performance}>
-                <ResizableColumn 
-                  width={columnWidths.performance}
-                  onResize={(width) => handleColumnResize('performance', width)}
-                >
-                  <Box
-                    className={`sortable ${sortConfig.key === 'gpa' ? `sorted-${sortConfig.direction}` : ''}`}
-                    onClick={() => handleSort('gpa')}
-                    sx={{ padding: '12px 16px', width: '100%' }}
-                  >
-                    Performance
-                  </Box>
-                </ResizableColumn>
-              </StyledTableCell>
-              {!isMobile ? (
-                <>
-                  <StyledTableCell width={columnWidths.tests}>
-                    <ResizableColumn 
-                      width={columnWidths.tests}
-                      onResize={(width) => handleColumnResize('tests', width)}
-                    >
-                      Tests
-                    </ResizableColumn>
-                  </StyledTableCell>
-                  <StyledTableCell width={columnWidths.homework}>
-                    <ResizableColumn 
-                      width={columnWidths.homework}
-                      onResize={(width) => handleColumnResize('homework', width)}
-                    >
-                      Homework
-                    </ResizableColumn>
-                  </StyledTableCell>
-                  <StyledTableCell width={columnWidths.attendance}>
-                    <ResizableColumn 
-                      width={columnWidths.attendance}
-                      onResize={(width) => handleColumnResize('attendance', width)}
-                    >
-                      <Box
-                        className={`sortable ${sortConfig.key === 'attendance_percentage' ? `sorted-${sortConfig.direction}` : ''}`}
-                        onClick={() => handleSort('attendance_percentage')}
-                        sx={{ padding: '12px 16px', width: '100%' }}
-                      >
-                        Attendance
-                      </Box>
-                    </ResizableColumn>
-                  </StyledTableCell>
-                  <StyledTableCell width={columnWidths.insights}>
-                    <ResizableColumn 
-                      width={columnWidths.insights}
-                      onResize={(width) => handleColumnResize('insights', width)}
-                    >
-                      AI Insights
-                    </ResizableColumn>
-                  </StyledTableCell>
-                </>
-              ) : (
+              {columnConfig.map(({ key, label, sortKey, showSort = true, mobileHide }) => (
+                (!mobileHide || !isMobile) && (
+                  <HeaderCell
+                    key={key}
+                    columnKey={key}
+                    label={label}
+                    width={columnWidths[key]}
+                    onResize={handleColumnResize}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    sortKey={sortKey}
+                    showSort={showSort}
+                  />
+                )
+              ))}
+              {isMobile && (
                 <StyledTableCell>Details</StyledTableCell>
               )}
-              <StyledTableCell width={columnWidths.actions}>
-                <ResizableColumn 
-                  width={columnWidths.actions}
-                  onResize={(width) => handleColumnResize('actions', width)}
-                >
-                  Actions
-                </ResizableColumn>
-              </StyledTableCell>
             </TableRow>
           </StyledTableHead>
           <TableBody>
