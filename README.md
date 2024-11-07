@@ -2,7 +2,7 @@
 
 A powerful web application designed to help teachers leverage AI to enhance student learning outcomes while saving time and reducing stress. This innovative platform combines classroom management with AI-powered insights to create a more efficient and effective teaching experience.
 
-[try it out here](https://console.cloud.google.com/run/detail/us-central1/edutrack/metrics?project=portfolio-383615) 
+[try it out here](https://edutrack-292025398859.us-central1.run.app/) 
 
 ![Super Teacher Dashboard](./frontend/public/screen_shot.png)
 
