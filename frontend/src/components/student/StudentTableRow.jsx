@@ -39,10 +39,15 @@ const StudentTableRow = ({
     return 'danger';
   };
 
+  const mobileRowStyle = {
+    display: 'flex',
+    width: '100%'
+  };
+
   return (
     <>
-      <TableRow>
-        {!isMobile && (
+      <TableRow sx={isMobile ? mobileRowStyle : undefined}>
+        {!isMobile ? (
           <>
             <TableCell data-column="class_id" sx={{ width: columnWidths.class_id, minWidth: columnWidths.class_id }}>
               {student.class_id}
@@ -50,15 +55,38 @@ const StudentTableRow = ({
             <TableCell data-column="section" sx={{ width: columnWidths.section, minWidth: columnWidths.section }}>
               {student.section}
             </TableCell>
+            <TableCell data-column="id" sx={{ width: columnWidths.id, minWidth: columnWidths.id }}>
+              {student.id}
+            </TableCell>
+            <TableCell data-column="name" sx={{ width: columnWidths.name, minWidth: columnWidths.name }}>
+              {student.name}
+            </TableCell>
+          </>
+        ) : (
+          <>
+            <TableCell data-column="class-info" sx={{ flex: '0 0 25%' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                  {student.class_id}
+                </Typography>
+                <Typography variant="body1" sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                  {student.section}
+                </Typography>
+              </Box>
+            </TableCell>
+            <TableCell data-column="student-info" sx={{ flex: '0 0 25%' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                  {student.id}
+                </Typography>
+                <Typography variant="body1" sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                  {student.name}
+                </Typography>
+              </Box>
+            </TableCell>
           </>
         )}
-        <TableCell data-column="id" sx={{ width: columnWidths.id, minWidth: columnWidths.id }}>
-          {student.id}
-        </TableCell>
-        <TableCell data-column="name" sx={{ width: columnWidths.name, minWidth: columnWidths.name }}>
-          {student.name}
-        </TableCell>
-        <TableCell data-column="performance" sx={{ width: columnWidths.performance, minWidth: columnWidths.performance }}>
+        <TableCell data-column="performance" sx={isMobile ? { flex: '0 0 25%' } : { width: columnWidths.performance }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <StatusBadge status={getGpaStatus(student.gpa)}>
               GPA: {student.gpa.toFixed(1)}
@@ -106,7 +134,7 @@ const StudentTableRow = ({
             </TableCell>
           </>
         ) : (
-          <TableCell data-column="details" sx={{ width: '40px', minWidth: '40px', padding: '4px' }}>
+          <TableCell data-column="details" sx={{ flex: '0 0 12.5%', padding: '4px 2px', display: 'flex', justifyContent: 'center' }}>
             <IconButton
               aria-label="expand row"
               size="small"
@@ -116,14 +144,15 @@ const StudentTableRow = ({
             </IconButton>
           </TableCell>
         )}
-        <TableCell data-column="actions" sx={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 60 : 140 }}>
+        <TableCell data-column="actions" sx={isMobile ? { flex: '0 0 12.5%', padding: '4px 2px' } : { width: columnWidths.actions }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 'unset' : 140, alignItems: 'center' }}>
             <ActionButton
               variant="contained"
               color="success"
               size="small"
               onClick={() => handleAddGrade(student)}
               disabled={isSubmitting}
+              sx={isMobile ? { minWidth: 'unset', width: '32px', height: '32px', padding: '4px' } : undefined}
             >
               {isMobile ? '+' : 'Add Grade'}
             </ActionButton>
@@ -158,7 +187,7 @@ const StudentTableRow = ({
           </Box>
         </TableCell>
       </TableRow>
-      {isMobile && (
+      {isMobile && open && (
         <TableRow>
           <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
             <Collapse in={open} timeout="auto" unmountOnExit>

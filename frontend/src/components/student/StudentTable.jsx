@@ -6,6 +6,7 @@ import {
   Box,
   useTheme,
   useMediaQuery,
+  Typography
 } from '@mui/material';
 import { useNotification } from '../../contexts/NotificationContext';
 import config from '../../config';
@@ -37,15 +38,17 @@ const initialGradeState = {
 };
 
 const columnConfig = [
-  { key: 'class_id', label: 'Class ID', mobileHide: true },
-  { key: 'section', label: 'Section', mobileHide: true },
-  { key: 'id', label: 'Student ID' },
-  { key: 'name', label: 'Name' },
+  { key: 'class_id', label: 'Class ID', desktopOnly: true },
+  { key: 'section', label: 'Section', desktopOnly: true },
+  { key: 'id', label: 'Student ID', desktopOnly: true },
+  { key: 'name', label: 'Name', desktopOnly: true },
+  { key: 'class-info', label: 'Class/Section', mobileOnly: true },
+  { key: 'student-info', label: 'ID/Name', mobileOnly: true },
   { key: 'performance', label: 'Performance', sortKey: 'gpa' },
-  { key: 'tests', label: 'Tests', showSort: false, mobileHide: true },
-  { key: 'homework', label: 'Homework', showSort: false, mobileHide: true },
-  { key: 'attendance', label: 'Attendance', sortKey: 'attendance_percentage', mobileHide: true },
-  { key: 'insights', label: 'AI Insights', showSort: false, mobileHide: true },
+  { key: 'tests', label: 'Tests', showSort: false, desktopOnly: true },
+  { key: 'homework', label: 'Homework', showSort: false, desktopOnly: true },
+  { key: 'attendance', label: 'Attendance', sortKey: 'attendance_percentage', desktopOnly: true },
+  { key: 'insights', label: 'AI Insights', showSort: false, desktopOnly: true },
   { key: 'actions', label: 'Actions', showSort: false }
 ];
 
@@ -70,10 +73,12 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
   };
 
   const handleColumnResize = (column, newWidth) => {
-    setColumnWidths(prev => ({
-      ...prev,
-      [column]: newWidth
-    }));
+    if (!isMobile) {
+      setColumnWidths(prev => ({
+        ...prev,
+        [column]: newWidth
+      }));
+    }
   };
 
   const sortedStudents = React.useMemo(() => {
@@ -149,11 +154,14 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
   return (
     <>
       <StyledTableContainer>
-        <Table stickyHeader>
+        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
           <StyledTableHead>
             <TableRow>
-              {columnConfig.map(({ key, label, sortKey, showSort = true, mobileHide }) => (
-                (!mobileHide || !isMobile) && (
+              {columnConfig.map(({ key, label, sortKey, showSort = true, desktopOnly, mobileOnly }) => {
+                if ((desktopOnly && isMobile) || (mobileOnly && !isMobile)) {
+                  return null;
+                }
+                return (
                   <HeaderCell
                     key={key}
                     columnKey={key}
@@ -165,10 +173,10 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                     sortKey={sortKey}
                     showSort={showSort}
                   />
-                )
-              ))}
+                );
+              })}
               {isMobile && (
-                <StyledTableCell>Details</StyledTableCell>
+                <StyledTableCell data-column="details">Details</StyledTableCell>
               )}
             </TableRow>
           </StyledTableHead>

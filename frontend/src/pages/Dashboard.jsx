@@ -85,7 +85,16 @@ function Dashboard() {
   }
 
   return (
-    <Paper elevation={1} sx={{ borderRadius: '12px', overflow: 'hidden', height: '100vh' }}>
+    <Paper 
+      elevation={1} 
+      sx={{ 
+        borderRadius: '12px', 
+        overflow: 'hidden', 
+        height: '100vh',
+        maxWidth: '100%',
+        width: '100%'
+      }}
+    >
       <ProgressReport />
       
       <SearchControls
@@ -96,7 +105,7 @@ function Dashboard() {
         onAddSection={() => setOpenSectionDialog(true)}
       />
 
-      <TableContainer>
+      <TableContainer sx={{ maxWidth: '100%', width: '100%' }}>
         <StudentTable 
           students={students} 
           classes={classes}

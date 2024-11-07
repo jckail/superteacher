@@ -1,26 +1,41 @@
 import { styled } from '@mui/material';
 import { TableContainer, TableHead, TableCell, Box, Button } from '@mui/material';
 
-export const StyledTableContainer = styled(TableContainer)({
+export const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
   position: 'relative',
   height: '100%',
-  overflowX: 'auto',
+  overflowX: 'hidden',
   '& table': {
     borderCollapse: 'separate',
     borderSpacing: 0,
+    width: '100%'
+  },
+  [theme.breakpoints.down('sm')]: {
+    width: '100%',
+    '& table': {
+      width: '100%',
+      tableLayout: 'fixed'
+    }
   }
-});
+}));
 
-export const StyledTableHead = styled(TableHead)({
+export const StyledTableHead = styled(TableHead)(({ theme }) => ({
   position: 'sticky',
   top: 0,
   zIndex: 1000,
   backgroundColor: '#f3f0ff',
+  width: '100%',
   '& th': {
     borderBottom: '2px solid #e9ecef',
     padding: 0,
+  },
+  [theme.breakpoints.down('sm')]: {
+    '& tr': {
+      display: 'flex',
+      width: '100%'
+    }
   }
-});
+}));
 
 export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
   backgroundColor: '#f3f0ff',
@@ -31,7 +46,7 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
   width: width,
   minWidth: width,
   maxWidth: width,
-  position: 'relative', // Needed for proper resize handle positioning
+  position: 'relative',
   '& .sortable': {
     cursor: 'pointer',
     position: 'relative',
@@ -61,34 +76,26 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
     padding: '4px',
     fontSize: '0.75rem',
     width: 'auto',
-    minWidth: 'auto',
-    maxWidth: 'none',
-    '&[data-column="id"]': {
-      width: '60px',
-      minWidth: '60px',
-      maxWidth: '60px'
+    minWidth: 'unset',
+    maxWidth: 'unset',
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    '&[data-column="class-info"]': {
+      flex: '0 0 25%'
     },
-    '&[data-column="name"]': {
-      width: '80px',
-      minWidth: '80px',
-      maxWidth: '80px'
+    '&[data-column="student-info"]': {
+      flex: '0 0 25%'
     },
     '&[data-column="performance"]': {
-      width: '60px',
-      minWidth: '60px',
-      maxWidth: '60px'
+      flex: '0 0 25%'
     },
-    '&[data-column="actions"]': {
-      width: '40px',
-      minWidth: '40px',
-      maxWidth: '40px',
-      padding: '4px 2px'
-    },
-    '&[data-column="details"]': {
-      width: '40px',
-      minWidth: '40px',
-      maxWidth: '40px',
-      padding: '4px'
+    '&[data-column="actions"], &[data-column="details"]': {
+      flex: '0 0 12.5%',
+      padding: '4px 2px',
+      '& .MuiBox-root': {
+        minWidth: 'unset'
+      }
     }
   }
 }));
@@ -177,6 +184,11 @@ export const HeaderContent = styled('div')(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   [theme.breakpoints.down('sm')]: {
-    padding: '8px 4px'
+    padding: '8px 4px',
+    justifyContent: 'center',
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
   }
 }));
