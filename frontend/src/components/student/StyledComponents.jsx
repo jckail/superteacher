@@ -4,6 +4,7 @@ import { TableContainer, TableHead, TableCell, Box } from '@mui/material';
 export const StyledTableContainer = styled(TableContainer)({
   position: 'relative',
   height: '100%',
+  overflowX: 'auto',
   '& table': {
     borderCollapse: 'separate',
     borderSpacing: 0,
