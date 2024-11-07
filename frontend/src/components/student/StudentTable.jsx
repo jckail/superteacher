@@ -49,7 +49,7 @@ const columnConfig = [
   { key: 'homework', label: 'Homework', showSort: false, desktopOnly: true },
   { key: 'attendance', label: 'Attendance', sortKey: 'attendance_percentage', desktopOnly: true },
   { key: 'insights', label: 'AI Insights', showSort: false, desktopOnly: true },
-  { key: 'actions', label: 'Actions', showSort: false }
+  { key: 'actions', label: 'Actions', showSort: false, desktopOnly: true }
 ];
 
 function StudentTable({ students, classes, sections, onStudentUpdate }) {
@@ -176,7 +176,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                 );
               })}
               {isMobile && (
-                <StyledTableCell data-column="details">Details</StyledTableCell>
+                <StyledTableCell data-column="details" sx={{ width: '12.5%' }} />
               )}
             </TableRow>
           </StyledTableHead>

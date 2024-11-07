@@ -26,6 +26,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [webSocket, setWebSocket] = useState(null);
   const [initialContextSent, setInitialContextSent] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const clientId = useRef(Date.now().toString());
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -39,6 +40,16 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      setIsScrolled(scrollPosition > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getPageContext = () => {
     // Get the main content area, excluding the chat interface
@@ -153,17 +164,34 @@ const Chat = () => {
           bottom: 20,
           left: 20,
           zIndex: 1000,
+          '@keyframes glowPulse': {
+            '0%': {
+              boxShadow: '0 0 8px 3px rgba(126, 58, 242, 0.4), 0 0 15px 5px rgba(126, 58, 242, 0.2)'
+            },
+            '50%': {
+              boxShadow: '0 0 12px 5px rgba(126, 58, 242, 0.6), 0 0 20px 8px rgba(126, 58, 242, 0.3)'
+            },
+            '100%': {
+              boxShadow: '0 0 8px 3px rgba(126, 58, 242, 0.4), 0 0 15px 5px rgba(126, 58, 242, 0.2)'
+            }
+          }
         }}
       >
         <Fab
           sx={{
-            bgcolor: '#7e3af2',
+            bgcolor: 'rgba(126, 58, 242, 0.9)',
             color: 'white',
-            boxShadow: 3,
+            boxShadow: isScrolled ? 
+              '0 0 8px 3px rgba(126, 58, 242, 0.4), 0 0 15px 5px rgba(126, 58, 242, 0.2)' : 
+              '0 2px 4px rgba(0,0,0,0.2)',
+            width: 56,
+            height: 56,
+            transition: 'all 0.5s ease-in-out',
+            animation: isScrolled ? 'glowPulse 1s 3s' : 'none',
             '&:hover': {
-              bgcolor: '#6c2bd9',
+              bgcolor: 'rgba(108, 43, 217, 0.9)',
               transform: 'scale(1.05)',
-              transition: 'transform 0.2s',
+              boxShadow: '0 0 15px 6px rgba(126, 58, 242, 0.6), 0 0 25px 10px rgba(126, 58, 242, 0.3)',
             },
             fontSize: '1.5rem',
           }}

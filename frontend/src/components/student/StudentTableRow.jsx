@@ -90,7 +90,7 @@ const StudentTableRow = ({
             </TableCell>
           </>
         )}
-        <TableCell data-column="performance" sx={isMobile ? { flex: '0 0 25%' } : { width: columnWidths.performance }}>
+        <TableCell data-column="performance" sx={isMobile ? { flex: '0 0 37.5%' } : { width: columnWidths.performance }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <StatusBadge status={getGpaStatus(student.gpa)}>
               GPA: {student.gpa.toFixed(1)}
@@ -136,32 +136,17 @@ const StudentTableRow = ({
             <TableCell data-column="insights" sx={{ width: columnWidths.insights, minWidth: columnWidths.insights }}>
               <AIInsightsBox insights={student.ai_insights} />
             </TableCell>
-          </>
-        ) : (
-          <TableCell data-column="details" sx={{ flex: '0 0 12.5%', padding: '4px 2px', display: 'flex', justifyContent: 'center' }}>
-            <IconButton
-              aria-label="expand row"
-              size="small"
-              onClick={() => setOpen(true)}
-            >
-              <KeyboardArrowDownIcon />
-            </IconButton>
-          </TableCell>
-        )}
-        <TableCell data-column="actions" sx={isMobile ? { flex: '0 0 12.5%', padding: '4px 2px' } : { width: columnWidths.actions }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 'unset' : 140, alignItems: 'center' }}>
-            <ActionButton
-              variant="contained"
-              color="success"
-              size="small"
-              onClick={() => handleAddGrade(student)}
-              disabled={isSubmitting}
-              sx={isMobile ? { minWidth: 'unset', width: '32px', height: '32px', padding: '4px' } : undefined}
-            >
-              {isMobile ? '+' : 'Add Grade'}
-            </ActionButton>
-            {!isMobile && (
-              <>
+            <TableCell data-column="actions" sx={{ width: columnWidths.actions }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 140, alignItems: 'center' }}>
+                <ActionButton
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  onClick={() => handleAddGrade(student)}
+                  disabled={isSubmitting}
+                >
+                  Add Grade
+                </ActionButton>
                 <ActionButton
                   variant="contained"
                   color="error"
@@ -186,10 +171,21 @@ const StudentTableRow = ({
                 >
                   Escalate
                 </ActionButton>
-              </>
-            )}
-          </Box>
-        </TableCell>
+              </Box>
+            </TableCell>
+          </>
+        ) : (
+          <TableCell sx={{ flex: '0 0 12.5%', padding: '4px 2px', display: 'flex', justifyContent: 'center' }}>
+            <IconButton
+              aria-label="expand row"
+              size="small"
+              onClick={() => setOpen(true)}
+              sx={{ color: 'success.main' }}
+            >
+              <Typography sx={{ fontSize: '1.5rem' }}>➕</Typography>
+            </IconButton>
+          </TableCell>
+        )}
       </TableRow>
       {isMobile && (
         <Dialog
@@ -244,6 +240,18 @@ const StudentTableRow = ({
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2, gap: 1 }}>
+            <ActionButton
+              variant="contained"
+              color="success"
+              size="small"
+              onClick={() => {
+                handleAddGrade(student);
+                setOpen(false);
+              }}
+              disabled={isSubmitting}
+            >
+              Add Grade
+            </ActionButton>
             <ActionButton
               variant="contained"
               color="error"
