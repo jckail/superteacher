@@ -199,17 +199,20 @@ const Chat = () => {
       <Dialog
         open={open}
         onClose={handleClose}
-        maxWidth="sm"
+        maxWidth={false}
         fullScreen={isMobile}
         PaperProps={{
           sx: {
-            width: isMobile ? '100%' : 350,
-            height: isMobile ? '100%' : '70vh',
-            maxHeight: isMobile ? '100%' : '70vh',
+            width: isMobile ? '100%' : 'calc(33.33% - 5%)', // One third of the screen minus margin
+            height: isMobile ? '100%' : '90vh', // 90vh to account for 5% padding top and bottom
+            maxHeight: isMobile ? '100%' : '90vh',
             borderRadius: isMobile ? 0 : 2,
-            margin: isMobile ? 0 : 2,
+            margin: isMobile ? 0 : '5vh 5% 5vh 5%', // 5% padding from top, bottom, and left
             display: 'flex',
             flexDirection: 'column',
+            position: isMobile ? 'relative' : 'fixed',
+            left: isMobile ? 'auto' : 0,
+            top: isMobile ? 'auto' : 0,
           }
         }}
       >

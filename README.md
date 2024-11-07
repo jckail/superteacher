@@ -6,6 +6,7 @@ A powerful web application designed to help teachers leverage AI to enhance stud
 
 ![Super Teacher Dashboard](./frontend/public/screen_shot.png)
 
+
 ## Features
 
 ### Current Features
@@ -15,6 +16,8 @@ A powerful web application designed to help teachers leverage AI to enhance stud
 - **Classroom Organization**: Manage multiple sections and students efficiently
 - **AI Insights**: Receive personalized recommendations for each student based on their performance data
 - **Progress Reports**: Generate comprehensive student progress reports automatically
+
+![Super Teacher Dashboard](./frontend/public/prompt_shot.png)
 
 ### Coming Soon
 - **Lesson Plan Generator**: AI-assisted creation of engaging lesson plans tailored to your teaching style
