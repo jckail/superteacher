@@ -1,9 +1,10 @@
 import { styled } from '@mui/material';
-import { TableContainer, TableHead, TableCell, Button } from '@mui/material';
+import { TableContainer, TableHead, TableCell, Box, Button } from '@mui/material';
 
 export const StyledTableContainer = styled(TableContainer)({
   position: 'relative',
   height: '100%',
+  overflowX: 'auto',
   '& table': {
     borderCollapse: 'separate',
     borderSpacing: 0,
@@ -17,19 +18,21 @@ export const StyledTableHead = styled(TableHead)({
   backgroundColor: '#f3f0ff',
   '& th': {
     borderBottom: '2px solid #e9ecef',
+    padding: 0,
   }
 });
 
 export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
   backgroundColor: '#f3f0ff',
-  padding: '12px 16px',
+  padding: 0,
   fontWeight: 500,
   color: '#374151',
   borderBottom: '1px solid #e9ecef',
   width: width,
   minWidth: width,
   maxWidth: width,
-  '&.sortable': {
+  position: 'relative', // Needed for proper resize handle positioning
+  '& .sortable': {
     cursor: 'pointer',
     position: 'relative',
     paddingRight: '24px',
@@ -37,7 +40,7 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
     '&::after': {
       content: '"↕"',
       position: 'absolute',
-      right: '8px',
+      right: '24px',
       top: '50%',
       transform: 'translateY(-50%)',
       fontSize: '12px',
@@ -80,49 +83,40 @@ export const StatusBadge = styled('div')(({ theme, status }) => ({
   }),
 }));
 
-export const ActionButton = styled(Button)(({ theme }) => ({
+export const ActionButton = styled(Button)({
   width: '100%',
   marginBottom: '8px',
   textTransform: 'none',
   padding: '6px 12px',
   fontSize: '0.875rem',
   fontWeight: 500,
-  boxShadow: 'none',
-  '&.MuiButton-containedPrimary': {
-    backgroundColor: '#7e3af2',
-    '&:hover': {
-      backgroundColor: '#6c2bd9',
-      boxShadow: 'none',
-    },
-  },
-  '&.MuiButton-containedError': {
-    backgroundColor: '#e02424',
-    '&:hover': {
-      backgroundColor: '#c81e1e',
-      boxShadow: 'none',
-    },
-  },
+  borderRadius: '4px',
+  color: 'white',
   '&.MuiButton-containedSuccess': {
-    backgroundColor: '#0e9f6e',
+    backgroundColor: '#22c55e',
     '&:hover': {
-      backgroundColor: '#057a55',
-      boxShadow: 'none',
+      backgroundColor: '#16a34a',
     },
   },
   '&.MuiButton-containedWarning': {
-    backgroundColor: '#ff5a1f',
-    color: 'white',
+    backgroundColor: '#eab308',
     '&:hover': {
-      backgroundColor: '#dc4719',
-      boxShadow: 'none',
+      backgroundColor: '#ca8a04',
     },
   },
-  [theme.breakpoints.down('sm')]: {
-    fontSize: '0.75rem',
-    padding: '4px 8px',
-    marginBottom: '4px',
-  }
-}));
+  '&.MuiButton-containedInfo': {
+    backgroundColor: '#0ea5e9',
+    '&:hover': {
+      backgroundColor: '#0284c7',
+    },
+  },
+  '&.MuiButton-containedError': {
+    backgroundColor: '#ef4444',
+    '&:hover': {
+      backgroundColor: '#dc2626',
+    },
+  },
+});
 
 export const ScoreCard = styled('div')(({ theme }) => ({
   backgroundColor: '#f8fafc',

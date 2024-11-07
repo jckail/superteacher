@@ -120,7 +120,7 @@ const StudentTableRow = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 100 : 140 }}>
             <ActionButton
               variant="contained"
-              color="primary"
+              color="success"
               size="small"
               onClick={() => handleAddGrade(student)}
               disabled={isSubmitting}
