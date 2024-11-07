@@ -222,7 +222,7 @@ def create_sample_data(db):
     db.commit()
     
     # Create 50 students
-    for i in range(50):
+    for i in range(30):
         # Basic info
         name = generate_name()
         grade = random.randint(9, 12)

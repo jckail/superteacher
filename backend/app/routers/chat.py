@@ -83,7 +83,7 @@ Please provide a response that takes into account both the user's message and th
                 
                 # Send message to Claude
                 response = client.messages.create(
-                    model="claude-3-sonnet-20240229",
+                    model="claude-3-5-haiku-20241022",
                     max_tokens=1024,
                     system=system_prompt,
                     messages=[{

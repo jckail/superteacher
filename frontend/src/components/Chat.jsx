@@ -163,7 +163,7 @@ const Chat = () => {
             },
             fontSize: '1.5rem',
           }}
-          aria-label="academic support"
+          aria-label="Education AI"
           onClick={handleClickOpen}
         >
           🎓
@@ -202,7 +202,7 @@ const Chat = () => {
             fontWeight: 500,
             fontFamily: '"Roboto","Helvetica","Arial",sans-serif'
           }}>
-            Academic Support
+            Education AI
           </div>
           <IconButton
             aria-label="close"

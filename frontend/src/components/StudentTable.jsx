@@ -376,6 +376,23 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
     if (!sortConfig.key) return students;
 
     return [...students].sort((a, b) => {
+      // Special handling for GPA sorting
+      if (sortConfig.key === 'gpa') {
+        return sortConfig.direction === 'asc' 
+          ? a.gpa - b.gpa
+          : b.gpa - a.gpa;
+      }
+
+      // Handle string comparisons
+      if (typeof a[sortConfig.key] === 'string') {
+        const aValue = a[sortConfig.key].toLowerCase();
+        const bValue = b[sortConfig.key].toLowerCase();
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      }
+
+      // Handle numeric comparisons
       if (a[sortConfig.key] < b[sortConfig.key]) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -481,7 +498,12 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
               >
                 Name
               </StyledTableCell>
-              <StyledTableCell>Performance</StyledTableCell>
+              <StyledTableCell 
+                className={`sortable ${sortConfig.key === 'gpa' ? `sorted-${sortConfig.direction}` : ''}`}
+                onClick={() => handleSort('gpa')}
+              >
+                Performance
+              </StyledTableCell>
               {!isMobile ? (
                 <>
                   <StyledTableCell>Tests</StyledTableCell>
