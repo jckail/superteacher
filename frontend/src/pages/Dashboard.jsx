@@ -14,7 +14,9 @@ import {
   Box,
   Paper,
   Typography,
-  styled
+  styled,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import config from '../config';
 import { useNotification } from '../contexts/NotificationContext';
@@ -30,6 +32,9 @@ const ProgressReportSection = styled(Box)(({ theme }) => ({
   top: 0,
   zIndex: 1100,
   backgroundColor: '#f3f0ff',
+  [theme.breakpoints.down('sm')]: {
+    padding: '8px 16px',
+  }
 }));
 
 const ReportDates = styled(Box)({
@@ -50,7 +55,7 @@ const DateValue = styled(Typography)({
 });
 
 const Controls = styled(Box)(({ theme }) => ({
-  padding: '16px 24px',
+  padding: '8px 24px',
   display: 'flex',
   gap: '12px',
   alignItems: 'center',
@@ -59,10 +64,23 @@ const Controls = styled(Box)(({ theme }) => ({
   top: '72px',
   zIndex: 1100,
   backgroundColor: '#fff',
+  [theme.breakpoints.down('sm')]: {
+    padding: '4px 16px',
+    gap: '8px',
+  }
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  height: '36px',
+  [theme.breakpoints.down('sm')]: {
+    height: '32px',
+    fontSize: '0.75rem',
+    padding: '4px 8px',
+  }
 }));
 
 const TableContainer = styled(Box)({
-  height: 'calc(100vh - 144px)', // Subtract height of fixed sections
+  height: 'calc(100vh - 144px)',
   overflow: 'auto',
 });
 
@@ -76,6 +94,8 @@ function Dashboard() {
   const [openSectionDialog, setOpenSectionDialog] = useState(false);
   const [openStudentDialog, setOpenStudentDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [newSection, setNewSection] = useState({
     name: '',
     class_id: ''
@@ -111,22 +131,18 @@ function Dashboard() {
 
   const fetchClasses = async () => {
     try {
-      console.log('Fetching classes...');
       const response = await fetch(`${config.apiBaseUrl}/db/classes`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      console.log('Classes data:', data);
       setClasses(data.classes);
       
       const sectionsMap = {};
       await Promise.all(data.classes.map(async (cls) => {
-        console.log(`Fetching sections for class ${cls.id}...`);
         const sectionsResponse = await fetch(`${config.apiBaseUrl}/db/classes/${cls.id}/sections`);
         if (sectionsResponse.ok) {
           const sectionsData = await sectionsResponse.json();
-          console.log(`Sections for class ${cls.id}:`, sectionsData);
           sectionsMap[cls.id] = sectionsData.sections;
         }
       }));
@@ -138,7 +154,6 @@ function Dashboard() {
 
   const handleAddSection = async () => {
     try {
-      console.log('Adding new section:', newSection);
       const response = await fetch(`${config.apiBaseUrl}/db/sections`, {
         method: 'POST',
         headers: {
@@ -203,8 +218,6 @@ function Dashboard() {
   };
 
   const handleSearch = () => {
-    // Filter students based on searchQuery
-    // This would ideally be handled by the backend
     const filteredStudents = students.filter(student => 
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.class_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -242,9 +255,9 @@ function Dashboard() {
             <DateValue>Dec 15, 2024</DateValue>
           </Box>
         </ReportDates>
-        <Button variant="contained" color="primary" onClick={handleGenerateReport}>
-          Generate Progress Report
-        </Button>
+        <ActionButton variant="contained" color="primary" onClick={handleGenerateReport}>
+          Generate Report
+        </ActionButton>
       </ProgressReportSection>
 
       <Controls>
@@ -252,25 +265,32 @@ function Dashboard() {
           placeholder="Search students, classes, or tests..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ flex: 1, maxWidth: '400px' }}
+          sx={{ 
+            flex: 1, 
+            maxWidth: '400px',
+            '& .MuiInputBase-root': {
+              height: isMobile ? '32px' : '36px',
+            }
+          }}
+          size={isMobile ? "small" : "medium"}
         />
-        <Button variant="contained" color="primary" onClick={handleSearch}>
+        <ActionButton variant="contained" color="primary" onClick={handleSearch}>
           Search
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
           variant="contained"
           color="primary"
           onClick={() => setOpenStudentDialog(true)}
         >
-          Add New Student
-        </Button>
-        <Button
+          Add Student
+        </ActionButton>
+        <ActionButton
           variant="contained"
           color="primary"
           onClick={() => setOpenSectionDialog(true)}
         >
-          Add New Section
-        </Button>
+          Add Section
+        </ActionButton>
       </Controls>
 
       <TableContainer>
@@ -282,7 +302,6 @@ function Dashboard() {
         />
       </TableContainer>
 
-      {/* Add New Section Dialog */}
       <Dialog open={openSectionDialog} onClose={() => setOpenSectionDialog(false)}>
         <DialogTitle>Add New Section</DialogTitle>
         <DialogContent>
@@ -325,7 +344,6 @@ function Dashboard() {
         </DialogActions>
       </Dialog>
 
-      {/* Add New Student Dialog */}
       <Dialog open={openStudentDialog} onClose={() => setOpenStudentDialog(false)}>
         <DialogTitle>Add New Student</DialogTitle>
         <DialogContent>
