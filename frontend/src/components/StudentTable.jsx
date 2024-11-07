@@ -19,7 +19,9 @@ import {
   Box,
   Typography,
   Paper,
-  styled
+  styled,
+  Tooltip,
+  Divider
 } from '@mui/material';
 import config from '../config';
 import { useNotification } from '../contexts/NotificationContext';
@@ -92,6 +94,14 @@ const ActionButton = styled(Button)({
   width: '100%',
   marginBottom: '8px',
   textTransform: 'none',
+});
+
+const ScoreCard = styled(Box)({
+  backgroundColor: '#f8fafc',
+  borderRadius: '4px',
+  padding: '6px',
+  marginBottom: '4px',
+  border: '1px solid #e2e8f0',
 });
 
 function StudentTable({ students, classes, sections, onStudentUpdate }) {
@@ -198,6 +208,24 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
     return 'danger';
   };
 
+  const getStatusIcon = (status) => {
+    switch (status.toLowerCase()) {
+      case 'outstanding':
+      case 'excellent':
+        return '🌟';
+      case 'very good':
+      case 'good':
+        return '✨';
+      case 'fair':
+        return '⚠️';
+      case 'needs improvement':
+      case 'at risk':
+        return '❗';
+      default:
+        return '📊';
+    }
+  };
+
   return (
     <TableContainer>
       <Table>
@@ -254,7 +282,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
               <TableCell>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <StatusBadge status={getGpaStatus(student.gpa)}>
-                    GPA: {student.gpa}
+                    GPA: {student.gpa.toFixed(1)}
                   </StatusBadge>
                   <Typography variant="body2" color="textSecondary">
                     Rank: {student.academic_performance.rank}
@@ -262,13 +290,18 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                 </Box>
               </TableCell>
               <TableCell>
-                {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
-                  <Box key={testName} sx={{ mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                    <Typography variant="body2">
-                      <strong>{testName}:</strong> {score}
-                    </Typography>
-                  </Box>
-                ))}
+                <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                  {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
+                    <ScoreCard key={testName}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {testName}
+                      </Typography>
+                      <Typography variant="body2" color={parseInt(score) >= 70 ? 'success.main' : 'error.main'}>
+                        {score}
+                      </Typography>
+                    </ScoreCard>
+                  ))}
+                </Box>
               </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -278,12 +311,24 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                   <Typography variant="body2">
                     Completed: {student.homework_completed}
                   </Typography>
+                  {student.academic_performance.homework && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Recent Assignments:
+                      </Typography>
+                      {Object.entries(student.academic_performance.homework).map(([name, score]) => (
+                        <ScoreCard key={name}>
+                          <Typography variant="body2">{name}: {score}</Typography>
+                        </ScoreCard>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
-                    {student.attendance_percentage}%
+                    {student.attendance_percentage.toFixed(1)}%
                   </StatusBadge>
                   <Typography variant="body2" color="textSecondary">
                     {student.attendance_days}
@@ -292,12 +337,45 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
               </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <StatusBadge status={student.ai_insights.status === 'Excellent' ? 'good' : 'warning'}>
-                    {student.ai_insights.status === 'Excellent' ? '🎯' : '⚠️'} {student.ai_insights.status}
+                  <StatusBadge 
+                    status={student.ai_insights.status.toLowerCase().includes('outstanding') || 
+                           student.ai_insights.status.toLowerCase().includes('excellent') ? 'good' : 
+                           student.ai_insights.status.toLowerCase().includes('good') ? 'warning' : 'danger'}
+                  >
+                    {getStatusIcon(student.ai_insights.status)} {student.ai_insights.status}
                   </StatusBadge>
-                  <Typography variant="body2" color="textSecondary">
-                    {student.ai_insights.recommendation}
-                  </Typography>
+                  
+                  {student.ai_insights.performance_breakdown && (
+                    <Box sx={{ bgcolor: '#f8fafc', p: 1, borderRadius: '4px' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Performance:</Typography>
+                      <Typography variant="body2">
+                        Academic: {student.ai_insights.performance_breakdown.academic_strength}
+                      </Typography>
+                      <Typography variant="body2">
+                        Attendance: {student.ai_insights.performance_breakdown.attendance_impact}
+                      </Typography>
+                      <Typography variant="body2">
+                        Homework: {student.ai_insights.performance_breakdown.homework_consistency}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  <Tooltip title={student.ai_insights.recommendation} arrow>
+                    <Typography 
+                      variant="body2" 
+                      color="textSecondary"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {student.ai_insights.recommendation}
+                    </Typography>
+                  </Tooltip>
                 </Box>
               </TableCell>
               <TableCell>

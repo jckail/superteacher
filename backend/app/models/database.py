@@ -90,68 +90,16 @@ def init_db():
         
         # Only add sample data if we're not in a testing environment
         if not os.getenv("TESTING"):
-            # Add sample data
+            logger.info("Adding sample data...")
             db = SessionLocal()
-            if db.query(Student).count() == 0:
-                logger.info("Adding sample data...")
-                
-                # Add default classes
-                default_classes = [
-                    {"id": "C101", "name": "Mathematics"},
-                    {"id": "C102", "name": "Science"},
-                    {"id": "C103", "name": "English"}
-                ]
-                for class_data in default_classes:
-                    db.add(Class(**class_data))
-                db.commit()
-                logger.info("Added default classes")
-
-                # Add default sections
-                default_sections = [
-                    {"name": "A", "class_id": "C101"},
-                    {"name": "B", "class_id": "C101"},
-                    {"name": "A", "class_id": "C102"}
-                ]
-                for section_data in default_sections:
-                    db.add(Section(**section_data))
-                db.commit()
-                logger.info("Added default sections")
-                
-                sample_students = [
-                    Student(
-                        id="ST0001",
-                        name="John Smith",
-                        grade=10,
-                        class_id="C101",
-                        section="A",
-                        gpa=3.8,
-                        attendance_percentage=95.5,
-                        attendance_days="85/89",
-                        homework_points=450,
-                        homework_completed="45/50",
-                        academic_performance={"rank": "Top 5%", "tests": {"Math": "95%", "Science": "92%"}},
-                        ai_insights={"status": "Excellent", "recommendation": "Ready for advanced topics"}
-                    ),
-                    Student(
-                        id="ST0002",
-                        name="Emma Johnson",
-                        grade=10,
-                        class_id="C101",
-                        section="A",
-                        gpa=3.6,
-                        attendance_percentage=92.0,
-                        attendance_days="82/89",
-                        homework_points=420,
-                        homework_completed="42/50",
-                        academic_performance={"rank": "Top 10%", "tests": {"Math": "88%", "Science": "90%"}},
-                        ai_insights={"status": "Good", "recommendation": "Focus on problem-solving skills"}
-                    )
-                ]
-                for student in sample_students:
-                    db.add(student)
-                db.commit()
-                logger.info("Sample data added successfully")
+            
+            # Import here to avoid circular imports
+            from .add_data import create_sample_data
+            create_sample_data(db)
+            
+            logger.info("Sample data added successfully")
             db.close()
+            
         logger.info("Database initialization complete")
     except Exception as e:
         logger.error(f"Error initializing database: {str(e)}")
