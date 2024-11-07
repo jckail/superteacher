@@ -3,10 +3,10 @@
 # Function to cleanup background processes
 cleanup() {
     echo "Cleaning up processes..."
-    lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:4000 | xargs kill -9 2>/dev/null || true
     lsof -ti:8080 | xargs kill -9 2>/dev/null || true
     pkill -f "uvicorn" 2>/dev/null || true
-    pkill -f "node.*react-scripts" 2>/dev/null || true
+    pkill -f "vite" 2>/dev/null || true
     sleep 2  # Give processes time to clean up
 }
 
@@ -28,8 +28,8 @@ echo "Cleaning up existing processes..."
 cleanup
 
 # Check if required ports are available
-if ! check_port 3000 || ! check_port 8080; then
-    echo "Required ports are not available. Please check if other processes are using ports 3000 or 8080"
+if ! check_port 4000 || ! check_port 8080; then
+    echo "Required ports are not available. Please check if other processes are using ports 4000 or 8080"
     exit 1
 fi
 
@@ -93,7 +93,7 @@ fi
 # Step 3: Start the frontend
 echo "Starting frontend development server..."
 cd frontend || exit 1
-PORT=3000 npm start || {
+npm run dev || {
     echo "Failed to start frontend"
     cleanup
     exit 1

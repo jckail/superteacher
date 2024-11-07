@@ -71,7 +71,7 @@ build_frontend() {
         exit 1
     fi
     
-    echo "Building frontend application..."
+    echo "Building frontend application with Vite..."
     if ! npm run build; then
         echo "❌ Failed to build frontend"
         cd ..
