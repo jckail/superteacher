@@ -5,9 +5,13 @@ import {
   Box,
   Typography,
   IconButton,
-  Collapse,
   useTheme,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -138,9 +142,9 @@ const StudentTableRow = ({
             <IconButton
               aria-label="expand row"
               size="small"
-              onClick={() => setOpen(!open)}
+              onClick={() => setOpen(true)}
             >
-              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              <KeyboardArrowDownIcon />
             </IconButton>
           </TableCell>
         )}
@@ -187,76 +191,95 @@ const StudentTableRow = ({
           </Box>
         </TableCell>
       </TableRow>
-      {isMobile && open && (
-        <TableRow>
-          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-            <Collapse in={open} timeout="auto" unmountOnExit>
-              <Box sx={{ margin: 1 }}>
-                <Typography variant="h6" gutterBottom component="div">
-                  Details
-                </Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Tests</Typography>
-                  {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
-                    <ScoreCard key={testName}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {testName}: {score}
-                      </Typography>
-                    </ScoreCard>
-                  ))}
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Homework</Typography>
-                  <Typography variant="body2">
-                    Points: {student.homework_points}
-                  </Typography>
-                  <Typography variant="body2">
-                    Completed: {student.homework_completed}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Attendance</Typography>
-                  <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
-                    {student.attendance_percentage.toFixed(1)}%
-                  </StatusBadge>
-                  <Typography variant="body2">
-                    Days: {student.attendance_days}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">AI Insights</Typography>
-                  <AIInsightsBox insights={student.ai_insights} />
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <ActionButton
-                    variant="contained"
-                    color="error"
-                    size="small"
-                    onClick={() => handleContactParent(student)}
-                  >
-                    Contact
-                  </ActionButton>
-                  <ActionButton
-                    variant="contained"
-                    color="success"
-                    size="small"
-                    onClick={() => handleAddEvent(student)}
-                  >
-                    Event
-                  </ActionButton>
-                  <ActionButton
-                    variant="contained"
-                    color="warning"
-                    size="small"
-                    onClick={() => handleEscalate(student)}
-                  >
-                    Escalate
-                  </ActionButton>
-                </Box>
+      {isMobile && (
+        <Dialog
+          open={open}
+          onClose={() => setOpen(false)}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              m: 1,
+              maxHeight: 'calc(100% - 16px)'
+            }
+          }}
+        >
+          <DialogTitle>
+            {student.name} - Details
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Tests</Typography>
+              <Box sx={{ maxHeight: '30vh', overflowY: 'auto' }}>
+                {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
+                  <ScoreCard key={testName}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {testName}: {score}
+                    </Typography>
+                  </ScoreCard>
+                ))}
               </Box>
-            </Collapse>
-          </TableCell>
-        </TableRow>
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Homework</Typography>
+              <Typography variant="body2">
+                Points: {student.homework_points}
+              </Typography>
+              <Typography variant="body2">
+                Completed: {student.homework_completed}
+              </Typography>
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Attendance</Typography>
+              <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
+                {student.attendance_percentage.toFixed(1)}%
+              </StatusBadge>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Days: {student.attendance_days}
+              </Typography>
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>AI Insights</Typography>
+              <AIInsightsBox insights={student.ai_insights} />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <ActionButton
+              variant="contained"
+              color="error"
+              size="small"
+              onClick={() => {
+                handleContactParent(student);
+                setOpen(false);
+              }}
+            >
+              Contact
+            </ActionButton>
+            <ActionButton
+              variant="contained"
+              color="success"
+              size="small"
+              onClick={() => {
+                handleAddEvent(student);
+                setOpen(false);
+              }}
+            >
+              Event
+            </ActionButton>
+            <ActionButton
+              variant="contained"
+              color="warning"
+              size="small"
+              onClick={() => {
+                handleEscalate(student);
+                setOpen(false);
+              }}
+            >
+              Escalate
+            </ActionButton>
+            <Button onClick={() => setOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       )}
     </>
   );
