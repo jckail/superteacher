@@ -1,4 +1,4 @@
-# SchoolTool
+# edutrack
 
 A full-stack web application for managing school-related tasks and information. 
 This is a proof of concept tool how AI can help teachers faciliate a better education for students. 
@@ -22,7 +22,7 @@ The project consists of a React frontend with Material-UI components and a FastA
 ## Project Structure
 
 ```
-schoolTool/
+edutrack/
 ├── frontend/                # React frontend application
 │   ├── public/             # Static files
 │   ├── src/               
@@ -98,7 +98,7 @@ schoolTool/
 Create a `.env` file in the backend directory with the following variables:
 ```
 SECRET_KEY=your_secret_key
-DATABASE_URL=sqlite:///schooltool.db
+DATABASE_URL=sqlite:///edutrack.db
 ```
 
 ## Contributing

@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create SQLite database URL with absolute path
-SQLALCHEMY_DATABASE_URL = "sqlite:////app/schooltool.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:////app/edutrack.db"
 logger.info(f"Using database URL: {SQLALCHEMY_DATABASE_URL}")
 
 # Create SQLAlchemy engine

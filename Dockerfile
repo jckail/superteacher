@@ -2,12 +2,12 @@
 FROM node:18 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install -g npm@latest && npm install && npm audit fix --force
 COPY frontend/ ./
 RUN npm run build
 
 # Final stage
-FROM python:3.9-slim
+FROM python:3.13-slim
 WORKDIR /app
 
 # Copy frontend build
@@ -24,9 +24,9 @@ COPY backend/ ./backend/
 COPY server.py .
 
 # Create directory for SQLite database and set permissions
-RUN touch /app/schooltool.db && \
+RUN touch /app/edutrack.db && \
     chown -R nobody:nogroup /app && \
-    chmod 666 /app/schooltool.db
+    chmod 666 /app/edutrack.db
 
 # Set environment variables
 ENV PORT=8080
