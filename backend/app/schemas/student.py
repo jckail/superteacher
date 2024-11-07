@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Optional, Literal
+from typing import Dict, Optional, Literal, List
 
 class StudentBase(BaseModel):
     name: str
@@ -29,3 +29,17 @@ class Grade(BaseModel):
     totalPoints: int
     date: str
     gradeType: Literal["homework", "test"]
+
+class Class(BaseModel):
+    id: str
+    name: str
+
+class ClassResponse(BaseModel):
+    classes: List[Class]
+
+class Section(BaseModel):
+    name: str
+    class_id: str
+
+class SectionResponse(BaseModel):
+    sections: List[Dict[str, str]]  # List of {name: str, class_id: str}

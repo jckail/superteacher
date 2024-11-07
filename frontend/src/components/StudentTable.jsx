@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import config from '../config';
 
-function StudentTable({ students, onStudentUpdate }) {
+function StudentTable({ students, classes, sections, onStudentUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [openGradeDialog, setOpenGradeDialog] = useState(false);
@@ -75,7 +75,9 @@ function StudentTable({ students, onStudentUpdate }) {
     const { name, value } = e.target;
     setNewStudent(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      // Reset section when class changes
+      ...(name === 'class_id' ? { section: '' } : {})
     }));
   };
 
@@ -223,24 +225,35 @@ function StudentTable({ students, onStudentUpdate }) {
             value={newStudent.grade}
             onChange={handleInputChange}
           />
-          <TextField
-            margin="dense"
-            name="class_id"
-            label="Class ID"
-            type="text"
-            fullWidth
-            value={newStudent.class_id}
-            onChange={handleInputChange}
-          />
-          <TextField
-            margin="dense"
-            name="section"
-            label="Section"
-            type="text"
-            fullWidth
-            value={newStudent.section}
-            onChange={handleInputChange}
-          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Class</InputLabel>
+            <Select
+              name="class_id"
+              value={newStudent.class_id}
+              onChange={handleInputChange}
+            >
+              {classes.map((cls) => (
+                <MenuItem key={cls.id} value={cls.id}>
+                  {cls.name} ({cls.id})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Section</InputLabel>
+            <Select
+              name="section"
+              value={newStudent.section}
+              onChange={handleInputChange}
+              disabled={!newStudent.class_id}
+            >
+              {newStudent.class_id && sections[newStudent.class_id]?.map((section) => (
+                <MenuItem key={section.name} value={section.name}>
+                  {section.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)} color="primary">

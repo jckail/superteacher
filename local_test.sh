@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Parse command line arguments
+RUN_TESTS=false
+for arg in "$@"
+do
+    case $arg in
+        --run-tests)
+        RUN_TESTS=true
+        shift
+        ;;
+    esac
+done
+
 # Function to cleanup background processes
 cleanup() {
     echo "Cleaning up processes..."
@@ -62,18 +74,21 @@ pip3 install -e . || {
 }
 cd .. || exit 1
 
-echo "==============================================="
-echo "Running backend tests with coverage report..."
-echo "==============================================="
-cd backend || exit 1
-python3 -m pytest --cov=app --cov-report term-missing tests/ -v || {
-    echo "Tests failed"
-    exit 1
-}
-cd .. || exit 1
-echo "==============================================="
-echo "Test coverage report complete"
-echo "==============================================="
+# Only run tests if --run-tests flag is provided
+if [ "$RUN_TESTS" = true ]; then
+    echo "==============================================="
+    echo "Running backend tests with coverage report..."
+    echo "==============================================="
+    cd backend || exit 1
+    python3 -m pytest --cov=app --cov-report term-missing tests/ -v || {
+        echo "Tests failed"
+        exit 1
+    }
+    cd .. || exit 1
+    echo "==============================================="
+    echo "Test coverage report complete"
+    echo "==============================================="
+fi
 
 echo "Starting backend server..."
 python3 server.py &

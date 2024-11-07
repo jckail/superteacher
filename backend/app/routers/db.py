@@ -2,13 +2,45 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List, Dict
 import json
-from ..schemas.student import Student, StudentCreate, Grade
-from ..models.database import Student as DBStudent, get_db
+from ..schemas.student import Student, StudentCreate, Grade, Section, SectionResponse, Class, ClassResponse
+from ..models.database import Student as DBStudent, Section as DBSection, Class as DBClass, get_db
 
 router = APIRouter(
     prefix="/db",
     tags=["database"]
 )
+
+@router.get("/classes", response_model=ClassResponse)
+async def get_classes(db: Session = Depends(get_db)):
+    db_classes = db.query(DBClass).all()
+    # Transform database objects into the expected schema format
+    classes = [{"id": cls.id, "name": cls.name} for cls in db_classes]
+    return {"classes": classes}
+
+@router.get("/classes/{class_id}/sections", response_model=SectionResponse)
+async def get_sections_by_class(class_id: str, db: Session = Depends(get_db)):
+    sections = db.query(DBSection).filter(DBSection.class_id == class_id).all()
+    return {"sections": [{"name": section.name, "class_id": section.class_id} for section in sections]}
+
+@router.post("/sections")
+async def create_section(section: Section, db: Session = Depends(get_db)):
+    # Check if class exists
+    class_exists = db.query(DBClass).filter(DBClass.id == section.class_id).first()
+    if not class_exists:
+        raise HTTPException(status_code=400, detail="Class does not exist")
+    
+    # Check if section already exists for this class
+    existing = db.query(DBSection).filter(
+        DBSection.name == section.name,
+        DBSection.class_id == section.class_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Section already exists for this class")
+    
+    db_section = DBSection(name=section.name, class_id=section.class_id)
+    db.add(db_section)
+    db.commit()
+    return {"message": "Section created successfully"}
 
 @router.get("/students", response_model=List[Student])
 async def get_students(db: Session = Depends(get_db)):
@@ -29,6 +61,19 @@ async def get_students_by_class(class_id: str, db: Session = Depends(get_db)):
 
 @router.post("/students", response_model=Student)
 async def create_student(student: StudentCreate, db: Session = Depends(get_db)):
+    # Validate class exists
+    class_exists = db.query(DBClass).filter(DBClass.id == student.class_id).first()
+    if not class_exists:
+        raise HTTPException(status_code=400, detail="Invalid class")
+
+    # Validate section exists for the class
+    section_exists = db.query(DBSection).filter(
+        DBSection.name == student.section,
+        DBSection.class_id == student.class_id
+    ).first()
+    if not section_exists:
+        raise HTTPException(status_code=400, detail="Invalid section for this class")
+    
     # Generate new student ID
     student_count = db.query(DBStudent).count()
     new_id = f"ST{student_count + 1:04d}"

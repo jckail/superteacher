@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, JSON, TypeDecorator
+from sqlalchemy import create_engine, Column, Integer, String, Float, JSON, TypeDecorator, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -41,6 +41,21 @@ class JSONType(TypeDecorator):
             return {}
         return json.loads(value)
 
+# Define Class model
+class Class(Base):
+    __tablename__ = "classes"
+    
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+
+# Define Section model
+class Section(Base):
+    __tablename__ = "sections"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    class_id = Column(String, ForeignKey('classes.id'), nullable=False)
+
 # Define Student model
 class Student(Base):
     __tablename__ = "students"
@@ -79,6 +94,29 @@ def init_db():
             db = SessionLocal()
             if db.query(Student).count() == 0:
                 logger.info("Adding sample data...")
+                
+                # Add default classes
+                default_classes = [
+                    {"id": "C101", "name": "Mathematics"},
+                    {"id": "C102", "name": "Science"},
+                    {"id": "C103", "name": "English"}
+                ]
+                for class_data in default_classes:
+                    db.add(Class(**class_data))
+                db.commit()
+                logger.info("Added default classes")
+
+                # Add default sections
+                default_sections = [
+                    {"name": "A", "class_id": "C101"},
+                    {"name": "B", "class_id": "C101"},
+                    {"name": "A", "class_id": "C102"}
+                ]
+                for section_data in default_sections:
+                    db.add(Section(**section_data))
+                db.commit()
+                logger.info("Added default sections")
+                
                 sample_students = [
                     Student(
                         id="ST0001",

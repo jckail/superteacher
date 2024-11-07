@@ -1,13 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.models.database import Student as DBStudent
+from app.models.database import Student as DBStudent, Class as DBClass, Section as DBSection
 
 @pytest.fixture
 def sample_student():
     return {
         "name": "John Doe",
         "grade": 10,
-        "class_id": "C1001",
+        "class_id": "C101",  # Updated to match sample data
         "section": "A"
     }
 
@@ -17,7 +17,7 @@ def db_student(db_session):
         id="ST0001",
         name="Jane Smith",
         grade=10,
-        class_id="C1001",
+        class_id="C101",  # Updated to match sample data
         section="A",
         gpa=3.5,
         attendance_percentage=95.0,
@@ -33,13 +33,28 @@ def db_student(db_session):
     return student
 
 @pytest.fixture(autouse=True)
-def cleanup_database(db_session):
-    # This fixture will run automatically before each test
+def setup_database(db_session):
+    # Clean up any existing data
     db_session.query(DBStudent).delete()
+    db_session.query(DBSection).delete()
+    db_session.query(DBClass).delete()
     db_session.commit()
+
+    # Add required class and section
+    test_class = DBClass(id="C101", name="Mathematics")
+    db_session.add(test_class)
+    db_session.commit()
+
+    test_section = DBSection(name="A", class_id="C101")
+    db_session.add(test_section)
+    db_session.commit()
+
     yield
-    # And also after each test
+
+    # Clean up after test
     db_session.query(DBStudent).delete()
+    db_session.query(DBSection).delete()
+    db_session.query(DBClass).delete()
     db_session.commit()
 
 def test_create_student(client, sample_student):
