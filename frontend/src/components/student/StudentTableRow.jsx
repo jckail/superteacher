@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Grid,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -239,53 +240,72 @@ const StudentTableRow = ({
               <AIInsightsBox insights={student.ai_insights} />
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <ActionButton
-              variant="contained"
-              color="success"
-              size="small"
-              onClick={() => {
-                handleAddGrade(student);
-                setOpen(false);
-              }}
-              disabled={isSubmitting}
+          <DialogActions sx={{ p: 2, flexDirection: 'column' }}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <ActionButton
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  onClick={() => {
+                    handleAddGrade(student);
+                    setOpen(false);
+                  }}
+                  disabled={isSubmitting}
+                  fullWidth
+                >
+                  Add Grade
+                </ActionButton>
+              </Grid>
+              <Grid item xs={6}>
+                <ActionButton
+                  variant="contained"
+                  color="error"
+                  size="small"
+                  onClick={() => {
+                    handleContactParent(student);
+                    setOpen(false);
+                  }}
+                  fullWidth
+                >
+                  Contact
+                </ActionButton>
+              </Grid>
+              <Grid item xs={6}>
+                <ActionButton
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  onClick={() => {
+                    handleAddEvent(student);
+                    setOpen(false);
+                  }}
+                  fullWidth
+                >
+                  Event
+                </ActionButton>
+              </Grid>
+              <Grid item xs={6}>
+                <ActionButton
+                  variant="contained"
+                  color="warning"
+                  size="small"
+                  onClick={() => {
+                    handleEscalate(student);
+                    setOpen(false);
+                  }}
+                  fullWidth
+                >
+                  Escalate
+                </ActionButton>
+              </Grid>
+            </Grid>
+            <Button 
+              onClick={() => setOpen(false)}
+              sx={{ mt: 2 }}
             >
-              Add Grade
-            </ActionButton>
-            <ActionButton
-              variant="contained"
-              color="error"
-              size="small"
-              onClick={() => {
-                handleContactParent(student);
-                setOpen(false);
-              }}
-            >
-              Contact
-            </ActionButton>
-            <ActionButton
-              variant="contained"
-              color="success"
-              size="small"
-              onClick={() => {
-                handleAddEvent(student);
-                setOpen(false);
-              }}
-            >
-              Event
-            </ActionButton>
-            <ActionButton
-              variant="contained"
-              color="warning"
-              size="small"
-              onClick={() => {
-                handleEscalate(student);
-                setOpen(false);
-              }}
-            >
-              Escalate
-            </ActionButton>
-            <Button onClick={() => setOpen(false)}>Close</Button>
+              Close
+            </Button>
           </DialogActions>
         </Dialog>
       )}
