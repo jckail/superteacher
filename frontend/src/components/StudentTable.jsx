@@ -27,6 +27,25 @@ import config from '../config';
 import { useNotification } from '../contexts/NotificationContext';
 
 // Styled Components
+const StyledTableContainer = styled(TableContainer)({
+  position: 'relative',
+  height: '100%',
+  '& table': {
+    borderCollapse: 'separate',
+    borderSpacing: 0,
+  }
+});
+
+const StyledTableHead = styled(TableHead)({
+  position: 'sticky',
+  top: 0,
+  zIndex: 1000,
+  backgroundColor: '#f3f0ff',
+  '& th': {
+    borderBottom: '2px solid #e9ecef',
+  }
+});
+
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   backgroundColor: '#f3f0ff',
   padding: '12px 16px',
@@ -227,9 +246,9 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
   };
 
   return (
-    <TableContainer>
-      <Table>
-        <TableHead>
+    <StyledTableContainer>
+      <Table stickyHeader>
+        <StyledTableHead>
           <TableRow>
             <StyledTableCell 
               className={`sortable ${sortConfig.key === 'class_id' ? `sorted-${sortConfig.direction}` : ''}`}
@@ -262,7 +281,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
             <StyledTableCell>AI Insights</StyledTableCell>
             <StyledTableCell>Actions</StyledTableCell>
           </TableRow>
-        </TableHead>
+        </StyledTableHead>
         <TableBody>
           {sortedStudents.map((student) => (
             <TableRow key={student.id} sx={{ '&:hover': { bgcolor: '#f8f7ff' } }}>
@@ -484,7 +503,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </TableContainer>
+    </StyledTableContainer>
   );
 }
 

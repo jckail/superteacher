@@ -26,6 +26,10 @@ const ProgressReportSection = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  position: 'sticky',
+  top: 0,
+  zIndex: 1100,
+  backgroundColor: '#f3f0ff',
 }));
 
 const ReportDates = styled(Box)({
@@ -51,7 +55,16 @@ const Controls = styled(Box)(({ theme }) => ({
   gap: '12px',
   alignItems: 'center',
   borderBottom: '1px solid #e9ecef',
+  position: 'sticky',
+  top: '72px',
+  zIndex: 1100,
+  backgroundColor: '#fff',
 }));
+
+const TableContainer = styled(Box)({
+  height: 'calc(100vh - 144px)', // Subtract height of fixed sections
+  overflow: 'auto',
+});
 
 function Dashboard() {
   const { showNotification } = useNotification();
@@ -217,7 +230,7 @@ function Dashboard() {
   }
 
   return (
-    <Paper elevation={1} sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+    <Paper elevation={1} sx={{ borderRadius: '12px', overflow: 'hidden', height: '100vh' }}>
       <ProgressReportSection>
         <ReportDates>
           <Box>
@@ -260,12 +273,14 @@ function Dashboard() {
         </Button>
       </Controls>
 
-      <StudentTable 
-        students={students} 
-        classes={classes}
-        sections={sections}
-        onStudentUpdate={fetchStudents} 
-      />
+      <TableContainer>
+        <StudentTable 
+          students={students} 
+          classes={classes}
+          sections={sections}
+          onStudentUpdate={fetchStudents} 
+        />
+      </TableContainer>
 
       {/* Add New Section Dialog */}
       <Dialog open={openSectionDialog} onClose={() => setOpenSectionDialog(false)}>
