@@ -1,6 +1,9 @@
 # SchoolTool
 
-A full-stack web application for managing school-related tasks and information. The project consists of a React frontend with Material-UI components and a FastAPI backend with SQLite database.
+A full-stack web application for managing school-related tasks and information. 
+This is a proof of concept tool how AI can help teachers faciliate a better education for students. 
+
+The project consists of a React frontend with Material-UI components and a FastAPI backend with SQLite database.
 
 ## Tech Stack
 

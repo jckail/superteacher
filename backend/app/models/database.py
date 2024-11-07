@@ -2,9 +2,15 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+import logging
 
-# Create SQLite database URL
-SQLALCHEMY_DATABASE_URL = "sqlite:///./schooltool.db"
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create SQLite database URL with absolute path
+SQLALCHEMY_DATABASE_URL = "sqlite:////app/schooltool.db"
+logger.info(f"Using database URL: {SQLALCHEMY_DATABASE_URL}")
 
 # Create SQLAlchemy engine
 engine = create_engine(
@@ -39,7 +45,59 @@ class Student(Base):
 
 # Create the database tables
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    logger.info("Initializing database...")
+    try:
+        # Drop all tables first to ensure a clean state
+        Base.metadata.drop_all(bind=engine)
+        logger.info("Dropped existing tables")
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        logger.info("Created database tables")
+        
+        # Add sample data
+        db = SessionLocal()
+        if db.query(Student).count() == 0:
+            logger.info("Adding sample data...")
+            sample_students = [
+                Student(
+                    id="ST0001",
+                    name="John Smith",
+                    grade=10,
+                    class_id="C101",
+                    section="A",
+                    gpa=3.8,
+                    attendance_percentage=95.5,
+                    attendance_days="85/89",
+                    homework_points=450,
+                    homework_completed="45/50",
+                    academic_performance={"rank": "Top 5%", "tests": {"Math": "95%", "Science": "92%"}},
+                    ai_insights={"status": "Excellent", "recommendation": "Ready for advanced topics"}
+                ),
+                Student(
+                    id="ST0002",
+                    name="Emma Johnson",
+                    grade=10,
+                    class_id="C101",
+                    section="A",
+                    gpa=3.6,
+                    attendance_percentage=92.0,
+                    attendance_days="82/89",
+                    homework_points=420,
+                    homework_completed="42/50",
+                    academic_performance={"rank": "Top 10%", "tests": {"Math": "88%", "Science": "90%"}},
+                    ai_insights={"status": "Good", "recommendation": "Focus on problem-solving skills"}
+                )
+            ]
+            for student in sample_students:
+                db.add(student)
+            db.commit()
+            logger.info("Sample data added successfully")
+        db.close()
+        logger.info("Database initialization complete")
+    except Exception as e:
+        logger.error(f"Error initializing database: {str(e)}")
+        raise
 
 # Dependency to get database session
 def get_db():
