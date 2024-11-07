@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-purple: #7e3af2;
+            --light-purple: #f3f0ff;
+            --border-color: #e9ecef;
+            --background: #f8f7ff;
+            --success-green: #10b981;
+            --warning-orange: #f59e0b;
+            --danger-red: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Brand Header */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            background: var(--primary-purple);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .brand-name {
+            font-weight: 500;
+            color: #1a1c23;
+        }
+
+        .nav-icons {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .nav-icon {
+            position: relative;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .nav-icon img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--light-purple);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-purple);
+            font-weight: 500;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 24px auto;
+            padding: 0 24px;
+            flex-grow: 1;
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        /* Progress Report Section */
+        .progress-report-section {
+            padding: 16px 24px;
+            background: var(--light-purple);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-dates {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .report-date {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .date-value {
+            color: var(--primary-purple);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Search and Controls */
+        .controls {
+            padding: 16px 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-input {
+            flex: 1;
+            max-width: 400px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--light-purple);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 500;
+            color: #374151;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        th.sortable {
+            cursor: pointer;
+            padding-right: 24px;
+        }
+
+        th.sortable::after {
+            content: "↕";
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            opacity: 0.5;
+        }
+
+        th.sorted-asc::after {
+            content: "▲";
+        }
+
+        th.sorted-desc::after {
+            content: "▼";
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .status-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Section Badge */
+        .section-badge {
+            background: var(--light-purple);
+            color: var(--primary-purple);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Buttons and Actions */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--primary-purple);
+        }
+
+        .btn-warning {
+            background: var(--warning-orange);
+        }
+
+        .btn-success {
+            background: var(--success-green);
+        }
+
+        .btn-danger {
+            background: var(--danger-red);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding: 24px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: var(--primary-purple);
+            text-decoration: none;
+        }
+
+        /* Additional Utility Classes */
+        .text-sm {
+            font-size: 14px;
+        }
+
+        .text-muted {
+            color: #6b7280;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* JavaScript Sorting Indicator */
+        th.sorted-asc::after {
+            content: "▲";
+            opacity: 1;
+        }
+
+        th.sorted-desc::after {
+            content: "▼";
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Brand Header -->
+    <header class="top-header">
+        <div class="brand-section">
+            <div class="brand-logo">ED</div>
+            <div class="brand-name">EduTrack Pro</div>
+        </div>
+        <div class="nav-icons">
+            <div class="nav-icon">
+                <img src="notification-icon.png" alt="Notifications" title="Notifications">
+            </div>
+            <div class="nav-icon">
+                <img src="profile-icon.png" alt="Profile" title="Profile">
+            </div>
+            <div class="user-section">
+                <div class="user-avatar">MS</div>
+                <span>Mr. Smith</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="dashboard-card">
+            <div class="progress-report-section">
+                <div class="report-dates">
+                    <div class="report-date">
+                        <span class="date-label">Last Progress Report:</span>
+                        <a href="#" class="date-value">Oct 15, 2024</a>
+                    </div>
+                    <div class="report-date">
+                        <span class="date-label">Next Progress Report:</span>
+                        <span class="date-value">Dec 15, 2024</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary">Generate Progress Report</button>
+            </div>
+
+            <div class="controls">
+                <input type="text" class="search-input" placeholder="Search students, classes, or tests...">
+                <button class="btn btn-primary">Search</button>
+                <button class="btn btn-primary">Fetch Metadata</button>
+            </div>
+
+            <div class="table-container">
+                <table id="student-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Class ID</th>
+                            <th class="sortable">Section</th>
+                            <th class="sortable">Student ID</th>
+                            <th class="sortable">Name</th>
+                            <th class="sortable">Academic Performance</th>
+                            <th class="sortable">Attendance</th>
+                            <th class="sortable">Homework</th>
+                            <th>Actions</th>
+                            <th>AI Insights</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Student Rows -->
+                        <!-- Student 1 -->
+                        <tr>
+                            <td><span class="class-badge">MATH101</span></td>
+                            <td><span class="section-badge">1st Hour</span></td>
+                            <td>ST0001</td>
+                            <td>
+                                <div>John Smith</div>
+                                <div class="text-sm text-muted">Grade 11</div>
+                            </td>
+                            <td>
+                                <div class="flex-center">
+                                    <span class="status-badge status-good">GPA: 3.8</span>
+                                    <span class="text-sm text-muted">Top 5%</span>
+                                </div>
+                                <div class="text-sm text-muted">Test 1: 95% | Test 2: 92%</div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-good">97.2%</span>
+                                <div class="text-sm text-muted">175/180 days</div>
+                            </td>
+                            <td>
+                                <div>92/100 points</div>
+                                <div class="text-sm text-muted">18/20 assignments</div>
+                            </td>
+                            <td>
+                                <div class="action-group">
+                                    <button class="btn btn-primary">Grade</button>
+                                    <button class="btn btn-danger">Contact Parent</button>
+                                    <button class="btn btn-success">Add Event</button>
+                                    <button class="btn btn-warning">Escalate</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="status-badge status-good">
+                                    🎯 High Performer
+                                </div>
+                                <div class="text-sm text-muted">Consider advanced placement.</div>
+                            </td>
+                        </tr>
+                        <!-- Add other student rows similarly -->
+                        <!-- Student 2 -->
+                        <tr>
+                            <td><span class="class-badge">ENGL202</span></td>
+                            <td><span class="section-badge">2nd Hour</span></td>
+                            <td>ST0002</td>
+                            <td>
+                                <div>Jane Doe</div>
+                                <div class="text-sm text-muted">Grade 12</div>
+                            </td>
+                            <td>
+                                <div class="flex-center">
+                                    <span class="status-badge status-good">GPA: 3.6</span>
+                                    <span class="text-sm text-muted">Top 10%</span>
+                                </div>
+                                <div class="text-sm text-muted">Essay 1: 88% | Essay 2: 91%</div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-good">95.5%</span>
+                                <div class="text-sm text-muted">172/180 days</div>
+                            </td>
+                            <td>
+                                <div>85/90 points</div>
+                                <div class="text-sm text-muted">17/18 assignments</div>
+                            </td>
+                            <td>
+                                <div class="action-group">
+                                    <button class="btn btn-primary">Grade</button>
+                                    <button class="btn btn-danger">Contact Parent</button>
+                                    <button class="btn btn-success">Add Event</button>
+                                    <button class="btn btn-warning">Escalate</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="status-badge status-good">
+                                    📝 Strong Writer
+                                </div>
+                                <div class="text-sm text-muted">Encourage writing contests.</div>
+                            </td>
+                        </tr>
+                        <!-- Continue adding students 3 to 6 -->
+                        <!-- ... -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div>&copy; 2024 EduTrack Pro. All rights reserved.</div>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Support</a>
+                <a href="#">Documentation</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Sorting Columns -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+
+            const comparer = (idx, asc) => (a, b) => ((v1, v2) =>
+                v1 !== '' && v2 !== '' && !isNaN(Date.parse(v1)) && !isNaN(Date.parse(v2)) ?
+                    new Date(v1) - new Date(v2) :
+                v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ?
+                    v1 - v2 :
+                    v1.toString().localeCompare(v2)
+                )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+
+            document.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', (() => {
+                const table = th.closest('table');
+                Array.from(table.querySelectorAll('th')).forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
+                let asc = th.classList.toggle('sorted-asc');
+                if (!asc) th.classList.toggle('sorted-desc', true);
+                const tbody = table.tBodies[0];
+                Array.from(tbody.querySelectorAll('tr'))
+                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), asc))
+                    .forEach(tr => tbody.appendChild(tr));
+            })));
+        });
+    </script>
+</body>
+</html>
