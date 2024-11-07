@@ -1,15 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import StudentTable from '../components/StudentTable';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { 
+  Button, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  TextField, 
+  FormControl, 
+  InputLabel, 
+  Select, 
+  MenuItem,
+  Box,
+  Paper,
+  Typography,
+  styled
+} from '@mui/material';
 import config from '../config';
+
+const ProgressReportSection = styled(Box)(({ theme }) => ({
+  padding: '16px 24px',
+  background: '#f3f0ff',
+  borderBottom: '1px solid #e9ecef',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+}));
+
+const ReportDates = styled(Box)({
+  display: 'flex',
+  gap: '24px',
+  alignItems: 'center',
+});
+
+const DateLabel = styled(Typography)({
+  fontSize: '14px',
+  color: '#6b7280',
+});
+
+const DateValue = styled(Typography)({
+  color: '#7e3af2',
+  fontWeight: 500,
+  cursor: 'pointer',
+});
+
+const Controls = styled(Box)(({ theme }) => ({
+  padding: '16px 24px',
+  display: 'flex',
+  gap: '12px',
+  alignItems: 'center',
+  borderBottom: '1px solid #e9ecef',
+}));
 
 function Dashboard() {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [sections, setSections] = useState({});  // Map of class_id to sections
+  const [sections, setSections] = useState({});
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [newSection, setNewSection] = useState({
     name: '',
     class_id: ''
@@ -48,7 +98,6 @@ function Dashboard() {
       console.log('Classes data:', data);
       setClasses(data.classes);
       
-      // Fetch sections for each class
       const sectionsMap = {};
       await Promise.all(data.classes.map(async (cls) => {
         console.log(`Fetching sections for class ${cls.id}...`);
@@ -82,7 +131,7 @@ function Dashboard() {
 
       setOpenDialog(false);
       setNewSection({ name: '', class_id: '' });
-      fetchClasses();  // Refresh classes and sections
+      fetchClasses();
     } catch (error) {
       console.error('Error adding section:', error);
     }
@@ -97,6 +146,26 @@ function Dashboard() {
     }));
   };
 
+  const handleSearch = () => {
+    // Filter students based on searchQuery
+    // This would ideally be handled by the backend
+    const filteredStudents = students.filter(student => 
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.class_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.section.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setStudents(filteredStudents);
+  };
+
+  const handleFetchMetadata = async () => {
+    try {
+      await fetchStudents();
+      await fetchClasses();
+    } catch (error) {
+      console.error('Error fetching metadata:', error);
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -106,15 +175,44 @@ function Dashboard() {
   }
 
   return (
-    <div>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => setOpenDialog(true)}
-        style={{ marginBottom: '20px', marginRight: '20px' }}
-      >
-        Add New Section
-      </Button>
+    <Paper elevation={1} sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+      <ProgressReportSection>
+        <ReportDates>
+          <Box>
+            <DateLabel>Last Progress Report:</DateLabel>
+            <DateValue component="a" href="#">Oct 15, 2024</DateValue>
+          </Box>
+          <Box>
+            <DateLabel>Next Progress Report:</DateLabel>
+            <DateValue>Dec 15, 2024</DateValue>
+          </Box>
+        </ReportDates>
+        <Button variant="contained" color="primary">
+          Generate Progress Report
+        </Button>
+      </ProgressReportSection>
+
+      <Controls>
+        <TextField
+          placeholder="Search students, classes, or tests..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ flex: 1, maxWidth: '400px' }}
+        />
+        <Button variant="contained" color="primary" onClick={handleSearch}>
+          Search
+        </Button>
+        <Button variant="contained" color="primary" onClick={handleFetchMetadata}>
+          Fetch Metadata
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setOpenDialog(true)}
+        >
+          Add New Section
+        </Button>
+      </Controls>
 
       <StudentTable 
         students={students} 
@@ -164,7 +262,7 @@ function Dashboard() {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Paper>
   );
 }
 
