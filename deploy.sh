@@ -8,12 +8,42 @@ else
     exit 1
 fi
 
-# Function to check if Docker is running
+# Function to check if Docker is running and start it if needed
 check_docker() {
-    if ! docker info >/dev/null 2>&1; then
-        echo "❌ Docker is not running"
-        exit 1
+    # First check if Docker is running
+    if docker info >/dev/null 2>&1; then
+        echo "✅ Docker is already running"
+        return 0
     fi
+
+    echo "🐳 Docker is not running. Attempting to start Docker..."
+    
+    # Start Docker.app in the background
+    open -g -a Docker
+    
+    echo "⏳ Waiting for Docker to start..."
+    
+    # Wait for Docker to start with timeout
+    local timeout=120  # Increased timeout to 120 seconds
+    local counter=0
+    while true; do
+        # Check if Docker daemon is responsive
+        if docker info >/dev/null 2>&1; then
+            echo "✅ Docker is now running"
+            # Additional wait to ensure Docker is fully initialized
+            sleep 5
+            return 0
+        fi
+        
+        if [ $counter -ge $timeout ]; then
+            echo "❌ Timeout waiting for Docker to start"
+            return 1
+        fi
+        
+        echo "⏳ Still waiting for Docker... ($counter seconds)"
+        sleep 2
+        counter=$((counter + 2))
+    done
 }
 
 # Function to kill process on port 8080
@@ -86,7 +116,12 @@ run_backend_tests() {
 # Function for local deployment
 deploy_local() {
     echo "🚀 Starting local deployment..."
-    check_docker
+    
+    # Ensure Docker is running before proceeding
+    if ! check_docker; then
+        echo "❌ Failed to start Docker"
+        exit 1
+    fi
     
     # Run tests first
     run_backend_tests
@@ -117,13 +152,22 @@ deploy_local() {
     fi
     
     echo "✨ Local deployment completed!"
-    echo "🌐 Application is now available at: http://localhost:8080"
+    echo "🌐 Application is now available at:"
+    echo "   http://localhost:8080"
+    echo "   http://0.0.0.0:8080"
+    echo "   http://127.0.0.1:8080"
+    echo "Note: If one URL doesn't work, try another from the list above."
 }
 
 # Function for production deployment
 deploy_prod() {
     echo "🚀 Starting production deployment to GCR..."
-    check_docker
+    
+    # Ensure Docker is running before proceeding
+    if ! check_docker; then
+        echo "❌ Failed to start Docker"
+        exit 1
+    fi
     
     # Run tests first
     run_backend_tests

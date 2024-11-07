@@ -21,6 +21,14 @@ import config from '../config';
 function StudentTable({ students, onStudentUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openGradeDialog, setOpenGradeDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [newGrade, setNewGrade] = useState({
+    testName: '',
+    score: '',
+    totalPoints: '',
+    date: new Date().toISOString().split('T')[0]
+  });
   const [newStudent, setNewStudent] = useState({
     name: '',
     grade: '',
@@ -68,14 +76,20 @@ function StudentTable({ students, onStudentUpdate }) {
     }));
   };
 
-  const handleAddGrade = async (selectedStudent) => {
-    const grade = {
-      testName: "Test 3",
-      score: 85,
-      totalPoints: 100,
-      date: new Date().toISOString()
-    };
+  const handleGradeInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewGrade(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
+  const handleAddGrade = async (student) => {
+    setSelectedStudent(student);
+    setOpenGradeDialog(true);
+  };
+
+  const handleSubmitGrade = async () => {
     setIsSubmitting(true);
     try {
       const response = await fetch(`${config.apiBaseUrl}/db/students/${selectedStudent.id}/grades`, {
@@ -83,13 +97,20 @@ function StudentTable({ students, onStudentUpdate }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(grade),
+        body: JSON.stringify(newGrade),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      setOpenGradeDialog(false);
+      setNewGrade({
+        testName: '',
+        score: '',
+        totalPoints: '',
+        date: new Date().toISOString().split('T')[0]
+      });
       onStudentUpdate();
     } catch (error) {
       console.error('Error adding grade:', error);
@@ -210,6 +231,60 @@ function StudentTable({ students, onStudentUpdate }) {
           </Button>
           <Button onClick={handleAddStudent} color="primary" disabled={isSubmitting}>
             Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openGradeDialog} onClose={() => setOpenGradeDialog(false)}>
+        <DialogTitle>Add Grade for {selectedStudent?.name}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="testName"
+            label="Test Name"
+            type="text"
+            fullWidth
+            value={newGrade.testName}
+            onChange={handleGradeInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="score"
+            label="Score"
+            type="number"
+            fullWidth
+            value={newGrade.score}
+            onChange={handleGradeInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="totalPoints"
+            label="Total Points"
+            type="number"
+            fullWidth
+            value={newGrade.totalPoints}
+            onChange={handleGradeInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="date"
+            label="Date"
+            type="date"
+            fullWidth
+            value={newGrade.date}
+            onChange={handleGradeInputChange}
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenGradeDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmitGrade} color="primary" disabled={isSubmitting}>
+            Add Grade
           </Button>
         </DialogActions>
       </Dialog>

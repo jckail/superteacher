@@ -2,9 +2,9 @@
 FROM node:18 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install
 COPY frontend/ ./
-RUN CI=false npm run build
+RUN npm run build
 
 # Final stage
 FROM python:3.11-slim
@@ -49,6 +49,7 @@ ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV VERSION=${VERSION}
 ENV GIT_PYTHON_REFRESH=quiet
+ENV NODE_ENV=production
 
 # Add healthcheck
 HEALTHCHECK --interval=3s --timeout=3s --start-period=5s --retries=3 \
