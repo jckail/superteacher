@@ -12,6 +12,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { StatusBadge, ActionButton, ScoreCard } from './StyledComponents';
+import AIInsightsBox from './AIInsightsBox';
 
 const StudentTableRow = ({
   student,
@@ -29,6 +30,12 @@ const StudentTableRow = ({
   const getGpaStatus = (gpa) => {
     if (gpa >= 3.5) return 'good';
     if (gpa >= 2.5) return 'warning';
+    return 'danger';
+  };
+
+  const getAttendanceStatus = (percentage) => {
+    if (percentage >= 90) return 'good';
+    if (percentage >= 80) return 'warning';
     return 'danger';
   };
 
@@ -83,6 +90,19 @@ const StudentTableRow = ({
                   Completed: {student.homework_completed}
                 </Typography>
               </Box>
+            </TableCell>
+            <TableCell sx={{ width: columnWidths.attendance, minWidth: columnWidths.attendance }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
+                  {student.attendance_percentage.toFixed(1)}%
+                </StatusBadge>
+                <Typography variant="body2" color="textSecondary">
+                  {student.attendance_days}
+                </Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ width: columnWidths.insights, minWidth: columnWidths.insights }}>
+              <AIInsightsBox insights={student.ai_insights} />
             </TableCell>
           </>
         ) : (
@@ -164,6 +184,19 @@ const StudentTableRow = ({
                   <Typography variant="body2">
                     Completed: {student.homework_completed}
                   </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2">Attendance</Typography>
+                  <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
+                    {student.attendance_percentage.toFixed(1)}%
+                  </StatusBadge>
+                  <Typography variant="body2">
+                    Days: {student.attendance_days}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2">AI Insights</Typography>
+                  <AIInsightsBox insights={student.ai_insights} />
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <ActionButton

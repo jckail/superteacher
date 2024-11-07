@@ -1,5 +1,5 @@
 import { styled } from '@mui/material';
-import { TableContainer, TableHead, TableCell } from '@mui/material';
+import { TableContainer, TableHead, TableCell, Box } from '@mui/material';
 
 export const StyledTableContainer = styled(TableContainer)({
   position: 'relative',
@@ -17,28 +17,32 @@ export const StyledTableHead = styled(TableHead)({
   backgroundColor: '#f3f0ff',
   '& th': {
     borderBottom: '2px solid #e9ecef',
-    padding: 0,
+    padding: 0, // Remove default padding to allow ResizableColumn to control spacing
   }
 });
 
 export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
   backgroundColor: '#f3f0ff',
-  padding: '12px 16px',
+  padding: 0, // Remove default padding to allow ResizableColumn to control spacing
   fontWeight: 500,
   color: '#374151',
   borderBottom: '1px solid #e9ecef',
   width: width,
   minWidth: width,
   maxWidth: width,
-  '&.sortable': {
+  position: 'relative', // Needed for proper resize handle positioning
+  '& .sortable': {
     cursor: 'pointer',
     position: 'relative',
-    paddingRight: '24px',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
     
     '&::after': {
       content: '"↕"',
       position: 'absolute',
-      right: '8px',
+      right: '24px', // Adjusted to not overlap with resize handle
       top: '50%',
       transform: 'translateY(-50%)',
       fontSize: '12px',
@@ -56,10 +60,17 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
     }
   },
   [theme.breakpoints.down('sm')]: {
-    padding: '8px 12px',
     fontSize: '0.875rem',
   }
 }));
+
+export const HeaderContent = styled(Box)({
+  padding: '12px 16px',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+});
 
 export const StatusBadge = styled('div')(({ theme, status }) => ({
   padding: '4px 8px',
@@ -85,9 +96,42 @@ export const ActionButton = styled('button')(({ theme }) => ({
   width: '100%',
   marginBottom: '8px',
   textTransform: 'none',
+  padding: '6px 12px',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  borderRadius: '4px',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'white',
+  transition: 'background-color 0.2s',
+  '&.MuiButton-containedPrimary': {
+    backgroundColor: '#7e3af2',
+    '&:hover': {
+      backgroundColor: '#6c2bd9',
+    },
+  },
+  '&.MuiButton-containedError': {
+    backgroundColor: '#e02424',
+    '&:hover': {
+      backgroundColor: '#c81e1e',
+    },
+  },
+  '&.MuiButton-containedSuccess': {
+    backgroundColor: '#0e9f6e',
+    '&:hover': {
+      backgroundColor: '#057a55',
+    },
+  },
+  '&.MuiButton-containedWarning': {
+    backgroundColor: '#ff5a1f',
+    '&:hover': {
+      backgroundColor: '#dc4719',
+    },
+  },
   [theme.breakpoints.down('sm')]: {
     fontSize: '0.75rem',
     padding: '4px 8px',
+    marginBottom: '4px',
   }
 }));
 

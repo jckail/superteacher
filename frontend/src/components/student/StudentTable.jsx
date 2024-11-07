@@ -23,6 +23,8 @@ const initialColumnWidths = {
   performance: 150,
   tests: 200,
   homework: 200,
+  attendance: 150,
+  insights: 300,
   actions: 150
 };
 
@@ -227,6 +229,28 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                       onResize={(width) => handleColumnResize('homework', width)}
                     >
                       Homework
+                    </ResizableColumn>
+                  </StyledTableCell>
+                  <StyledTableCell width={columnWidths.attendance}>
+                    <ResizableColumn 
+                      width={columnWidths.attendance}
+                      onResize={(width) => handleColumnResize('attendance', width)}
+                    >
+                      <Box
+                        className={`sortable ${sortConfig.key === 'attendance_percentage' ? `sorted-${sortConfig.direction}` : ''}`}
+                        onClick={() => handleSort('attendance_percentage')}
+                        sx={{ padding: '12px 16px', width: '100%' }}
+                      >
+                        Attendance
+                      </Box>
+                    </ResizableColumn>
+                  </StyledTableCell>
+                  <StyledTableCell width={columnWidths.insights}>
+                    <ResizableColumn 
+                      width={columnWidths.insights}
+                      onResize={(width) => handleColumnResize('insights', width)}
+                    >
+                      AI Insights
                     </ResizableColumn>
                   </StyledTableCell>
                 </>

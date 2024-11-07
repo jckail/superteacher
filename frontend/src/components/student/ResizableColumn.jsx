@@ -3,6 +3,7 @@ import { Box } from '@mui/material';
 
 const ResizableColumn = ({ children, onResize, width }) => {
   const [isResizing, setIsResizing] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const [resizePreview, setResizePreview] = useState(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -13,9 +14,8 @@ const ResizableColumn = ({ children, onResize, width }) => {
       if (!isResizing) return;
       
       const diff = e.pageX - startX.current;
-      const newWidth = Math.max(100, startWidth.current + diff); // Minimum width of 100px
+      const newWidth = Math.max(100, startWidth.current + diff);
       
-      // Update preview line position
       if (columnRef.current) {
         const columnRect = columnRef.current.getBoundingClientRect();
         setResizePreview(columnRect.left + newWidth);
@@ -48,7 +48,6 @@ const ResizableColumn = ({ children, onResize, width }) => {
     startX.current = e.pageX;
     startWidth.current = width;
 
-    // Set initial preview line position
     if (columnRef.current) {
       const columnRect = columnRef.current.getBoundingClientRect();
       setResizePreview(columnRect.left + width);
@@ -64,33 +63,54 @@ const ResizableColumn = ({ children, onResize, width }) => {
           width: width, 
           height: '100%', 
           display: 'flex', 
-          alignItems: 'center'
+          alignItems: 'center',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '1px',
+            backgroundColor: '#e0e0e0',
+          }
         }}
       >
         {children}
         <Box
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
           sx={{
             position: 'absolute',
-            right: -4,
+            right: -8,
             top: 0,
             bottom: 0,
-            width: 8,
+            width: '16px',
             cursor: 'col-resize',
             zIndex: 2,
-            '&:hover': {
-              '&::after': {
-                backgroundColor: 'rgba(0, 0, 0, 0.1)',
-              }
-            },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: isHovering || isResizing ? 'rgba(126, 58, 242, 0.1)' : 'transparent',
+            transition: 'background-color 0.2s',
             '&::after': {
               content: '""',
               position: 'absolute',
-              right: 3,
-              top: 0,
-              bottom: 0,
-              width: 2,
-              backgroundColor: isResizing ? '#7e3af2' : 'transparent',
-              transition: 'background-color 0.2s'
+              right: '7px',
+              width: '2px',
+              height: '100%',
+              backgroundColor: isHovering || isResizing ? '#7e3af2' : '#e0e0e0',
+              transition: 'background-color 0.2s',
+            },
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              right: '7px',
+              width: '2px',
+              height: '100%',
+              backgroundColor: isHovering || isResizing ? '#7e3af2' : '#e0e0e0',
+              opacity: isHovering || isResizing ? 1 : 0,
+              transform: 'translateX(-3px)',
+              transition: 'opacity 0.2s, background-color 0.2s',
             }
           }}
           onMouseDown={startResize}
@@ -103,7 +123,7 @@ const ResizableColumn = ({ children, onResize, width }) => {
             top: 0,
             bottom: 0,
             left: resizePreview,
-            width: 2,
+            width: '2px',
             backgroundColor: '#7e3af2',
             zIndex: 9999,
             pointerEvents: 'none'
