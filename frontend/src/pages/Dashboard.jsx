@@ -17,6 +17,7 @@ import {
   styled
 } from '@mui/material';
 import config from '../config';
+import { useNotification } from '../contexts/NotificationContext';
 
 const ProgressReportSection = styled(Box)(({ theme }) => ({
   padding: '16px 24px',
@@ -53,6 +54,7 @@ const Controls = styled(Box)(({ theme }) => ({
 }));
 
 function Dashboard() {
+  const { showNotification } = useNotification();
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState({});
@@ -198,6 +200,14 @@ function Dashboard() {
     setStudents(filteredStudents);
   };
 
+  const handleGenerateReport = () => {
+    showNotification('Progress report generation feature coming soon!');
+  };
+
+  const handleDateClick = () => {
+    showNotification('Progress report history feature coming soon!');
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -212,14 +222,14 @@ function Dashboard() {
         <ReportDates>
           <Box>
             <DateLabel>Last Progress Report:</DateLabel>
-            <DateValue component="a" href="#">Oct 15, 2024</DateValue>
+            <DateValue component="a" href="#" onClick={handleDateClick}>Oct 15, 2024</DateValue>
           </Box>
           <Box>
             <DateLabel>Next Progress Report:</DateLabel>
             <DateValue>Dec 15, 2024</DateValue>
           </Box>
         </ReportDates>
-        <Button variant="contained" color="primary">
+        <Button variant="contained" color="primary" onClick={handleGenerateReport}>
           Generate Progress Report
         </Button>
       </ProgressReportSection>

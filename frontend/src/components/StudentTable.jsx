@@ -22,6 +22,7 @@ import {
   styled
 } from '@mui/material';
 import config from '../config';
+import { useNotification } from '../contexts/NotificationContext';
 
 // Styled Components
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -94,6 +95,7 @@ const ActionButton = styled(Button)({
 });
 
 function StudentTable({ students, classes, sections, onStudentUpdate }) {
+  const { showNotification } = useNotification();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openGradeDialog, setOpenGradeDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -170,6 +172,18 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleContactParent = (student) => {
+    showNotification('Parent contact feature coming soon!');
+  };
+
+  const handleAddEvent = (student) => {
+    showNotification('Event scheduling feature coming soon!');
+  };
+
+  const handleEscalate = (student) => {
+    showNotification('Issue escalation feature coming soon!');
   };
 
   const getGpaStatus = (gpa) => {
@@ -301,6 +315,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                     variant="contained"
                     color="error"
                     size="small"
+                    onClick={() => handleContactParent(student)}
                   >
                     Contact Parent
                   </ActionButton>
@@ -308,6 +323,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                     variant="contained"
                     color="success"
                     size="small"
+                    onClick={() => handleAddEvent(student)}
                   >
                     Add Event
                   </ActionButton>
@@ -315,6 +331,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
                     variant="contained"
                     color="warning"
                     size="small"
+                    onClick={() => handleEscalate(student)}
                   >
                     Escalate
                   </ActionButton>
