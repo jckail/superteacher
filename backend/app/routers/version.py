@@ -8,7 +8,7 @@ from ..schemas.version import VersionInfo
 load_dotenv()
 
 router = APIRouter(
-    prefix="/api/version",
+    prefix="/version",
     tags=["version"]
 )
 
@@ -20,7 +20,7 @@ async def get_version():
         
         # Get git commit hash
         repo = Repo(search_parent_directories=True)
-        git_commit = repo.head.object.hexsha[:7]  # Get short hash
+        git_commit = repo.head.object.hexsha  # Get full hash
         
         return {"version": version, "git_commit": git_commit}
     except Exception as e:
