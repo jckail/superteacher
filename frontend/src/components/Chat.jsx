@@ -21,6 +21,9 @@ const Chat = () => {
     { type: 'agent', text: 'Hello! I\'m your academic assistant. I can help you with:' },
     { type: 'agent', text: '• Understanding student performance\n• Tracking academic progress\n• Generating insights about your class' }
   ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [webSocket, setWebSocket] = useState(null);
+  const clientId = useRef(Date.now().toString());
   
   const messagesEndRef = useRef(null);
 
@@ -32,6 +35,44 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (open && !webSocket) {
+      const ws = new WebSocket(`ws://localhost:8080/ws/${clientId.current}`);
+      
+      ws.onopen = () => {
+        console.log('WebSocket Connected');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        setMessages(prev => [...prev, { type: 'agent', text: data.message }]);
+        setIsLoading(false);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        setMessages(prev => [...prev, { 
+          type: 'agent', 
+          text: 'I apologize, but I encountered an error. Please try again.' 
+        }]);
+        setIsLoading(false);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket Disconnected');
+        setWebSocket(null);
+      };
+
+      setWebSocket(ws);
+    }
+
+    return () => {
+      if (webSocket) {
+        webSocket.close();
+      }
+    };
+  }, [open]);
+
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -40,19 +81,14 @@ const Chat = () => {
     setOpen(false);
   };
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      // Add user message
+  const handleSendMessage = async () => {
+    if (message.trim() && webSocket && webSocket.readyState === WebSocket.OPEN) {
+      // Add user message to chat
       setMessages(prev => [...prev, { type: 'user', text: message }]);
+      setIsLoading(true);
       
-      // Simulate agent response
-      setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          type: 'agent', 
-          text: 'I understand you\'re asking about ' + message.toLowerCase() + '. Let me help you analyze that based on the available student data.'
-        }]);
-      }, 1000);
-      
+      // Send message through WebSocket
+      webSocket.send(message);
       setMessage('');
     }
   };
@@ -183,6 +219,20 @@ const Chat = () => {
                 </Paper>
               </Box>
             ))}
+            {isLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 1.5,
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '15px 15px 15px 5px',
+                  }}
+                >
+                  <Typography variant="body1">Thinking...</Typography>
+                </Paper>
+              </Box>
+            )}
             <div ref={messagesEndRef} />
           </Box>
 
@@ -198,6 +248,7 @@ const Chat = () => {
               placeholder="Ask about student performance..."
               variant="outlined"
               size="small"
+              disabled={isLoading}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '&.Mui-focused fieldset': {
@@ -209,7 +260,7 @@ const Chat = () => {
             <Button
               variant="contained"
               onClick={handleSendMessage}
-              disabled={!message.trim()}
+              disabled={!message.trim() || isLoading}
               sx={{ 
                 minWidth: 'auto', 
                 p: 1,

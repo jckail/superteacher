@@ -6,7 +6,7 @@ from ..schemas.student import Student, StudentCreate, Grade, Section, SectionRes
 from ..models.database import Student as DBStudent, Section as DBSection, Class as DBClass, get_db
 
 router = APIRouter(
-    prefix="/db",
+    prefix="/api/db",
     tags=["database"]
 )
 

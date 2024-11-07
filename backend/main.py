@@ -1,14 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.routers import version, db, health, notyet
-from backend.app.models.database import init_db
+from backend.app.routers import health, version, db, chat
 
-# Initialize database
-init_db()
+app = FastAPI()
 
-app = FastAPI(title="EduTrack Pro API")
-
-# Enable CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,8 +13,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(version.router)
-app.include_router(db.router)
-app.include_router(health.router)
-app.include_router(notyet.router)
+# Include routers without duplicate prefixes
+app.include_router(health.router)  # Will be available at /health
+app.include_router(version.router)  # Will be available at /version
+app.include_router(db.router)      # Will be available at /db
+app.include_router(chat.router)    # Will be available at /chat
