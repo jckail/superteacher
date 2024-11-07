@@ -6,6 +6,7 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Footer from './components/Footer';
 import NotificationBanner from './components/NotificationBanner';
+import Chat from './components/Chat';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 
 const theme = createTheme({
@@ -38,6 +39,7 @@ const AppContent = () => {
           message={notification.message}
           onClose={hideNotification}
         />
+        <Chat />
       </div>
     </Router>
   );
