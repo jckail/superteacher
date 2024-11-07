@@ -41,10 +41,10 @@ const Header = () => {
       <Toolbar>
         <Box display="flex" alignItems="center" flexGrow={1}>
           <BrandLogo>
-            <Typography variant="subtitle1">ED</Typography>
+            <Typography variant="subtitle1">🦸‍♀️</Typography>
           </BrandLogo>
           <Typography variant="h6" component="div">
-            EduTrack Pro
+          SuperTeacher
           </Typography>
         </Box>
 

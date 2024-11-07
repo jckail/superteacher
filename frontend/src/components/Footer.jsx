@@ -62,7 +62,7 @@ const Footer = () => {
             whiteSpace: 'nowrap'
           }}
         >
-          © 2024 EduTrack Pro
+          © 2024 SuperTeacher
         </Typography>
         
         <Box 

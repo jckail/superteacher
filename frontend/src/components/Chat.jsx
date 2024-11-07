@@ -20,8 +20,8 @@ const Chat = () => {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([
-    { type: 'agent', text: 'Hello! I\'m your academic assistant. I can help you with:' },
-    { type: 'agent', text: '• Understanding student performance\n• Tracking academic progress\n• Generating insights about your class' }
+    { type: 'agent', text: 'Hello! I\'m your teacher\'s assistant. I can help you with:' },
+    { type: 'agent', text: '• Understanding student performance\n• Tracking student progress\n• Generating insights about your class' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [webSocket, setWebSocket] = useState(null);
@@ -192,7 +192,7 @@ const Chat = () => {
           aria-label="Education AI"
           onClick={handleClickOpen}
         >
-          🎓
+          ✨AI
         </Fab>
       </Box>
 
@@ -230,7 +230,7 @@ const Chat = () => {
             fontWeight: 500,
             fontFamily: '"Roboto","Helvetica","Arial",sans-serif'
           }}>
-            Education AI
+            ✨🦸‍♀️ SuperTeacher
           </div>
           <IconButton
             aria-label="close"
