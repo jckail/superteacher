@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Link, Typography } from '@mui/material';
 import config from '../config';
+import { useNotification } from '../contexts/NotificationContext';
 
 const Footer = () => {
   const [versionInfo, setVersionInfo] = useState({ version: '', git_commit: '' });
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     const fetchVersionInfo = async () => {
@@ -20,6 +22,11 @@ const Footer = () => {
 
     fetchVersionInfo();
   }, []);
+
+  const handleLinkClick = (feature) => (e) => {
+    e.preventDefault();
+    showNotification(`${feature} feature coming soon!`);
+  };
 
   return (
     <Box
@@ -52,16 +59,36 @@ const Footer = () => {
               © 2024 EduTrack Pro. All rights reserved.
             </Typography>
             <Box sx={{ display: 'flex', gap: 3 }}>
-              <Link href="#" color="primary" underline="hover">
+              <Link 
+                href="#" 
+                color="primary" 
+                underline="hover"
+                onClick={handleLinkClick('Privacy Policy')}
+              >
                 Privacy Policy
               </Link>
-              <Link href="#" color="primary" underline="hover">
+              <Link 
+                href="#" 
+                color="primary" 
+                underline="hover"
+                onClick={handleLinkClick('Terms of Service')}
+              >
                 Terms of Service
               </Link>
-              <Link href="#" color="primary" underline="hover">
+              <Link 
+                href="#" 
+                color="primary" 
+                underline="hover"
+                onClick={handleLinkClick('Support')}
+              >
                 Support
               </Link>
-              <Link href="#" color="primary" underline="hover">
+              <Link 
+                href="#" 
+                color="primary" 
+                underline="hover"
+                onClick={handleLinkClick('Documentation')}
+              >
                 Documentation
               </Link>
             </Box>

@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import PersonIcon from '@mui/icons-material/Person';
+import { useNotification } from '../contexts/NotificationContext';
 
 const BrandLogo = styled(Box)(({ theme }) => ({
   background: theme.palette.primary.main,
@@ -25,6 +26,16 @@ const BrandLogo = styled(Box)(({ theme }) => ({
 }));
 
 const Header = () => {
+  const { showNotification } = useNotification();
+
+  const handleNotificationsClick = () => {
+    showNotification('Notifications feature coming soon!');
+  };
+
+  const handleProfileClick = () => {
+    showNotification('Profile management coming soon!');
+  };
+
   return (
     <AppBar position="static" color="default" elevation={1}>
       <Toolbar>
@@ -38,10 +49,10 @@ const Header = () => {
         </Box>
 
         <Box display="flex" alignItems="center" gap={2}>
-          <IconButton color="inherit">
+          <IconButton color="inherit" onClick={handleNotificationsClick}>
             <NotificationsIcon />
           </IconButton>
-          <IconButton color="inherit">
+          <IconButton color="inherit" onClick={handleProfileClick}>
             <PersonIcon />
           </IconButton>
           <Box display="flex" alignItems="center" gap={1}>
