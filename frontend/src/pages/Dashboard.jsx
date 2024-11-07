@@ -1,205 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import StudentTable from '../components/StudentTable';
-import { 
-  Button, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  TextField, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem,
-  Box,
-  Paper,
-  Typography,
-  styled,
-  useTheme,
-  useMediaQuery
-} from '@mui/material';
-import config from '../config';
-import { useNotification } from '../contexts/NotificationContext';
+import React, { useState } from 'react';
+import { Paper } from '@mui/material';
+import { TableContainer } from '../components/dashboard/StyledComponents';
+import StudentTable from '../components/student/StudentTable';
+import ProgressReport from '../components/dashboard/ProgressReport';
+import SearchControls from '../components/dashboard/SearchControls';
+import AddSectionDialog from '../components/dashboard/AddSectionDialog';
+import AddStudentDialog from '../components/dashboard/AddStudentDialog';
+import useStudentData from '../components/dashboard/hooks/useStudentData';
 
-const ProgressReportSection = styled(Box)(({ theme }) => ({
-  padding: '16px 24px',
-  background: '#f3f0ff',
-  borderBottom: '1px solid #e9ecef',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1100,
-  backgroundColor: '#f3f0ff',
-  [theme.breakpoints.down('sm')]: {
-    padding: '8px 16px',
-  }
-}));
+const initialSectionState = {
+  name: '',
+  class_id: ''
+};
 
-const ReportDates = styled(Box)({
-  display: 'flex',
-  gap: '24px',
-  alignItems: 'center',
-});
-
-const DateLabel = styled(Typography)({
-  fontSize: '14px',
-  color: '#6b7280',
-});
-
-const DateValue = styled(Typography)({
-  color: '#7e3af2',
-  fontWeight: 500,
-  cursor: 'pointer',
-});
-
-const Controls = styled(Box)(({ theme }) => ({
-  padding: '8px 24px',
-  display: 'flex',
-  gap: '12px',
-  alignItems: 'center',
-  borderBottom: '1px solid #e9ecef',
-  position: 'sticky',
-  top: '72px',
-  zIndex: 1100,
-  backgroundColor: '#fff',
-  [theme.breakpoints.down('sm')]: {
-    padding: '4px 16px',
-    gap: '8px',
-  }
-}));
-
-const ActionButton = styled(Button)(({ theme }) => ({
-  height: '36px',
-  [theme.breakpoints.down('sm')]: {
-    height: '32px',
-    fontSize: '0.75rem',
-    padding: '4px 8px',
-  }
-}));
-
-const TableContainer = styled(Box)({
-  height: 'calc(100vh - 144px)',
-  overflow: 'auto',
-});
+const initialStudentState = {
+  name: '',
+  grade: '',
+  class_id: '',
+  section: ''
+};
 
 function Dashboard() {
-  const { showNotification } = useNotification();
-  const [students, setStudents] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [sections, setSections] = useState({});
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    students,
+    setStudents,
+    classes,
+    sections,
+    error,
+    loading,
+    addSection,
+    addStudent,
+    filterStudents
+  } = useStudentData();
+
+  const [searchQuery, setSearchQuery] = useState('');
   const [openSectionDialog, setOpenSectionDialog] = useState(false);
   const [openStudentDialog, setOpenStudentDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [newSection, setNewSection] = useState({
-    name: '',
-    class_id: ''
-  });
-  const [newStudent, setNewStudent] = useState({
-    name: '',
-    grade: '',
-    class_id: '',
-    section: ''
-  });
-
-  useEffect(() => {
-    fetchStudents();
-    fetchClasses();
-  }, []);
-
-  const fetchStudents = async () => {
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/db/students`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setStudents(data);
-      setError(null);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      setError('Failed to load students. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchClasses = async () => {
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/db/classes`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setClasses(data.classes);
-      
-      const sectionsMap = {};
-      await Promise.all(data.classes.map(async (cls) => {
-        const sectionsResponse = await fetch(`${config.apiBaseUrl}/db/classes/${cls.id}/sections`);
-        if (sectionsResponse.ok) {
-          const sectionsData = await sectionsResponse.json();
-          sectionsMap[cls.id] = sectionsData.sections;
-        }
-      }));
-      setSections(sectionsMap);
-    } catch (error) {
-      console.error('Error fetching classes:', error);
-    }
-  };
-
-  const handleAddSection = async () => {
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/db/sections`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSection),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      setOpenSectionDialog(false);
-      setNewSection({ name: '', class_id: '' });
-      fetchClasses();
-    } catch (error) {
-      console.error('Error adding section:', error);
-    }
-  };
-
-  const handleAddStudent = async () => {
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/db/students`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newStudent),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      setOpenStudentDialog(false);
-      setNewStudent({
-        name: '',
-        grade: '',
-        class_id: '',
-        section: ''
-      });
-      fetchStudents();
-    } catch (error) {
-      console.error('Error adding student:', error);
-    }
-  };
+  const [newSection, setNewSection] = useState(initialSectionState);
+  const [newStudent, setNewStudent] = useState(initialStudentState);
 
   const handleInputChange = (e, type) => {
     const { name, value } = e.target;
@@ -218,20 +56,24 @@ function Dashboard() {
   };
 
   const handleSearch = () => {
-    const filteredStudents = students.filter(student => 
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.class_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.section.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredStudents = filterStudents(searchQuery);
     setStudents(filteredStudents);
   };
 
-  const handleGenerateReport = () => {
-    showNotification('Progress report generation feature coming soon!');
+  const handleAddSection = async () => {
+    const success = await addSection(newSection);
+    if (success) {
+      setOpenSectionDialog(false);
+      setNewSection(initialSectionState);
+    }
   };
 
-  const handleDateClick = () => {
-    showNotification('Progress report history feature coming soon!');
+  const handleAddStudent = async () => {
+    const success = await addStudent(newStudent);
+    if (success) {
+      setOpenStudentDialog(false);
+      setNewStudent(initialStudentState);
+    }
   };
 
   if (loading) {
@@ -244,171 +86,43 @@ function Dashboard() {
 
   return (
     <Paper elevation={1} sx={{ borderRadius: '12px', overflow: 'hidden', height: '100vh' }}>
-      <ProgressReportSection>
-        <ReportDates>
-          <Box>
-            <DateLabel>Last Progress Report:</DateLabel>
-            <DateValue component="a" href="#" onClick={handleDateClick}>Oct 15, 2024</DateValue>
-          </Box>
-          <Box>
-            <DateLabel>Next Progress Report:</DateLabel>
-            <DateValue>Dec 15, 2024</DateValue>
-          </Box>
-        </ReportDates>
-        <ActionButton variant="contained" color="primary" onClick={handleGenerateReport}>
-          Generate Report
-        </ActionButton>
-      </ProgressReportSection>
-
-      <Controls>
-        <TextField
-          placeholder="Search students, classes, or tests..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ 
-            flex: 1, 
-            maxWidth: '400px',
-            '& .MuiInputBase-root': {
-              height: isMobile ? '32px' : '36px',
-            }
-          }}
-          size={isMobile ? "small" : "medium"}
-        />
-        <ActionButton variant="contained" color="primary" onClick={handleSearch}>
-          Search
-        </ActionButton>
-        <ActionButton
-          variant="contained"
-          color="primary"
-          onClick={() => setOpenStudentDialog(true)}
-        >
-          Add Student
-        </ActionButton>
-        <ActionButton
-          variant="contained"
-          color="primary"
-          onClick={() => setOpenSectionDialog(true)}
-        >
-          Add Section
-        </ActionButton>
-      </Controls>
+      <ProgressReport />
+      
+      <SearchControls
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearch={handleSearch}
+        onAddStudent={() => setOpenStudentDialog(true)}
+        onAddSection={() => setOpenSectionDialog(true)}
+      />
 
       <TableContainer>
         <StudentTable 
           students={students} 
           classes={classes}
           sections={sections}
-          onStudentUpdate={fetchStudents} 
+          onStudentUpdate={filterStudents} 
         />
       </TableContainer>
 
-      <Dialog open={openSectionDialog} onClose={() => setOpenSectionDialog(false)}>
-        <DialogTitle>Add New Section</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Class</InputLabel>
-            <Select
-              name="class_id"
-              value={newSection.class_id}
-              onChange={(e) => handleInputChange(e, 'section')}
-            >
-              {classes.map((cls) => (
-                <MenuItem key={cls.id} value={cls.id}>
-                  {cls.name} ({cls.id})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Section Name"
-            type="text"
-            fullWidth
-            value={newSection.name}
-            onChange={(e) => handleInputChange(e, 'section')}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenSectionDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddSection} 
-            color="primary"
-            disabled={!newSection.name || !newSection.class_id}
-          >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AddSectionDialog
+        open={openSectionDialog}
+        onClose={() => setOpenSectionDialog(false)}
+        classes={classes}
+        newSection={newSection}
+        onInputChange={handleInputChange}
+        onSubmit={handleAddSection}
+      />
 
-      <Dialog open={openStudentDialog} onClose={() => setOpenStudentDialog(false)}>
-        <DialogTitle>Add New Student</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Name"
-            type="text"
-            fullWidth
-            value={newStudent.name}
-            onChange={(e) => handleInputChange(e, 'student')}
-          />
-          <TextField
-            margin="dense"
-            name="grade"
-            label="Grade"
-            type="number"
-            fullWidth
-            value={newStudent.grade}
-            onChange={(e) => handleInputChange(e, 'student')}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Class</InputLabel>
-            <Select
-              name="class_id"
-              value={newStudent.class_id}
-              onChange={(e) => handleInputChange(e, 'student')}
-            >
-              {classes.map((cls) => (
-                <MenuItem key={cls.id} value={cls.id}>
-                  {cls.name} ({cls.id})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Section</InputLabel>
-            <Select
-              name="section"
-              value={newStudent.section}
-              onChange={(e) => handleInputChange(e, 'student')}
-              disabled={!newStudent.class_id}
-            >
-              {newStudent.class_id && sections[newStudent.class_id]?.map((section) => (
-                <MenuItem key={section.name} value={section.name}>
-                  {section.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenStudentDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddStudent} 
-            color="primary"
-            disabled={!newStudent.name || !newStudent.grade || !newStudent.class_id || !newStudent.section}
-          >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AddStudentDialog
+        open={openStudentDialog}
+        onClose={() => setOpenStudentDialog(false)}
+        classes={classes}
+        sections={sections}
+        newStudent={newStudent}
+        onInputChange={handleInputChange}
+        onSubmit={handleAddStudent}
+      />
     </Paper>
   );
 }

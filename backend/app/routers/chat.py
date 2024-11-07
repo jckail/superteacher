@@ -5,6 +5,9 @@ import os
 from dotenv import load_dotenv
 import json
 
+
+#https://docs.anthropic.com/en/docs/about-claude/models#model-comparison-table
+
 # Load environment variables
 load_dotenv()
 
