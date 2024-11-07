@@ -14,6 +14,7 @@ export const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
   },
   [theme.breakpoints.down('sm')]: {
     width: '100%',
+    overflowX: 'hidden',
     '& table': {
       width: '100%',
       tableLayout: 'fixed'
