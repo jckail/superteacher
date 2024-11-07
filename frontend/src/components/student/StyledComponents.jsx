@@ -1,5 +1,5 @@
 import { styled } from '@mui/material';
-import { TableContainer, TableHead, TableCell, Box } from '@mui/material';
+import { TableContainer, TableHead, TableCell, Button } from '@mui/material';
 
 export const StyledTableContainer = styled(TableContainer)({
   position: 'relative',
@@ -17,32 +17,27 @@ export const StyledTableHead = styled(TableHead)({
   backgroundColor: '#f3f0ff',
   '& th': {
     borderBottom: '2px solid #e9ecef',
-    padding: 0, // Remove default padding to allow ResizableColumn to control spacing
   }
 });
 
 export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
   backgroundColor: '#f3f0ff',
-  padding: 0, // Remove default padding to allow ResizableColumn to control spacing
+  padding: '12px 16px',
   fontWeight: 500,
   color: '#374151',
   borderBottom: '1px solid #e9ecef',
   width: width,
   minWidth: width,
   maxWidth: width,
-  position: 'relative', // Needed for proper resize handle positioning
-  '& .sortable': {
+  '&.sortable': {
     cursor: 'pointer',
     position: 'relative',
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
+    paddingRight: '24px',
     
     '&::after': {
       content: '"↕"',
       position: 'absolute',
-      right: '24px', // Adjusted to not overlap with resize handle
+      right: '8px',
       top: '50%',
       transform: 'translateY(-50%)',
       fontSize: '12px',
@@ -60,17 +55,10 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
     }
   },
   [theme.breakpoints.down('sm')]: {
+    padding: '8px 12px',
     fontSize: '0.875rem',
   }
 }));
-
-export const HeaderContent = styled(Box)({
-  padding: '12px 16px',
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-});
 
 export const StatusBadge = styled('div')(({ theme, status }) => ({
   padding: '4px 8px',
@@ -92,40 +80,41 @@ export const StatusBadge = styled('div')(({ theme, status }) => ({
   }),
 }));
 
-export const ActionButton = styled('button')(({ theme }) => ({
+export const ActionButton = styled(Button)(({ theme }) => ({
   width: '100%',
   marginBottom: '8px',
   textTransform: 'none',
   padding: '6px 12px',
   fontSize: '0.875rem',
   fontWeight: 500,
-  borderRadius: '4px',
-  border: 'none',
-  cursor: 'pointer',
-  color: 'white',
-  transition: 'background-color 0.2s',
+  boxShadow: 'none',
   '&.MuiButton-containedPrimary': {
     backgroundColor: '#7e3af2',
     '&:hover': {
       backgroundColor: '#6c2bd9',
+      boxShadow: 'none',
     },
   },
   '&.MuiButton-containedError': {
     backgroundColor: '#e02424',
     '&:hover': {
       backgroundColor: '#c81e1e',
+      boxShadow: 'none',
     },
   },
   '&.MuiButton-containedSuccess': {
     backgroundColor: '#0e9f6e',
     '&:hover': {
       backgroundColor: '#057a55',
+      boxShadow: 'none',
     },
   },
   '&.MuiButton-containedWarning': {
     backgroundColor: '#ff5a1f',
+    color: 'white',
     '&:hover': {
       backgroundColor: '#dc4719',
+      boxShadow: 'none',
     },
   },
   [theme.breakpoints.down('sm')]: {
@@ -146,3 +135,11 @@ export const ScoreCard = styled('div')(({ theme }) => ({
     marginBottom: '2px',
   }
 }));
+
+export const HeaderContent = styled('div')({
+  padding: '12px 16px',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+});
