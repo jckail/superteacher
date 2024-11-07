@@ -4,11 +4,13 @@ import { TableContainer, TableHead, TableCell, Box, Button } from '@mui/material
 export const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
   position: 'relative',
   height: '100%',
-  overflowX: 'hidden',
+  maxWidth: '100%',
+  overflowX: 'auto',
   '& table': {
     borderCollapse: 'separate',
     borderSpacing: 0,
-    width: '100%'
+    width: '100%',
+    maxWidth: '100%'
   },
   [theme.breakpoints.down('sm')]: {
     width: '100%',

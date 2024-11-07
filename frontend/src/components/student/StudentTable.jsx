@@ -17,16 +17,16 @@ import StudentTableRow from './StudentTableRow';
 import AddGradeDialog from './AddGradeDialog';
 
 const initialColumnWidths = {
-  class_id: 120,
-  section: 120,
-  id: 120,
-  name: 200,
-  performance: 150,
-  tests: 200,
-  homework: 200,
-  attendance: 150,
-  insights: 300,
-  actions: 150
+  class_id: 80,
+  section: 80,
+  id: 100,
+  name: 150,
+  performance: 120,
+  tests: 150,
+  homework: 150,
+  attendance: 100,
+  insights: 200,
+  actions: 120
 };
 
 const initialGradeState = {
@@ -154,7 +154,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
   return (
     <>
       <StyledTableContainer>
-        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
+        <Table stickyHeader sx={{ width: '100%', maxWidth: '100%' }}>
           <StyledTableHead>
             <TableRow>
               {columnConfig.map(({ key, label, sortKey, showSort = true, desktopOnly, mobileOnly }) => {
