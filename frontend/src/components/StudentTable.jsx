@@ -95,7 +95,6 @@ const ActionButton = styled(Button)({
 
 function StudentTable({ students, classes, sections, onStudentUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [openDialog, setOpenDialog] = useState(false);
   const [openGradeDialog, setOpenGradeDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -105,12 +104,6 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
     totalPoints: '',
     date: new Date().toISOString().split('T')[0],
     gradeType: 'test'
-  });
-  const [newStudent, setNewStudent] = useState({
-    name: '',
-    grade: '',
-    class_id: '',
-    section: ''
   });
 
   const handleSort = (key) => {
@@ -134,46 +127,6 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
       return 0;
     });
   }, [students, sortConfig]);
-
-  const handleAddStudent = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/db/students`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newStudent),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      setOpenDialog(false);
-      setNewStudent({
-        name: '',
-        grade: '',
-        class_id: '',
-        section: ''
-      });
-      onStudentUpdate();
-    } catch (error) {
-      console.error('Error adding student:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewStudent(prev => ({
-      ...prev,
-      [name]: value,
-      ...(name === 'class_id' ? { section: '' } : {})
-    }));
-  };
 
   const handleGradeInputChange = (e) => {
     const { name, value } = e.target;
@@ -232,218 +185,145 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
   };
 
   return (
-    <Paper elevation={1} sx={{ margin: 2, borderRadius: 2, overflow: 'hidden' }}>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => setOpenDialog(true)}
-        sx={{ margin: 2 }}
-      >
-        Add New Student
-      </Button>
-
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <StyledTableCell 
-                className={`sortable ${sortConfig.key === 'class_id' ? `sorted-${sortConfig.direction}` : ''}`}
-                onClick={() => handleSort('class_id')}
-              >
-                Class ID
-              </StyledTableCell>
-              <StyledTableCell 
-                className={`sortable ${sortConfig.key === 'section' ? `sorted-${sortConfig.direction}` : ''}`}
-                onClick={() => handleSort('section')}
-              >
-                Section
-              </StyledTableCell>
-              <StyledTableCell 
-                className={`sortable ${sortConfig.key === 'id' ? `sorted-${sortConfig.direction}` : ''}`}
-                onClick={() => handleSort('id')}
-              >
-                Student ID
-              </StyledTableCell>
-              <StyledTableCell 
-                className={`sortable ${sortConfig.key === 'name' ? `sorted-${sortConfig.direction}` : ''}`}
-                onClick={() => handleSort('name')}
-              >
-                Name
-              </StyledTableCell>
-              <StyledTableCell>Academic Performance</StyledTableCell>
-              <StyledTableCell>Tests</StyledTableCell>
-              <StyledTableCell>Homework</StyledTableCell>
-              <StyledTableCell>Attendance</StyledTableCell>
-              <StyledTableCell>AI Insights</StyledTableCell>
-              <StyledTableCell>Actions</StyledTableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedStudents.map((student) => (
-              <TableRow key={student.id} sx={{ '&:hover': { bgcolor: '#f8f7ff' } }}>
-                <TableCell>
-                  <ClassBadge>{student.class_id}</ClassBadge>
-                </TableCell>
-                <TableCell>
-                  <ClassBadge>{student.section}</ClassBadge>
-                </TableCell>
-                <TableCell>{student.id}</TableCell>
-                <TableCell>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{student.name}</Typography>
+    <TableContainer>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <StyledTableCell 
+              className={`sortable ${sortConfig.key === 'class_id' ? `sorted-${sortConfig.direction}` : ''}`}
+              onClick={() => handleSort('class_id')}
+            >
+              Class ID
+            </StyledTableCell>
+            <StyledTableCell 
+              className={`sortable ${sortConfig.key === 'section' ? `sorted-${sortConfig.direction}` : ''}`}
+              onClick={() => handleSort('section')}
+            >
+              Section
+            </StyledTableCell>
+            <StyledTableCell 
+              className={`sortable ${sortConfig.key === 'id' ? `sorted-${sortConfig.direction}` : ''}`}
+              onClick={() => handleSort('id')}
+            >
+              Student ID
+            </StyledTableCell>
+            <StyledTableCell 
+              className={`sortable ${sortConfig.key === 'name' ? `sorted-${sortConfig.direction}` : ''}`}
+              onClick={() => handleSort('name')}
+            >
+              Name
+            </StyledTableCell>
+            <StyledTableCell>Academic Performance</StyledTableCell>
+            <StyledTableCell>Tests</StyledTableCell>
+            <StyledTableCell>Homework</StyledTableCell>
+            <StyledTableCell>Attendance</StyledTableCell>
+            <StyledTableCell>AI Insights</StyledTableCell>
+            <StyledTableCell>Actions</StyledTableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sortedStudents.map((student) => (
+            <TableRow key={student.id} sx={{ '&:hover': { bgcolor: '#f8f7ff' } }}>
+              <TableCell>
+                <ClassBadge>{student.class_id}</ClassBadge>
+              </TableCell>
+              <TableCell>
+                <ClassBadge>{student.section}</ClassBadge>
+              </TableCell>
+              <TableCell>{student.id}</TableCell>
+              <TableCell>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>{student.name}</Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Grade {student.grade || 'N/A'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <StatusBadge status={getGpaStatus(student.gpa)}>
+                    GPA: {student.gpa}
+                  </StatusBadge>
                   <Typography variant="body2" color="textSecondary">
-                    Grade {student.grade || 'N/A'}
+                    Rank: {student.academic_performance.rank}
                   </Typography>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <StatusBadge status={getGpaStatus(student.gpa)}>
-                      GPA: {student.gpa}
-                    </StatusBadge>
-                    <Typography variant="body2" color="textSecondary">
-                      Rank: {student.academic_performance.rank}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
-                    <Box key={testName} sx={{ mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                      <Typography variant="body2">
-                        <strong>{testName}:</strong> {score}
-                      </Typography>
-                    </Box>
-                  ))}
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                </Box>
+              </TableCell>
+              <TableCell>
+                {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
+                  <Box key={testName} sx={{ mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                     <Typography variant="body2">
-                      Points: {student.homework_points}
-                    </Typography>
-                    <Typography variant="body2">
-                      Completed: {student.homework_completed}
+                      <strong>{testName}:</strong> {score}
                     </Typography>
                   </Box>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
-                      {student.attendance_percentage}%
-                    </StatusBadge>
-                    <Typography variant="body2" color="textSecondary">
-                      {student.attendance_days}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <StatusBadge status={student.ai_insights.status === 'Excellent' ? 'good' : 'warning'}>
-                      {student.ai_insights.status === 'Excellent' ? '🎯' : '⚠️'} {student.ai_insights.status}
-                    </StatusBadge>
-                    <Typography variant="body2" color="textSecondary">
-                      {student.ai_insights.recommendation}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 140 }}>
-                    <ActionButton
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      onClick={() => handleAddGrade(student)}
-                      disabled={isSubmitting}
-                    >
-                      Add Grade
-                    </ActionButton>
-                    <ActionButton
-                      variant="contained"
-                      color="error"
-                      size="small"
-                    >
-                      Contact Parent
-                    </ActionButton>
-                    <ActionButton
-                      variant="contained"
-                      color="success"
-                      size="small"
-                    >
-                      Add Event
-                    </ActionButton>
-                    <ActionButton
-                      variant="contained"
-                      color="warning"
-                      size="small"
-                    >
-                      Escalate
-                    </ActionButton>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Add New Student</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Name"
-            type="text"
-            fullWidth
-            value={newStudent.name}
-            onChange={handleInputChange}
-          />
-          <TextField
-            margin="dense"
-            name="grade"
-            label="Grade"
-            type="number"
-            fullWidth
-            value={newStudent.grade}
-            onChange={handleInputChange}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Class</InputLabel>
-            <Select
-              name="class_id"
-              value={newStudent.class_id}
-              onChange={handleInputChange}
-            >
-              {classes.map((cls) => (
-                <MenuItem key={cls.id} value={cls.id}>
-                  {cls.name} ({cls.id})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Section</InputLabel>
-            <Select
-              name="section"
-              value={newStudent.section}
-              onChange={handleInputChange}
-              disabled={!newStudent.class_id}
-            >
-              {newStudent.class_id && sections[newStudent.class_id]?.map((section) => (
-                <MenuItem key={section.name} value={section.name}>
-                  {section.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleAddStudent} color="primary" disabled={isSubmitting}>
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+                ))}
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography variant="body2">
+                    Points: {student.homework_points}
+                  </Typography>
+                  <Typography variant="body2">
+                    Completed: {student.homework_completed}
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
+                    {student.attendance_percentage}%
+                  </StatusBadge>
+                  <Typography variant="body2" color="textSecondary">
+                    {student.attendance_days}
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <StatusBadge status={student.ai_insights.status === 'Excellent' ? 'good' : 'warning'}>
+                    {student.ai_insights.status === 'Excellent' ? '🎯' : '⚠️'} {student.ai_insights.status}
+                  </StatusBadge>
+                  <Typography variant="body2" color="textSecondary">
+                    {student.ai_insights.recommendation}
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 140 }}>
+                  <ActionButton
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={() => handleAddGrade(student)}
+                    disabled={isSubmitting}
+                  >
+                    Add Grade
+                  </ActionButton>
+                  <ActionButton
+                    variant="contained"
+                    color="error"
+                    size="small"
+                  >
+                    Contact Parent
+                  </ActionButton>
+                  <ActionButton
+                    variant="contained"
+                    color="success"
+                    size="small"
+                  >
+                    Add Event
+                  </ActionButton>
+                  <ActionButton
+                    variant="contained"
+                    color="warning"
+                    size="small"
+                  >
+                    Escalate
+                  </ActionButton>
+                </Box>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       <Dialog open={openGradeDialog} onClose={() => setOpenGradeDialog(false)}>
         <DialogTitle>Add Grade for {selectedStudent?.name}</DialogTitle>
@@ -509,7 +389,7 @@ function StudentTable({ students, classes, sections, onStudentUpdate }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </TableContainer>
   );
 }
 

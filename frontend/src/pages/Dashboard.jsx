@@ -58,11 +58,18 @@ function Dashboard() {
   const [sections, setSections] = useState({});
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [openDialog, setOpenDialog] = useState(false);
+  const [openSectionDialog, setOpenSectionDialog] = useState(false);
+  const [openStudentDialog, setOpenStudentDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newSection, setNewSection] = useState({
     name: '',
     class_id: ''
+  });
+  const [newStudent, setNewStudent] = useState({
+    name: '',
+    grade: '',
+    class_id: '',
+    section: ''
   });
 
   useEffect(() => {
@@ -129,7 +136,7 @@ function Dashboard() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      setOpenDialog(false);
+      setOpenSectionDialog(false);
       setNewSection({ name: '', class_id: '' });
       fetchClasses();
     } catch (error) {
@@ -137,13 +144,47 @@ function Dashboard() {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleAddStudent = async () => {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/db/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newStudent),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setOpenStudentDialog(false);
+      setNewStudent({
+        name: '',
+        grade: '',
+        class_id: '',
+        section: ''
+      });
+      fetchStudents();
+    } catch (error) {
+      console.error('Error adding student:', error);
+    }
+  };
+
+  const handleInputChange = (e, type) => {
     const { name, value } = e.target;
-    console.log(`Updating ${name} to ${value}`);
-    setNewSection(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (type === 'section') {
+      setNewSection(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setNewStudent(prev => ({
+        ...prev,
+        [name]: value,
+        ...(name === 'class_id' ? { section: '' } : {})
+      }));
+    }
   };
 
   const handleSearch = () => {
@@ -155,15 +196,6 @@ function Dashboard() {
       student.section.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setStudents(filteredStudents);
-  };
-
-  const handleFetchMetadata = async () => {
-    try {
-      await fetchStudents();
-      await fetchClasses();
-    } catch (error) {
-      console.error('Error fetching metadata:', error);
-    }
   };
 
   if (loading) {
@@ -202,13 +234,17 @@ function Dashboard() {
         <Button variant="contained" color="primary" onClick={handleSearch}>
           Search
         </Button>
-        <Button variant="contained" color="primary" onClick={handleFetchMetadata}>
-          Fetch Metadata
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setOpenStudentDialog(true)}
+        >
+          Add New Student
         </Button>
         <Button
           variant="contained"
           color="primary"
-          onClick={() => setOpenDialog(true)}
+          onClick={() => setOpenSectionDialog(true)}
         >
           Add New Section
         </Button>
@@ -221,7 +257,8 @@ function Dashboard() {
         onStudentUpdate={fetchStudents} 
       />
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      {/* Add New Section Dialog */}
+      <Dialog open={openSectionDialog} onClose={() => setOpenSectionDialog(false)}>
         <DialogTitle>Add New Section</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="dense">
@@ -229,7 +266,7 @@ function Dashboard() {
             <Select
               name="class_id"
               value={newSection.class_id}
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange(e, 'section')}
             >
               {classes.map((cls) => (
                 <MenuItem key={cls.id} value={cls.id}>
@@ -246,17 +283,84 @@ function Dashboard() {
             type="text"
             fullWidth
             value={newSection.name}
-            onChange={handleInputChange}
+            onChange={(e) => handleInputChange(e, 'section')}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} color="primary">
+          <Button onClick={() => setOpenSectionDialog(false)} color="primary">
             Cancel
           </Button>
           <Button 
             onClick={handleAddSection} 
             color="primary"
             disabled={!newSection.name || !newSection.class_id}
+          >
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add New Student Dialog */}
+      <Dialog open={openStudentDialog} onClose={() => setOpenStudentDialog(false)}>
+        <DialogTitle>Add New Student</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="name"
+            label="Name"
+            type="text"
+            fullWidth
+            value={newStudent.name}
+            onChange={(e) => handleInputChange(e, 'student')}
+          />
+          <TextField
+            margin="dense"
+            name="grade"
+            label="Grade"
+            type="number"
+            fullWidth
+            value={newStudent.grade}
+            onChange={(e) => handleInputChange(e, 'student')}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Class</InputLabel>
+            <Select
+              name="class_id"
+              value={newStudent.class_id}
+              onChange={(e) => handleInputChange(e, 'student')}
+            >
+              {classes.map((cls) => (
+                <MenuItem key={cls.id} value={cls.id}>
+                  {cls.name} ({cls.id})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Section</InputLabel>
+            <Select
+              name="section"
+              value={newStudent.section}
+              onChange={(e) => handleInputChange(e, 'student')}
+              disabled={!newStudent.class_id}
+            >
+              {newStudent.class_id && sections[newStudent.class_id]?.map((section) => (
+                <MenuItem key={section.name} value={section.name}>
+                  {section.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenStudentDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAddStudent} 
+            color="primary"
+            disabled={!newStudent.name || !newStudent.grade || !newStudent.class_id || !newStudent.section}
           >
             Add
           </Button>
