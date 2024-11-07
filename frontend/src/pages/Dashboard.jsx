@@ -13,7 +13,7 @@ function Dashboard() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/students`);
+      const response = await fetch(`${config.apiBaseUrl}/db/students`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

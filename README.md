@@ -23,6 +23,7 @@ The project consists of a React frontend with Material-UI components and a FastA
 
 ```
 edutrack/
+└── requirements.txt   # Python dependencies
 ├── frontend/                # React frontend application
 │   ├── public/             # Static files
 │   ├── src/               
@@ -38,7 +39,7 @@ edutrack/
     │   ├── routers/       # API routes
     │   └── schemas/       # Pydantic schemas
     ├── main.py            # Application entry point
-    └── requirements.txt   # Python dependencies
+
 ```
 
 ## Setup Instructions

@@ -13,17 +13,28 @@ FROM python:3.11-slim
 ARG VERSION
 LABEL version=${VERSION}
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy frontend build
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 
 # Install backend dependencies
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
+# Copy backend code including setup.py
 COPY backend/ ./backend/
+
+# Install backend package in development mode
+WORKDIR /app/backend
+RUN pip install -e .
+WORKDIR /app
 
 # Copy server script
 COPY server.py .
@@ -37,12 +48,17 @@ RUN touch /app/edutrack.db && \
 ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV VERSION=${VERSION}
+ENV GIT_PYTHON_REFRESH=quiet
+
+# Add healthcheck
+HEALTHCHECK --interval=3s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/ || exit 1
+
+# Expose the port
+EXPOSE ${PORT}
 
 # Switch to non-root user
 USER nobody
-
-# Expose the port
-EXPOSE 8080
 
 # Command to run the application
 CMD ["python", "server.py"]

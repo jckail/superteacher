@@ -32,7 +32,7 @@ function StudentTable({ students, onStudentUpdate }) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/students`, {
+      const response = await fetch(`${config.apiBaseUrl}/db/students`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ function StudentTable({ students, onStudentUpdate }) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/students/${selectedStudent.id}/grades`, {
+      const response = await fetch(`${config.apiBaseUrl}/db/students/${selectedStudent.id}/grades`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

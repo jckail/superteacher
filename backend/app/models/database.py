@@ -1,20 +1,24 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, JSON, TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 import logging
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create SQLite database URL with absolute path
-SQLALCHEMY_DATABASE_URL = "sqlite:////app/edutrack.db"
+# Create SQLite database URL with relative path
+SQLALCHEMY_DATABASE_URL = "sqlite:///edutrack.db"
 logger.info(f"Using database URL: {SQLALCHEMY_DATABASE_URL}")
 
 # Create SQLAlchemy engine
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    json_serializer=lambda obj: json.dumps(obj),
+    json_deserializer=lambda obj: json.loads(obj) if obj else {}
 )
 
 # Create SessionLocal class
@@ -22,6 +26,20 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create Base class
 Base = declarative_base()
+
+# Custom JSON type for SQLite
+class JSONType(TypeDecorator):
+    impl = String
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return '{}'
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return {}
+        return json.loads(value)
 
 # Define Student model
 class Student(Base):
@@ -37,8 +55,8 @@ class Student(Base):
     attendance_days = Column(String, default="0/0")
     homework_points = Column(Integer, default=0)
     homework_completed = Column(String, default="0/0")
-    academic_performance = Column(JSON, default=lambda: {"rank": "New Student", "tests": {}})
-    ai_insights = Column(JSON, default=lambda: {
+    academic_performance = Column(JSONType, default=lambda: {"rank": "New Student", "tests": {}})
+    ai_insights = Column(JSONType, default=lambda: {
         "status": "Pending",
         "recommendation": "Initial assessment needed"
     })

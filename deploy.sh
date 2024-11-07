@@ -26,10 +26,73 @@ kill_port_8080() {
     fi
 }
 
+# Function to build frontend
+build_frontend() {
+    echo "🔨 Building frontend..."
+    cd frontend || {
+        echo "❌ Frontend directory not found"
+        exit 1
+    }
+    
+    echo "Installing frontend dependencies..."
+    if ! npm install; then
+        echo "❌ Failed to install frontend dependencies"
+        cd ..
+        exit 1
+    fi
+    
+    echo "Building frontend application..."
+    if ! npm run build; then
+        echo "❌ Failed to build frontend"
+        cd ..
+        exit 1
+    fi
+    
+    cd ..
+    echo "✅ Frontend build completed successfully"
+}
+
+# Function to run backend tests with coverage
+run_backend_tests() {
+    echo "🧪 Setting up backend and running tests..."
+    
+    # Install backend dependencies
+    echo "Installing backend dependencies..."
+    if ! pip3 install -r requirements.txt; then
+        echo "❌ Failed to install Python dependencies"
+        exit 1
+    fi
+    
+    echo "==============================================="
+    echo "Running backend tests with coverage report..."
+    echo "==============================================="
+    cd backend || {
+        echo "❌ Backend directory not found"
+        exit 1
+    }
+    
+    if ! python3 -m pytest --cov=app --cov-report term-missing tests/ -v; then
+        echo "❌ Tests failed"
+        cd ..
+        exit 1
+    fi
+    
+    cd ..
+    echo "==============================================="
+    echo "✅ Test coverage report complete"
+    echo "==============================================="
+}
+
 # Function for local deployment
 deploy_local() {
     echo "🚀 Starting local deployment..."
     check_docker
+    
+    # Run tests first
+    run_backend_tests
+    
+    # Build frontend
+    build_frontend
     
     # Kill any process on port 8080
     kill_port_8080
@@ -54,12 +117,19 @@ deploy_local() {
     fi
     
     echo "✨ Local deployment completed!"
+    echo "🌐 Application is now available at: http://localhost:8080"
 }
 
 # Function for production deployment
 deploy_prod() {
     echo "🚀 Starting production deployment to GCR..."
     check_docker
+    
+    # Run tests first
+    run_backend_tests
+    
+    # Build frontend
+    build_frontend
     
     # Build image locally
     IMAGE_TAG="${GCR_HOSTNAME}/${PROJECT_ID}/${IMAGE_NAME}:${VERSION}"
@@ -93,6 +163,8 @@ deploy_prod() {
     fi
     
     echo "✨ Production deployment completed!"
+    echo "🌐 Application metrics and details available at:"
+    echo "https://console.cloud.google.com/run/detail/us-central1/edutrack/metrics?project=portfolio-383615"
 }
 
 # Main script logic
