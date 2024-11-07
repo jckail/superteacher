@@ -10,6 +10,8 @@ import {
   TextField,
   Button,
   Paper,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
@@ -25,6 +27,8 @@ const Chat = () => {
   const [webSocket, setWebSocket] = useState(null);
   const [initialContextSent, setInitialContextSent] = useState(false);
   const clientId = useRef(Date.now().toString());
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const messagesEndRef = useRef(null);
 
@@ -174,15 +178,14 @@ const Chat = () => {
         open={open}
         onClose={handleClose}
         maxWidth="sm"
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            position: 'fixed',
-            bottom: 80,
-            left: 20,
-            m: 0,
-            width: 350,
-            borderRadius: 2,
-            maxHeight: '70vh',
+            width: isMobile ? '100%' : 350,
+            height: isMobile ? '100%' : '70vh',
+            maxHeight: isMobile ? '100%' : '70vh',
+            borderRadius: isMobile ? 0 : 2,
+            margin: isMobile ? 0 : 2,
           }
         }}
       >
@@ -209,12 +212,13 @@ const Chat = () => {
             onClick={handleClose}
             sx={{
               color: 'white',
+              padding: '12px',
               '&:hover': {
                 bgcolor: 'rgba(255,255,255,0.1)',
               }
             }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: isMobile ? 28 : 24 }} />
           </IconButton>
         </DialogTitle>
         <DialogContent 
@@ -223,7 +227,7 @@ const Chat = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
-            height: '450px'
+            height: isMobile ? 'calc(100% - 64px)' : '450px'
           }}
         >
           {/* Messages Container */}
