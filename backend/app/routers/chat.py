@@ -15,6 +15,7 @@ router = APIRouter()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.page_contexts: Dict[str, str] = {}
 
     async def connect(self, client_id: str, websocket: WebSocket):
         await websocket.accept()
@@ -23,6 +24,14 @@ class ConnectionManager:
     def disconnect(self, client_id: str):
         if client_id in self.active_connections:
             del self.active_connections[client_id]
+        if client_id in self.page_contexts:
+            del self.page_contexts[client_id]
+
+    def store_context(self, client_id: str, context: str):
+        self.page_contexts[client_id] = context
+
+    def get_context(self, client_id: str) -> str:
+        return self.page_contexts.get(client_id, '')
 
     async def send_message(self, message: str, client_id: str):
         if client_id in self.active_connections:
@@ -49,11 +58,28 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         while True:
             # Receive message from client
             data = await websocket.receive_text()
+            parsed_data = json.loads(data)
             
             try:
+                if parsed_data["type"] == "context":
+                    # Store the page context for this client
+                    manager.store_context(client_id, parsed_data["content"])
+                    continue
+                
+                # Get the stored context for this client
+                context = manager.get_context(client_id)
+                
                 # Create a message to Claude with context about being an educational assistant
                 system_prompt = """You are an educational assistant helping teachers analyze student performance and provide insights. 
-                Keep responses focused on academic context and student success. Be concise but informative."""
+                Keep responses focused on academic context and student success. Be concise but informative.
+                You have access to the current page content and structure to provide more contextual responses."""
+                
+                # Construct the user message with context
+                user_message = f"""Page Context: {context}
+
+User Message: {parsed_data["content"]}
+
+Please provide a response that takes into account both the user's message and the current page context."""
                 
                 # Send message to Claude
                 response = client.messages.create(
@@ -62,7 +88,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     system=system_prompt,
                     messages=[{
                         "role": "user",
-                        "content": data
+                        "content": user_message
                     }]
                 )
                 

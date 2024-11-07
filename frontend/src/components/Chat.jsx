@@ -23,6 +23,7 @@ const Chat = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [webSocket, setWebSocket] = useState(null);
+  const [initialContextSent, setInitialContextSent] = useState(false);
   const clientId = useRef(Date.now().toString());
   
   const messagesEndRef = useRef(null);
@@ -35,12 +36,44 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  const getPageContext = () => {
+    // Get the main content area, excluding the chat interface
+    const mainContent = document.querySelector('#root');
+    if (!mainContent) return '';
+
+    // Create a clone to avoid modifying the actual DOM
+    const clone = mainContent.cloneNode(true);
+    
+    // Remove the chat dialog from the clone if it exists
+    const chatDialog = clone.querySelector('[role="dialog"]');
+    if (chatDialog) {
+      chatDialog.remove();
+    }
+
+    // Get both HTML structure and text content
+    const context = {
+      html: clone.innerHTML,
+      text: clone.textContent?.trim() || ''
+    };
+
+    return JSON.stringify(context);
+  };
+
   useEffect(() => {
     if (open && !webSocket) {
       const ws = new WebSocket(`ws://localhost:8080/ws/${clientId.current}`);
       
       ws.onopen = () => {
         console.log('WebSocket Connected');
+        // Send initial context when connection opens
+        if (!initialContextSent) {
+          const pageContext = getPageContext();
+          ws.send(JSON.stringify({
+            type: 'context',
+            content: pageContext
+          }));
+          setInitialContextSent(true);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -61,6 +94,7 @@ const Chat = () => {
       ws.onclose = () => {
         console.log('WebSocket Disconnected');
         setWebSocket(null);
+        setInitialContextSent(false);
       };
 
       setWebSocket(ws);
@@ -71,7 +105,7 @@ const Chat = () => {
         webSocket.close();
       }
     };
-  }, [open]);
+  }, [open, initialContextSent]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -88,7 +122,10 @@ const Chat = () => {
       setIsLoading(true);
       
       // Send message through WebSocket
-      webSocket.send(message);
+      webSocket.send(JSON.stringify({
+        type: 'message',
+        content: message
+      }));
       setMessage('');
     }
   };
