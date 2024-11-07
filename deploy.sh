@@ -134,7 +134,7 @@ deploy_prod() {
     # Build image locally
     IMAGE_TAG="${GCR_HOSTNAME}/${PROJECT_ID}/${IMAGE_NAME}:${VERSION}"
     echo "Building image: ${IMAGE_TAG}"
-    if ! docker build --build-arg VERSION="${VERSION}" -t ${IMAGE_TAG} .; then
+    if ! DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build --platform linux/amd64 --build-arg VERSION="${VERSION}" -t ${IMAGE_TAG} .; then
         echo "❌ Local build failed"
         exit 1
     fi
