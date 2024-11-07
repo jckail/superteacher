@@ -12,24 +12,45 @@ export const ProgressReportSection = styled(Box)(({ theme }) => ({
   top: 0,
   zIndex: 1100,
   backgroundColor: '#f3f0ff',
+  [theme.breakpoints.down('sm')]: {
+    padding: '8px 12px',
+    flexDirection: 'column',
+    gap: '8px',
+    '& .MuiButton-root': {
+      fontSize: '0.7rem',
+      padding: '4px 8px',
+      width: '100%'
+    }
+  }
 }));
 
-export const ReportDates = styled(Box)({
+export const ReportDates = styled(Box)(({ theme }) => ({
   display: 'flex',
   gap: '24px',
   alignItems: 'center',
-});
+  [theme.breakpoints.down('sm')]: {
+    gap: '12px',
+    width: '100%',
+    justifyContent: 'space-between'
+  }
+}));
 
-export const DateLabel = styled(Typography)({
+export const DateLabel = styled(Typography)(({ theme }) => ({
   fontSize: '14px',
   color: '#6b7280',
-});
+  [theme.breakpoints.down('sm')]: {
+    fontSize: '12px'
+  }
+}));
 
-export const DateValue = styled(Typography)({
+export const DateValue = styled(Typography)(({ theme }) => ({
   color: '#7e3af2',
   fontWeight: 500,
   cursor: 'pointer',
-});
+  [theme.breakpoints.down('sm')]: {
+    fontSize: '12px'
+  }
+}));
 
 export const Controls = styled(Box)(({ theme }) => ({
   padding: '16px 24px',
@@ -41,6 +62,20 @@ export const Controls = styled(Box)(({ theme }) => ({
   top: '72px',
   zIndex: 1100,
   backgroundColor: '#fff',
+  [theme.breakpoints.down('sm')]: {
+    padding: '8px 12px',
+    flexWrap: 'wrap',
+    gap: '8px',
+    '& .MuiButton-root': {
+      fontSize: '0.7rem',
+      padding: '4px 8px',
+      flex: '1 1 auto',
+      minWidth: 'auto'
+    },
+    '& .MuiTextField-root': {
+      flex: '1 1 100%'
+    }
+  }
 }));
 
 export const TableContainer = styled(Box)({

@@ -44,21 +44,21 @@ const StudentTableRow = ({
       <TableRow>
         {!isMobile && (
           <>
-            <TableCell sx={{ width: columnWidths.class_id, minWidth: columnWidths.class_id }}>
+            <TableCell data-column="class_id" sx={{ width: columnWidths.class_id, minWidth: columnWidths.class_id }}>
               {student.class_id}
             </TableCell>
-            <TableCell sx={{ width: columnWidths.section, minWidth: columnWidths.section }}>
+            <TableCell data-column="section" sx={{ width: columnWidths.section, minWidth: columnWidths.section }}>
               {student.section}
             </TableCell>
           </>
         )}
-        <TableCell sx={{ width: columnWidths.id, minWidth: columnWidths.id }}>
+        <TableCell data-column="id" sx={{ width: columnWidths.id, minWidth: columnWidths.id }}>
           {student.id}
         </TableCell>
-        <TableCell sx={{ width: columnWidths.name, minWidth: columnWidths.name }}>
+        <TableCell data-column="name" sx={{ width: columnWidths.name, minWidth: columnWidths.name }}>
           {student.name}
         </TableCell>
-        <TableCell sx={{ width: columnWidths.performance, minWidth: columnWidths.performance }}>
+        <TableCell data-column="performance" sx={{ width: columnWidths.performance, minWidth: columnWidths.performance }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <StatusBadge status={getGpaStatus(student.gpa)}>
               GPA: {student.gpa.toFixed(1)}
@@ -67,7 +67,7 @@ const StudentTableRow = ({
         </TableCell>
         {!isMobile ? (
           <>
-            <TableCell sx={{ width: columnWidths.tests, minWidth: columnWidths.tests }}>
+            <TableCell data-column="tests" sx={{ width: columnWidths.tests, minWidth: columnWidths.tests }}>
               <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
                 {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
                   <ScoreCard key={testName}>
@@ -81,7 +81,7 @@ const StudentTableRow = ({
                 ))}
               </Box>
             </TableCell>
-            <TableCell sx={{ width: columnWidths.homework, minWidth: columnWidths.homework }}>
+            <TableCell data-column="homework" sx={{ width: columnWidths.homework, minWidth: columnWidths.homework }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Typography variant="body2">
                   Points: {student.homework_points}
@@ -91,7 +91,7 @@ const StudentTableRow = ({
                 </Typography>
               </Box>
             </TableCell>
-            <TableCell sx={{ width: columnWidths.attendance, minWidth: columnWidths.attendance }}>
+            <TableCell data-column="attendance" sx={{ width: columnWidths.attendance, minWidth: columnWidths.attendance }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <StatusBadge status={getAttendanceStatus(student.attendance_percentage)}>
                   {student.attendance_percentage.toFixed(1)}%
@@ -101,12 +101,12 @@ const StudentTableRow = ({
                 </Typography>
               </Box>
             </TableCell>
-            <TableCell sx={{ width: columnWidths.insights, minWidth: columnWidths.insights }}>
+            <TableCell data-column="insights" sx={{ width: columnWidths.insights, minWidth: columnWidths.insights }}>
               <AIInsightsBox insights={student.ai_insights} />
             </TableCell>
           </>
         ) : (
-          <TableCell>
+          <TableCell data-column="details" sx={{ width: '40px', minWidth: '40px', padding: '4px' }}>
             <IconButton
               aria-label="expand row"
               size="small"
@@ -116,8 +116,8 @@ const StudentTableRow = ({
             </IconButton>
           </TableCell>
         )}
-        <TableCell sx={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 100 : 140 }}>
+        <TableCell data-column="actions" sx={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: isMobile ? 60 : 140 }}>
             <ActionButton
               variant="contained"
               color="success"
@@ -125,7 +125,7 @@ const StudentTableRow = ({
               onClick={() => handleAddGrade(student)}
               disabled={isSubmitting}
             >
-              Add Grade
+              {isMobile ? '+' : 'Add Grade'}
             </ActionButton>
             {!isMobile && (
               <>

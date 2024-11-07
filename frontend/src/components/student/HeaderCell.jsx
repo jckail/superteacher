@@ -19,7 +19,7 @@ const HeaderCell = ({
   };
 
   return (
-    <StyledTableCell width={width}>
+    <StyledTableCell width={width} data-column={columnKey}>
       <ResizableColumn 
         width={width}
         onResize={(newWidth) => onResize(columnKey, newWidth)}

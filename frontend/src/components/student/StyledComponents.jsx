@@ -58,8 +58,38 @@ export const StyledTableCell = styled(TableCell)(({ theme, width }) => ({
     }
   },
   [theme.breakpoints.down('sm')]: {
-    padding: '8px 12px',
-    fontSize: '0.875rem',
+    padding: '4px',
+    fontSize: '0.75rem',
+    width: 'auto',
+    minWidth: 'auto',
+    maxWidth: 'none',
+    '&[data-column="id"]': {
+      width: '60px',
+      minWidth: '60px',
+      maxWidth: '60px'
+    },
+    '&[data-column="name"]': {
+      width: '80px',
+      minWidth: '80px',
+      maxWidth: '80px'
+    },
+    '&[data-column="performance"]': {
+      width: '60px',
+      minWidth: '60px',
+      maxWidth: '60px'
+    },
+    '&[data-column="actions"]': {
+      width: '40px',
+      minWidth: '40px',
+      maxWidth: '40px',
+      padding: '4px 2px'
+    },
+    '&[data-column="details"]': {
+      width: '40px',
+      minWidth: '40px',
+      maxWidth: '40px',
+      padding: '4px'
+    }
   }
 }));
 
@@ -81,9 +111,13 @@ export const StatusBadge = styled('div')(({ theme, status }) => ({
     background: '#fee2e2',
     color: '#991b1b',
   }),
+  [theme.breakpoints.down('sm')]: {
+    padding: '2px 4px',
+    fontSize: '11px'
+  }
 }));
 
-export const ActionButton = styled(Button)({
+export const ActionButton = styled(Button)(({ theme }) => ({
   width: '100%',
   marginBottom: '8px',
   textTransform: 'none',
@@ -116,7 +150,12 @@ export const ActionButton = styled(Button)({
       backgroundColor: '#dc2626',
     },
   },
-});
+  [theme.breakpoints.down('sm')]: {
+    padding: '4px 8px',
+    fontSize: '0.75rem',
+    marginBottom: '4px'
+  }
+}));
 
 export const ScoreCard = styled('div')(({ theme }) => ({
   backgroundColor: '#f8fafc',
@@ -127,13 +166,17 @@ export const ScoreCard = styled('div')(({ theme }) => ({
   [theme.breakpoints.down('sm')]: {
     padding: '4px',
     marginBottom: '2px',
+    fontSize: '0.75rem'
   }
 }));
 
-export const HeaderContent = styled('div')({
+export const HeaderContent = styled('div')(({ theme }) => ({
   padding: '12px 16px',
   width: '100%',
   height: '100%',
   display: 'flex',
   alignItems: 'center',
-});
+  [theme.breakpoints.down('sm')]: {
+    padding: '8px 4px'
+  }
+}));
