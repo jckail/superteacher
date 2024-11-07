@@ -1,11 +1,11 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/edu-track', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/edutrack', '.']
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/edu-track']
+    args: ['push', 'gcr.io/$PROJECT_ID/edutrack']
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -13,9 +13,9 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'edu-track'
+      - 'edutrack'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/edu-track'
+      - 'gcr.io/$PROJECT_ID/edutrack'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -23,4 +23,4 @@ steps:
       - '--allow-unauthenticated'
 
 images:
-  - 'gcr.io/$PROJECT_ID/edu-track'
+  - 'gcr.io/$PROJECT_ID/edutrack'
