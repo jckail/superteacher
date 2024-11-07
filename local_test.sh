@@ -7,6 +7,7 @@ cleanup() {
     lsof -ti:8080 | xargs kill -9 2>/dev/null || true
     pkill -f "uvicorn" 2>/dev/null || true
     pkill -f "node.*react-scripts" 2>/dev/null || true
+    sleep 2  # Give processes time to clean up
 }
 
 # Function to check if a port is available
@@ -20,7 +21,7 @@ check_port() {
 }
 
 # Trap cleanup function
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 # Kill any existing processes on required ports
 echo "Cleaning up existing processes..."
@@ -52,6 +53,15 @@ pip3 install -r requirements.txt || {
     exit 1
 }
 
+# Install backend package in development mode
+echo "Installing backend package in development mode..."
+cd backend || exit 1
+pip3 install -e . || {
+    echo "Failed to install backend package"
+    exit 1
+}
+cd .. || exit 1
+
 echo "==============================================="
 echo "Running backend tests with coverage report..."
 echo "==============================================="
@@ -76,6 +86,7 @@ sleep 5
 # Check if backend is still running
 if ! kill -0 $backend_pid 2>/dev/null; then
     echo "Backend failed to start"
+    cleanup
     exit 1
 fi
 
@@ -84,6 +95,7 @@ echo "Starting frontend development server..."
 cd frontend || exit 1
 PORT=3000 npm start || {
     echo "Failed to start frontend"
+    cleanup
     exit 1
 }
 

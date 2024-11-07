@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import version, db, health, notyet
-from app.models.database import init_db
+from backend.app.routers import version, db, health, notyet
+from backend.app.models.database import init_db
 
 # Initialize database
 init_db()

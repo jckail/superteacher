@@ -73,45 +73,47 @@ def init_db():
         Base.metadata.create_all(bind=engine)
         logger.info("Created database tables")
         
-        # Add sample data
-        db = SessionLocal()
-        if db.query(Student).count() == 0:
-            logger.info("Adding sample data...")
-            sample_students = [
-                Student(
-                    id="ST0001",
-                    name="John Smith",
-                    grade=10,
-                    class_id="C101",
-                    section="A",
-                    gpa=3.8,
-                    attendance_percentage=95.5,
-                    attendance_days="85/89",
-                    homework_points=450,
-                    homework_completed="45/50",
-                    academic_performance={"rank": "Top 5%", "tests": {"Math": "95%", "Science": "92%"}},
-                    ai_insights={"status": "Excellent", "recommendation": "Ready for advanced topics"}
-                ),
-                Student(
-                    id="ST0002",
-                    name="Emma Johnson",
-                    grade=10,
-                    class_id="C101",
-                    section="A",
-                    gpa=3.6,
-                    attendance_percentage=92.0,
-                    attendance_days="82/89",
-                    homework_points=420,
-                    homework_completed="42/50",
-                    academic_performance={"rank": "Top 10%", "tests": {"Math": "88%", "Science": "90%"}},
-                    ai_insights={"status": "Good", "recommendation": "Focus on problem-solving skills"}
-                )
-            ]
-            for student in sample_students:
-                db.add(student)
-            db.commit()
-            logger.info("Sample data added successfully")
-        db.close()
+        # Only add sample data if we're not in a testing environment
+        if not os.getenv("TESTING"):
+            # Add sample data
+            db = SessionLocal()
+            if db.query(Student).count() == 0:
+                logger.info("Adding sample data...")
+                sample_students = [
+                    Student(
+                        id="ST0001",
+                        name="John Smith",
+                        grade=10,
+                        class_id="C101",
+                        section="A",
+                        gpa=3.8,
+                        attendance_percentage=95.5,
+                        attendance_days="85/89",
+                        homework_points=450,
+                        homework_completed="45/50",
+                        academic_performance={"rank": "Top 5%", "tests": {"Math": "95%", "Science": "92%"}},
+                        ai_insights={"status": "Excellent", "recommendation": "Ready for advanced topics"}
+                    ),
+                    Student(
+                        id="ST0002",
+                        name="Emma Johnson",
+                        grade=10,
+                        class_id="C101",
+                        section="A",
+                        gpa=3.6,
+                        attendance_percentage=92.0,
+                        attendance_days="82/89",
+                        homework_points=420,
+                        homework_completed="42/50",
+                        academic_performance={"rank": "Top 10%", "tests": {"Math": "88%", "Science": "90%"}},
+                        ai_insights={"status": "Good", "recommendation": "Focus on problem-solving skills"}
+                    )
+                ]
+                for student in sample_students:
+                    db.add(student)
+                db.commit()
+                logger.info("Sample data added successfully")
+            db.close()
         logger.info("Database initialization complete")
     except Exception as e:
         logger.error(f"Error initializing database: {str(e)}")

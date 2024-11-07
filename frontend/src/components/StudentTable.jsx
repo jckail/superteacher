@@ -162,18 +162,18 @@ function StudentTable({ students, onStudentUpdate }) {
                   <div>GPA: {student.gpa}</div>
                 </TableCell>
                 <TableCell>
-                  {Object.entries(student.academic_performance.tests || {}).map(([subject, score]) => (
-                    <div key={subject}>
-                      {subject}: {score}
+                  {student.academic_performance.tests && Object.entries(student.academic_performance.tests).map(([testName, score]) => (
+                    <div key={testName} style={{ marginBottom: '4px', padding: '4px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      <strong>{testName}:</strong> {score}
                     </div>
                   ))}
                 </TableCell>
                 <TableCell>
                   <div>Points: {student.homework_points}</div>
                   <div>Completed: {student.homework_completed}</div>
-                  {Object.entries(student.academic_performance.homework || {}).map(([name, score]) => (
-                    <div key={name}>
-                      {name}: {score}
+                  {student.academic_performance.homework && Object.entries(student.academic_performance.homework).map(([name, score]) => (
+                    <div key={name} style={{ marginBottom: '4px', padding: '4px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      <strong>{name}:</strong> {score}
                     </div>
                   ))}
                 </TableCell>
