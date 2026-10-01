@@ -156,14 +156,14 @@ td.name { font-weight: 600; }
 .back { display: inline-block; }
 
 /* toasts */
-.toasts { position: fixed; z-index: 90; right: 16px; bottom: 16px; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.toasts { position: fixed; z-index: 90; left: calc(var(--sidebar) + 16px); bottom: 16px; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--bg); box-shadow: 0 8px 28px rgb(0 0 0 / .3); animation: toast-in .18s ease-out; }
 .toast.error { background: var(--bad); color: #fff; }
 :root[data-theme='dark'] .toast.error { color: #14102a; }
 .toast button { all: unset; cursor: pointer; margin-left: auto; padding: 0 4px; opacity: .8; border-radius: 4px; }
 .toast button:focus-visible { outline: 2px solid currentColor; }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
-@media (max-width: 800px) { .toasts { bottom: 76px; } }
+@media (max-width: 800px) { .toasts { left: 16px; bottom: 76px; } }
 
 /* modal extras */
 .modal h2 { font-size: 1.15rem; }

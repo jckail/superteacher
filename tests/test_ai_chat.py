@@ -47,7 +47,7 @@ def test_tool_loop_executes_and_continues(fake, seeded):
 
 
 def test_parallel_tool_results_in_one_message(fake, seeded):
-    from tests.ai_fakes import NS, tool_block, text_block
+    from tests.ai_fakes import tool_block
     both = FakeStream([], "tool_use", [tool_block("a", "class_stats", {}), tool_block("b", "get_student", {"name": "zzzz"})])
     f = fake(FakeAI([both, end_turn("ok")]))
     run(collect(ai.run_chat([{"role": "user", "content": "x"}], "R", "", seeded.app.state.session_factory)))

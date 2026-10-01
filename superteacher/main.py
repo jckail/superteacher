@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from . import auth
 from . import db as database
 from .config import Settings, get_settings
-from .routers import ai, attendance, gradebook, roster, system
+from .routers import ai, attendance, gradebook, reports, roster, system
 from .seed import seed_demo
 
 logging.basicConfig(level=logging.INFO)
@@ -96,12 +96,13 @@ def create_app(
         return {"version": settings.version}
 
     app.include_router(auth.router, prefix="/api")
-    for r in (system, roster, gradebook, attendance, ai):
+    for r in (system, roster, gradebook, attendance, ai, reports):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.require_auth)])
 
     dist = Path(settings.static_dir)
-    if dist.is_dir():
-        app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+    if (dist / "index.html").is_file():
+        if (dist / "assets").is_dir():
+            app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str):
