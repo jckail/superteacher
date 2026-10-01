@@ -4,23 +4,16 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from .. import metrics, schemas
 from ..db import get_db
-from ..models import Assessment, AttendanceRecord, Course, Note, Score, Section, Student
+from ..models import Assessment, Course, Note, Score, Section, Student
+from ..queries import STUDENT_LOAD, load_summaries
 
 router = APIRouter(tags=["roster"])
 
 MAX_IMPORT_ROWS = 5000
-
-# Notes are only needed on the detail page (and for one focused student in the AI context), so they
-# stay lazy for roster-wide loads and are eager only in get_student_or_404.
-_student_load = (
-    selectinload(Student.scores).selectinload(Score.assessment),
-    selectinload(Student.attendance),
-    joinedload(Student.section).joinedload(Section.course),
-)
 
 
 def summarize(s: Student, m: metrics.StudentMetrics | None = None) -> schemas.StudentSummary:
@@ -46,54 +39,6 @@ def detail(s: Student) -> schemas.StudentDetail:
     )  # fmt: skip
 
 
-def _filtered(q, filters: dict):
-    if filters.get("course_id"):
-        q = q.where(Section.course_id == filters["course_id"])
-    if filters.get("section_id"):
-        q = q.where(Student.section_id == filters["section_id"])
-    if filters.get("q"):
-        # Escape LIKE wildcards so "%" / "_" in a search are literal characters.
-        needle = filters["q"].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        q = q.where(Student.name.ilike(f"%{needle}%", escape="\\"))
-    return q
-
-
-def load_students(db: Session, **filters) -> list[Student]:
-    q = _filtered(select(Student).options(*_student_load).join(Section).order_by(Student.name, Student.id), filters)
-    return list(db.scalars(q).unique())
-
-
-def load_summaries(db: Session, **filters) -> list[tuple[Student, metrics.StudentMetrics]]:
-    """Students plus metrics for list/overview/gradebook views.
-
-    Scores and attendance are read as plain column tuples (two queries) instead of hydrating
-    tens of thousands of ORM objects; the numbers come from the same ``metrics`` code.
-    """
-    q = _filtered(
-        select(Student).options(joinedload(Student.section).joinedload(Section.course)).join(Section)
-        .order_by(Student.name, Student.id),
-        filters,
-    )  # fmt: skip
-    students = list(db.scalars(q).unique())
-    if not students:
-        return []
-    ids_q = _filtered(select(Student.id).join(Section), filters).scalar_subquery()
-    points: dict[str, list[metrics.ScorePoint]] = {}
-    for sid, aid, title, kind, due, mx, pts in db.execute(
-        select(Score.student_id, Assessment.id, Assessment.title, Assessment.kind, Assessment.due_date,
-               Assessment.max_points, Score.points)
-        .join(Assessment, Assessment.id == Score.assessment_id)
-        .where(Score.student_id.in_(ids_q))
-    ):  # fmt: skip
-        points.setdefault(sid, []).append(metrics.make_point(aid, title, kind, due, mx, pts))
-    statuses: dict[str, list] = {}
-    for sid, status in db.execute(
-        select(AttendanceRecord.student_id, AttendanceRecord.status).where(AttendanceRecord.student_id.in_(ids_q))
-    ):
-        statuses.setdefault(sid, []).append(status)
-    return [(s, metrics.compute_from(points.get(s.id, []), statuses.get(s.id, []))) for s in students]
-
-
 def sync_scores(db: Session, student: Student) -> None:
     """Make a student's score rows match their section's assessments (no more, no fewer).
 
@@ -116,7 +61,7 @@ def sync_scores(db: Session, student: Student) -> None:
 
 
 def get_student_or_404(db: Session, student_id: str) -> Student:
-    s = db.scalar(select(Student).options(*_student_load, selectinload(Student.notes)).where(Student.id == student_id))
+    s = db.scalar(select(Student).options(*STUDENT_LOAD, selectinload(Student.notes)).where(Student.id == student_id))
     if not s:
         raise HTTPException(404, "Student not found")
     return s
@@ -226,7 +171,7 @@ def add_note(student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db
 
 @router.post("/sections/{section_id}/import", response_model=schemas.ImportResult)
 def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depends(get_db)):
-    """Bulk-add students from CSV with columns ``name,grade_level`` (header optional). Bad rows are skipped, not fatal."""
+    """Bulk-add students from CSV (``name,grade_level``, header optional). Bad rows are skipped, not fatal."""
     if not db.get(Section, section_id):
         raise HTTPException(404, "Section not found")
     existing = {n.casefold() for n in db.scalars(select(Student.name).where(Student.section_id == section_id))}

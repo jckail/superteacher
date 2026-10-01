@@ -3,7 +3,9 @@ import pytest
 from superteacher.metrics import letter_and_gpa
 
 
-@pytest.mark.parametrize("pct,letter,gpa", [(100, "A", 4.0), (93, "A", 4.0), (92.9, "A-", 3.7), (80, "B-", 2.7), (59, "F", 0.0)])
+@pytest.mark.parametrize(
+    "pct,letter,gpa", [(100, "A", 4.0), (93, "A", 4.0), (92.9, "A-", 3.7), (80, "B-", 2.7), (59, "F", 0.0)]
+)
 def test_letter_bands(pct, letter, gpa):
     assert letter_and_gpa(pct) == (letter, gpa)
 
@@ -47,12 +49,21 @@ def test_future_work_never_affects_anything():
         pts = _rand_points(rng, 8)
         due_only = [p for p in pts if p.due_date <= TODAY]
         a, b = compute_from(pts, [], TODAY), compute_from(due_only, [], TODAY)
-        assert (a.average, a.trend, a.missing, a.homework_rate, a.risk) == (b.average, b.trend, b.missing, b.homework_rate, b.risk)
+        assert (a.average, a.trend, a.missing, a.homework_rate, a.risk) == (
+            b.average,
+            b.trend,
+            b.missing,
+            b.homework_rate,
+            b.risk,
+        )
 
 
 def test_weights_renormalise_over_present_kinds():
     assert abs(sum(KIND_WEIGHTS.values()) - 1) < 1e-9
-    p = [make_point("1", "t", AssessmentKind.test, TODAY, 100, 80), make_point("2", "h", AssessmentKind.homework, TODAY, 10, 10)]
+    p = [
+        make_point("1", "t", AssessmentKind.test, TODAY, 100, 80),
+        make_point("2", "h", AssessmentKind.homework, TODAY, 10, 10),
+    ]
     m = compute_from(p, [], TODAY)
     assert m.average == pytest.approx((0.40 * 80 + 0.25 * 100) / 0.65)
 
@@ -69,8 +80,12 @@ def test_lower_scores_never_lower_risk():
     for _ in range(200):
         pts = _rand_points(rng, 8, allow_future=False)
         st = [rng.choice(list(AttendanceStatus)) for _ in range(rng.randint(0, 10))]
-        worse = [make_point(p.assessment_id, p.title, p.kind, p.due_date, p.max_points,
-                            None if p.points is None else p.points * 0.5) for p in pts]
+        worse = [
+            make_point(
+                p.assessment_id, p.title, p.kind, p.due_date, p.max_points, None if p.points is None else p.points * 0.5
+            )
+            for p in pts
+        ]
         a, b = compute_from(pts, st, TODAY), compute_from(worse, st, TODAY)
         if a.average is not None and b.average is not None:
             assert b.average <= a.average + 1e-9
@@ -86,6 +101,9 @@ def test_attendance_excused_only_and_empty():
 
 
 def test_trend_window_and_ties_deterministic():
-    pts = [make_point(f"{i}", f"T{i}", AssessmentKind.quiz, TODAY - timedelta(days=10 - i), 100, v) for i, v in enumerate([90, 90, 60, 60, 60])]
+    pts = [
+        make_point(f"{i}", f"T{i}", AssessmentKind.quiz, TODAY - timedelta(days=10 - i), 100, v)
+        for i, v in enumerate([90, 90, 60, 60, 60])
+    ]
     assert compute_from(pts, [], TODAY).trend == pytest.approx(-30)
     assert compute_from(list(reversed(pts)), [], TODAY).trend == pytest.approx(-30)

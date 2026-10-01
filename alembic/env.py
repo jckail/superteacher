@@ -9,7 +9,8 @@ target_metadata = Base.metadata
 
 def _run(connection) -> None:
     context.configure(
-        connection=connection, target_metadata=target_metadata,
+        connection=connection,
+        target_metadata=target_metadata,
         render_as_batch=connection.dialect.name == "sqlite",  # SQLite needs batch mode for ALTERs
         compare_type=True,
     )
@@ -18,8 +19,9 @@ def _run(connection) -> None:
 
 
 if context.is_offline_mode():
-    context.configure(url=get_settings().database_url, target_metadata=target_metadata, literal_binds=True,
-                      render_as_batch=True)
+    context.configure(
+        url=get_settings().database_url, target_metadata=target_metadata, literal_binds=True, render_as_batch=True
+    )
     with context.begin_transaction():
         context.run_migrations()
 elif (conn := config.attributes.get("connection")) is not None:

@@ -32,15 +32,19 @@ def test_student_crud_and_ids_never_collide(client):
     assert len({b["id"], c["id"]}) == 2
     assert client.patch(f"/api/students/{c['id']}", json={"name": "C2"}).json()["name"] == "C2"
     assert client.get("/api/students/missing").status_code == 404
-    assert client.post("/api/students", json={"name": "x", "grade_level": 13, "section_id": sec["id"]}).status_code == 422
+    assert (
+        client.post("/api/students", json={"name": "x", "grade_level": 13, "section_id": sec["id"]}).status_code == 422
+    )
 
 
 def test_gradebook_flow_and_metrics(client):
     _, sec = mk_class(client)
     s = mk_student(client, sec)
     past = (date.today() - timedelta(days=3)).isoformat()
-    gb = client.post(f"/api/sections/{sec['id']}/assessments",
-                     json={"title": "HW1", "kind": "homework", "max_points": 10, "due_date": past}).json()
+    gb = client.post(
+        f"/api/sections/{sec['id']}/assessments",
+        json={"title": "HW1", "kind": "homework", "max_points": 10, "due_date": past},
+    ).json()
     aid = gb["assessments"][0]["id"]
     assert gb["rows"][0]["points"][aid] is None  # explicit "missing"
     detail = client.get(f"/api/students/{s['id']}").json()
@@ -63,10 +67,16 @@ def test_attendance_roundtrip_and_rate(client):
     today = date.today()
     for i, status in enumerate(["present", "absent", "tardy", "excused"]):
         day = (today - timedelta(days=i)).isoformat()
-        r = client.put(f"/api/sections/{sec['id']}/attendance", json={"day": day, "marks": [{"student_id": s["id"], "status": status}]})
+        r = client.put(
+            f"/api/sections/{sec['id']}/attendance",
+            json={"day": day, "marks": [{"student_id": s["id"], "status": status}]},
+        )
         assert r.status_code == 200
     # re-marking the same day updates, not duplicates
-    client.put(f"/api/sections/{sec['id']}/attendance", json={"day": today.isoformat(), "marks": [{"student_id": s["id"], "status": "absent"}]})
+    client.put(
+        f"/api/sections/{sec['id']}/attendance",
+        json={"day": today.isoformat(), "marks": [{"student_id": s["id"], "status": "absent"}]},
+    )
     d = client.get(f"/api/students/{s['id']}").json()
     assert len(d["attendance"]) == 4 and d["absences"] == 2
     # excused is excluded: counted = [absent, absent, tardy] -> 1/3 attended

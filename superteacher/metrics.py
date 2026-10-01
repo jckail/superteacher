@@ -3,9 +3,11 @@
 One definition of "grade", "attendance" and "risk", shared by the roster, the
 detail view, the overview and the AI context, so the numbers never disagree.
 """
+
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from statistics import mean
@@ -24,6 +26,12 @@ _LETTERS = [
     (93, "A", 4.0), (90, "A-", 3.7), (87, "B+", 3.3), (83, "B", 3.0), (80, "B-", 2.7),
     (77, "C+", 2.3), (73, "C", 2.0), (70, "C-", 1.7), (60, "D", 1.0), (0, "F", 0.0),
 ]  # fmt: skip
+
+
+def mean_of(values: Iterable[float | None]) -> float | None:
+    """Mean of the values that are present; None when there are none."""
+    present = [v for v in values if v is not None]
+    return mean(present) if present else None
 
 
 def letter_and_gpa(pct: float | None) -> tuple[str | None, float | None]:
@@ -62,7 +70,9 @@ class StudentMetrics:
     scores: list[ScorePoint] = field(default_factory=list)
 
 
-def make_point(aid: str, title: str, kind: AssessmentKind, due: date, max_points: float, points: float | None) -> ScorePoint:
+def make_point(
+    aid: str, title: str, kind: AssessmentKind, due: date, max_points: float, points: float | None
+) -> ScorePoint:
     pct = None if points is None or not max_points else points / max_points * 100
     return ScorePoint(aid, title, kind, due, max_points, points, pct)
 
@@ -83,7 +93,9 @@ def compute(student: Student, today: date | None = None) -> StudentMetrics:
     return compute_from(score_points(student), [a.status for a in student.attendance], today)
 
 
-def compute_from(points: list[ScorePoint], statuses: list[AttendanceStatus], today: date | None = None) -> StudentMetrics:
+def compute_from(
+    points: list[ScorePoint], statuses: list[AttendanceStatus], today: date | None = None
+) -> StudentMetrics:
     """Same as :func:`compute` but over plain values, so bulk callers can skip ORM hydration."""
     today = today or date.today()
     m = StudentMetrics(scores=_sort(points))

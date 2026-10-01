@@ -1,4 +1,5 @@
 """Regression tests from the backend audit (validation, cascades, sections, CSV, perf paths)."""
+
 from datetime import date, timedelta
 
 import pytest
@@ -9,8 +10,9 @@ PAST = (date.today() - timedelta(days=3)).isoformat()
 
 
 def mk_assessment(client, sec, title="HW1", kind="homework", due=PAST, mx=10):
-    gb = client.post(f"/api/sections/{sec['id']}/assessments",
-                     json={"title": title, "kind": kind, "max_points": mx, "due_date": due}).json()
+    gb = client.post(
+        f"/api/sections/{sec['id']}/assessments", json={"title": title, "kind": kind, "max_points": mx, "due_date": due}
+    ).json()
     return next(a for a in gb["assessments"] if a["title"] == title)["id"]
 
 
@@ -21,7 +23,9 @@ def test_names_unique_case_insensitively_and_blank_rejected(client):
     assert client.post("/api/courses", json={"name": "   "}).status_code == 422
     assert client.post("/api/sections", json={"course_id": course["id"], "name": " "}).status_code == 422
     _, sec = course, client.get("/api/courses").json()[0]["sections"][0]
-    assert client.post("/api/students", json={"name": "  ", "grade_level": 9, "section_id": sec["id"]}).status_code == 422
+    assert (
+        client.post("/api/students", json={"name": "  ", "grade_level": 9, "section_id": sec["id"]}).status_code == 422
+    )
     s = mk_student(client, sec, "  Ada  ")
     assert s["name"] == "Ada"
     assert client.patch(f"/api/students/{s['id']}", json={"name": "   "}).status_code == 422
@@ -69,8 +73,10 @@ def test_duplicate_entries_in_one_request_do_not_500(client):
     s = mk_student(client, sec)
     aid = mk_assessment(client, sec)
     client.post  # noqa: B018
-    r = client.put(f"/api/assessments/{aid}/scores",
-                   json={"scores": [{"student_id": s["id"], "points": 1}, {"student_id": s["id"], "points": 7}]})
+    r = client.put(
+        f"/api/assessments/{aid}/scores",
+        json={"scores": [{"student_id": s["id"], "points": 1}, {"student_id": s["id"], "points": 7}]},
+    )
     assert r.status_code == 200 and r.json()["rows"][0]["points"][aid] == 7
     marks = [{"student_id": s["id"], "status": "absent"}, {"student_id": s["id"], "status": "present"}]
     r = client.put(f"/api/sections/{sec['id']}/attendance", json={"marks": marks})
@@ -82,11 +88,17 @@ def test_invalid_numbers_and_oversized_batches(client):
     s = mk_student(client, sec)
     aid = mk_assessment(client, sec)
     for pts in (-1, "NaN", "Infinity"):
-        r = client.put(f"/api/assessments/{aid}/scores", content=f'{{"scores":[{{"student_id":"{s["id"]}","points":{pts if isinstance(pts, int) else pts}}}]}}',
-                       headers={"content-type": "application/json"})
+        r = client.put(
+            f"/api/assessments/{aid}/scores",
+            content=f'{{"scores":[{{"student_id":"{s["id"]}","points":{pts}}}]}}',
+            headers={"content-type": "application/json"},
+        )
         assert r.status_code == 422
     for mx in (0, -5, 1e12):
-        assert client.post(f"/api/sections/{sec['id']}/assessments", json={"title": "X", "max_points": mx}).status_code == 422
+        assert (
+            client.post(f"/api/sections/{sec['id']}/assessments", json={"title": "X", "max_points": mx}).status_code
+            == 422
+        )
     big = [{"student_id": s["id"], "points": 1}] * 1001
     assert client.put(f"/api/assessments/{aid}/scores", json={"scores": big}).status_code == 422
     big = [{"student_id": s["id"], "status": "present"}] * 1001
@@ -98,10 +110,22 @@ def test_attendance_is_scoped_to_section(client):
     sec2 = client.post("/api/sections", json={"course_id": course["id"], "name": "P2"}).json()
     a, b = mk_student(client, sec1, "A"), mk_student(client, sec2, "B")
     day = date.today().isoformat()
-    client.put(f"/api/sections/{sec2['id']}/attendance", json={"day": day, "marks": [{"student_id": b["id"], "status": "absent"}]})
-    r = client.put(f"/api/sections/{sec1['id']}/attendance", json={"day": day, "marks": [{"student_id": a["id"], "status": "present"}]})
+    client.put(
+        f"/api/sections/{sec2['id']}/attendance",
+        json={"day": day, "marks": [{"student_id": b["id"], "status": "absent"}]},
+    )
+    r = client.put(
+        f"/api/sections/{sec1['id']}/attendance",
+        json={"day": day, "marks": [{"student_id": a["id"], "status": "present"}]},
+    )
     assert r.status_code == 200
-    assert client.put(f"/api/sections/{sec1['id']}/attendance", json={"day": day, "marks": [{"student_id": b["id"], "status": "present"}]}).status_code == 422
+    assert (
+        client.put(
+            f"/api/sections/{sec1['id']}/attendance",
+            json={"day": day, "marks": [{"student_id": b["id"], "status": "present"}]},
+        ).status_code
+        == 422
+    )
     sheet = client.get(f"/api/sections/{sec2['id']}/attendance", params={"day": day}).json()
     assert sheet["rows"][0]["status"] == "absent"
 
@@ -158,10 +182,23 @@ def test_list_and_detail_agree(seeded):
     """The bulk (column-tuple) path used by list/overview must match the ORM path used by detail."""
     for row in seeded.get("/api/students").json()[:15]:
         d = seeded.get(f"/api/students/{row['id']}").json()
-        for k in ("average", "letter", "gpa", "trend", "attendance_rate", "homework_rate", "missing", "risk", "risk_reasons"):
+        for k in (
+            "average",
+            "letter",
+            "gpa",
+            "trend",
+            "attendance_rate",
+            "homework_rate",
+            "missing",
+            "risk",
+            "risk_reasons",
+        ):
             assert row[k] == d[k], (row["name"], k)
-    gb_ids = {r["student_id"] for sec in seeded.get("/api/courses").json()[0]["sections"]
-              for r in seeded.get(f"/api/sections/{sec['id']}/gradebook").json()["rows"]}
+    gb_ids = {
+        r["student_id"]
+        for sec in seeded.get("/api/courses").json()[0]["sections"]
+        for r in seeded.get(f"/api/sections/{sec['id']}/gradebook").json()["rows"]
+    }
     assert gb_ids
 
 

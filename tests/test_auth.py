@@ -5,7 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from starlette.websockets import WebSocketDisconnect
 
-from superteacher import auth, db as database
+from superteacher import auth
+from superteacher import db as database
 from superteacher.config import Settings
 from superteacher.main import create_app
 
@@ -16,7 +17,9 @@ H = {"X-Requested-With": "test"}
 def make(**kw) -> TestClient:
     eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     sf = sessionmaker(bind=eng, expire_on_commit=False)
-    s = Settings(auth_password=PW, auth_disabled=False, session_secret="s" * 32, cors_origins=["http://localhost:4000"], **kw)
+    s = Settings(
+        auth_password=PW, auth_disabled=False, session_secret="s" * 32, cors_origins=["http://localhost:4000"], **kw
+    )
     app = create_app(session_factory=sf, engine=eng, seed=False, settings=s)
 
     def override():
@@ -110,7 +113,10 @@ def test_websocket_requires_cookie_and_origin(c):
     with pytest.raises(WebSocketDisconnect), c.websocket_connect("/api/chat/ws"):
         pass
     login(c)
-    with pytest.raises(WebSocketDisconnect), c.websocket_connect("/api/chat/ws", headers={"origin": "https://evil.example"}):
+    with (
+        pytest.raises(WebSocketDisconnect),
+        c.websocket_connect("/api/chat/ws", headers={"origin": "https://evil.example"}),
+    ):
         pass
     with c.websocket_connect("/api/chat/ws", headers={"origin": "http://testserver"}) as ws:
         ws.send_json({"type": "reset"})

@@ -59,14 +59,19 @@ def create_app(
 
     docs = settings.enable_docs
     app = FastAPI(
-        title="Super Teacher", version=settings.version, lifespan=lifespan,
-        docs_url="/api/docs" if docs else None, redoc_url=None,
+        title="Super Teacher",
+        version=settings.version,
+        lifespan=lifespan,
+        docs_url="/api/docs" if docs else None,
+        redoc_url=None,
         openapi_url="/api/openapi.json" if docs else None,
     )
     app.state.session_factory = session_factory
     app.state.auth = auth_state
     app.add_middleware(
-        CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=True,
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "X-Requested-With"],
     )
@@ -87,7 +92,7 @@ def create_app(
         try:
             db.execute(text("SELECT 1"))
             return {"status": "healthy", "database": "ok", "ai": bool(settings.anthropic_api_key)}
-        except Exception:  # noqa: BLE001
+        except Exception:
             logging.getLogger(__name__).exception("health check failed")
             return {"status": "unhealthy", "database": "error", "ai": False}
 

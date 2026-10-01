@@ -1,4 +1,5 @@
 """Fake Anthropic client pieces for offline tests."""
+
 from types import SimpleNamespace as NS
 
 import anthropic
@@ -32,6 +33,7 @@ class FakeStream:
                 yield t
             if self.raises:
                 raise self.raises
+
         return gen()
 
     async def get_final_message(self):

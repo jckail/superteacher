@@ -7,6 +7,7 @@
     "dev": "vite --port 4000",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -18,10 +19,15 @@
     "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.13.0",
     "jsdom": "^29.1.1",
     "vite": "^5.4.21",
     "vitest": "^2.1.9"

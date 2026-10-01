@@ -34,12 +34,18 @@ def mk_student(client, sec, name):
 
 def mk_assessment(client, sec, title, max_points=100, due=None, kind="test"):
     due = due or (date.today() - timedelta(days=3)).isoformat()
-    gb = client.post(f"/api/sections/{sec['id']}/assessments", json={"title": title, "max_points": max_points, "due_date": due, "kind": kind}).json()
+    gb = client.post(
+        f"/api/sections/{sec['id']}/assessments",
+        json={"title": title, "max_points": max_points, "due_date": due, "kind": kind},
+    ).json()
     return next(a for a in gb["assessments"] if a["title"] == title)
 
 
 def set_scores(client, a, scores):
-    r = client.put(f"/api/assessments/{a['id']}/scores", json={"scores": [{"student_id": k, "points": v} for k, v in scores.items()]})
+    r = client.put(
+        f"/api/assessments/{a['id']}/scores",
+        json={"scores": [{"student_id": k, "points": v} for k, v in scores.items()]},
+    )
     assert r.status_code == 200, r.text
 
 
@@ -69,7 +75,7 @@ def test_csv_injection_and_escaping(client):
     mk_assessment(client, sec, "=cmd|' /C calc'!A0")
     rows = parse(client.get(f"/api/reports/sections/{sec['id']}/gradebook.csv"))
     names = {r[0] for r in rows[1:]}
-    assert {"'=HYPERLINK(\"x\")", "'+1", "'-2", "'@SUM(A1)", 'Smith, "Jo"'} == names
+    assert {'\'=HYPERLINK("x")', "'+1", "'-2", "'@SUM(A1)", 'Smith, "Jo"'} == names
     assert rows[0][3].startswith("'=cmd")
 
 
@@ -93,7 +99,7 @@ def test_summary_stats_match_hand_computation(client):
     assert s["distribution"] == {"A": 0, "B": 0, "C": 1, "D": 1, "F": 1} or sum(s["distribution"].values()) == 3
     # 90 -> A-, 70 -> C-, 50 -> F
     assert s["distribution"] == {"A": 1, "B": 0, "C": 1, "D": 0, "F": 1}
-    assert [x["name"] for x in s["attention"]][0] == "C"  # failing student first
+    assert s["attention"][0]["name"] == "C"  # failing student first
     assert s["average"] == 70.0
 
 
@@ -107,7 +113,10 @@ def test_summary_attendance_window_and_rate(client):
         (today - timedelta(days=1), {a["id"]: "tardy", b["id"]: "excused"}),
         (old, {a["id"]: "absent", b["id"]: "absent"}),
     ]:
-        r = client.put(f"/api/sections/{sec['id']}/attendance", json={"day": day.isoformat(), "marks": [{"student_id": k, "status": v} for k, v in marks.items()]})
+        r = client.put(
+            f"/api/sections/{sec['id']}/attendance",
+            json={"day": day.isoformat(), "marks": [{"student_id": k, "status": v} for k, v in marks.items()]},
+        )
         assert r.status_code == 200, r.text
     att = client.get(f"/api/reports/sections/{sec['id']}/summary").json()["attendance"]
     assert [d["day"] for d in att] == [(today - timedelta(days=1)).isoformat(), today.isoformat()]
@@ -119,7 +128,9 @@ def test_empty_section_summary_and_csv(client):
     sec = mk_class(client)
     s = client.get(f"/api/reports/sections/{sec['id']}/summary").json()
     assert s["students"] == 0 and s["average"] is None and s["assessments"] == [] and s["attendance"] == []
-    assert parse(client.get(f"/api/reports/sections/{sec['id']}/gradebook.csv")) == [["Student", "Average (%)", "Letter"]]
+    assert parse(client.get(f"/api/reports/sections/{sec['id']}/gradebook.csv")) == [
+        ["Student", "Average (%)", "Letter"]
+    ]
 
 
 def test_404s(client):
@@ -163,7 +174,10 @@ def _post(seeded, monkeypatch, fake):
 
 
 def test_parent_update_ai_path(seeded, monkeypatch):
-    fake = FakeClient('Sure! {"subject": "Progress update", "body": "Hello,\\n\\nAlex is doing well in class this term.\\n\\nBest regards,"}')
+    fake = FakeClient(
+        'Sure! {"subject": "Progress update", '
+        '"body": "Hello,\\n\\nAlex is doing well in class this term.\\n\\nBest regards,"}'
+    )
     r, fake = _post(seeded, monkeypatch, fake)
     assert r.json()["source"] == "ai" and r.json()["subject"] == "Progress update"
     call = fake.prompts[0]
@@ -172,11 +186,14 @@ def test_parent_update_ai_path(seeded, monkeypatch):
     assert "untrusted" in prompt and "home life" in prompt
 
 
-@pytest.mark.parametrize("fake", [
-    FakeClient("not json at all"),
-    FakeClient('{"subject": "", "body": "x"}'),
-    FakeClient(exc=RuntimeError("boom")),
-])
+@pytest.mark.parametrize(
+    "fake",
+    [
+        FakeClient("not json at all"),
+        FakeClient('{"subject": "", "body": "x"}'),
+        FakeClient(exc=RuntimeError("boom")),
+    ],
+)
 def test_parent_update_ai_failures_fall_back(seeded, monkeypatch, fake):
     r, _ = _post(seeded, monkeypatch, fake)
     assert r.status_code == 200 and r.json()["source"] == "template"

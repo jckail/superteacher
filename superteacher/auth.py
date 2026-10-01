@@ -11,6 +11,7 @@ Design (small, auditable, no user table):
 * WebSocket handshakes are checked for the cookie *and* an allowed ``Origin`` (cross-site WS hijacking).
 * Login attempts are rate limited with exponential lockout (in-memory, per client address + global).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -65,8 +66,10 @@ class AuthState:
     @staticmethod
     def _load_or_create_secret(secret_dir: Path | None) -> str:
         if secret_dir is None:
-            log.warning("SESSION_SECRET not set and no data directory: using an ephemeral secret "
-                        "(sessions end on restart and differ across instances).")
+            log.warning(
+                "SESSION_SECRET not set and no data directory: using an ephemeral secret "
+                "(sessions end on restart and differ across instances)."
+            )
             return secrets.token_urlsafe(48)
         f = secret_dir / ".session_secret"
         try:
@@ -76,8 +79,11 @@ class AuthState:
             val = secrets.token_urlsafe(48)
             f.write_text(val)
             f.chmod(0o600)
-            log.warning("SESSION_SECRET not set: generated one at %s. Set SESSION_SECRET explicitly when "
-                        "running multiple instances.", f)
+            log.warning(
+                "SESSION_SECRET not set: generated one at %s. Set SESSION_SECRET explicitly when "
+                "running multiple instances.",
+                f,
+            )
             return val
         except OSError:
             log.warning("SESSION_SECRET not set and %s is not writable: using an ephemeral secret.", f)
@@ -144,7 +150,9 @@ def _state(conn: HTTPConnection) -> AuthState:
 def _secure(request: Request, st: AuthState) -> bool:
     if st.settings.cookie_secure is not None:
         return st.settings.cookie_secure
-    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+    return (
+        request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+    )
 
 
 async def require_auth(conn: HTTPConnection) -> None:
@@ -187,8 +195,9 @@ def login(body: LoginBody, request: Request, response: Response):
     st.record(client, ok)
     if not ok:
         raise HTTPException(401, "Incorrect passcode")
-    response.set_cookie(COOKIE, st.issue(), max_age=st.ttl, httponly=True, samesite="lax",
-                        secure=_secure(request, st), path="/")
+    response.set_cookie(
+        COOKIE, st.issue(), max_age=st.ttl, httponly=True, samesite="lax", secure=_secure(request, st), path="/"
+    )
     return {"authenticated": True, "auth_required": True}
 
 
@@ -209,4 +218,3 @@ def me(request: Request):
     if not st.valid(request.cookies.get(COOKIE)):
         raise HTTPException(401, "Not authenticated")
     return {"authenticated": True, "auth_required": True}
-

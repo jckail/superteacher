@@ -56,7 +56,7 @@ function useRouteAnnouncer(mainRef) {
 }
 
 function NotFound() {
-  return <div className="card empty"><h1>Page not found</h1><p>That page doesn't exist.</p><NavLink className="btn primary" to="/">Back to Today</NavLink></div>;
+  return <div className="card empty"><h1>Page not found</h1><p>That page doesn&apos;t exist.</p><NavLink className="btn primary" to="/">Back to Today</NavLink></div>;
 }
 
 function Shell() {

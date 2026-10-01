@@ -2,6 +2,7 @@
 
 If the deployment has auth enabled, pass the passcode via the AUTH_PASSWORD environment variable.
 """
+
 import os
 import sys
 

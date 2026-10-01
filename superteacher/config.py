@@ -1,4 +1,5 @@
 """Runtime configuration, read once from the environment (and an optional .env)."""
+
 from functools import lru_cache
 
 from pydantic import Field

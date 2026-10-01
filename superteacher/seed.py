@@ -1,4 +1,5 @@
 """Deterministic demo data: the same classroom every time, with a few stories worth finding."""
+
 import random
 from datetime import date, timedelta
 
@@ -16,10 +17,54 @@ from .models import (
     Student,
 )  # fmt: skip
 
-FIRST = ["Ava", "Liam", "Maya", "Noah", "Zoe", "Ethan", "Isla", "Lucas", "Amara", "Mateo", "Priya", "Owen",
-         "Sofia", "Jayden", "Nora", "Kai", "Layla", "Eli", "Chloe", "Diego", "Hana", "Theo", "Imani", "Felix"]
-LAST = ["Nguyen", "Patel", "Garcia", "Johnson", "Kim", "Okafor", "Rossi", "Haddad", "Larsen", "Silva", "Cohen",
-        "Reyes", "Tanaka", "Brooks", "Mendez", "Novak", "Adeyemi", "Fischer", "Morales", "Ivanov"]
+FIRST = [
+    "Ava",
+    "Liam",
+    "Maya",
+    "Noah",
+    "Zoe",
+    "Ethan",
+    "Isla",
+    "Lucas",
+    "Amara",
+    "Mateo",
+    "Priya",
+    "Owen",
+    "Sofia",
+    "Jayden",
+    "Nora",
+    "Kai",
+    "Layla",
+    "Eli",
+    "Chloe",
+    "Diego",
+    "Hana",
+    "Theo",
+    "Imani",
+    "Felix",
+]
+LAST = [
+    "Nguyen",
+    "Patel",
+    "Garcia",
+    "Johnson",
+    "Kim",
+    "Okafor",
+    "Rossi",
+    "Haddad",
+    "Larsen",
+    "Silva",
+    "Cohen",
+    "Reyes",
+    "Tanaka",
+    "Brooks",
+    "Mendez",
+    "Novak",
+    "Adeyemi",
+    "Fischer",
+    "Morales",
+    "Ivanov",
+]
 
 PLAN = {
     "Algebra I": ["Period 1", "Period 3"],
@@ -48,7 +93,7 @@ def seed_demo(db: Session, today: date | None = None, seed: int = 7) -> None:
         return  # never touch real data
     rng = random.Random(seed)
     today = today or date.today()
-    names = [f"{f} {l}" for f in FIRST for l in LAST]
+    names = [f"{first} {last}" for first in FIRST for last in LAST]
     rng.shuffle(names)
     name_iter = iter(names)
     days = school_days(today, 30)
@@ -97,7 +142,9 @@ def seed_demo(db: Session, today: date | None = None, seed: int = 7) -> None:
                         pts = None
                     else:
                         handed_in = kind is not AssessmentKind.homework or rng.random() < st._diligence
-                        handed_in = handed_in and (kind is not AssessmentKind.project or rng.random() < st._diligence + 0.1)
+                        handed_in = handed_in and (
+                            kind is not AssessmentKind.project or rng.random() < st._diligence + 0.1
+                        )
                         pct = max(25, min(100, st._ability + st._drift * step * 0.5 + rng.gauss(0, 6)))
                         pts = round(pct / 100 * a.max_points) if handed_in else None
                     db.add(Score(assessment=a, student=st, points=pts))

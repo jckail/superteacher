@@ -1,7 +1,9 @@
 import asyncio
+import contextlib
 import json
 import logging
 import time
+import weakref
 from collections import deque
 from collections.abc import Callable
 
@@ -19,7 +21,17 @@ MAX_HISTORY = 20  # messages kept per connection
 MAX_MESSAGE_CHARS = 4000  # one user message
 MAX_FRAME_CHARS = 64_000  # raw websocket text frame; larger closes the socket (1009)
 MAX_CONCURRENT_TURNS = 8  # model calls in flight across all connections
-_turns = asyncio.Semaphore(MAX_CONCURRENT_TURNS)
+_turn_limits: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = weakref.WeakKeyDictionary()
+
+
+def _turn_limit() -> asyncio.Semaphore:
+    """The turn limiter for the running loop. A semaphore binds to the loop that first contends on it, so a
+    module-level one breaks as soon as a second loop (tests, multiple workers' reloads) uses it."""
+    loop = asyncio.get_running_loop()
+    limit = _turn_limits.get(loop)
+    if limit is None:
+        limit = _turn_limits[loop] = asyncio.Semaphore(MAX_CONCURRENT_TURNS)
+    return limit
 
 
 class RateLimiter:
@@ -52,7 +64,7 @@ async def _read(ws: WebSocket, inbox: asyncio.Queue) -> None:
             if msg["type"] == "websocket.disconnect":
                 break
             await inbox.put(msg.get("text") if msg.get("text") is not None else b"")
-    except Exception:  # noqa: BLE001 - socket already gone
+    except Exception:
         pass
     await inbox.put(None)
 
@@ -84,7 +96,7 @@ async def chat_ws(ws: WebSocket):
             history.pop(0)
         reply: list[str] = []
         try:
-            async with _turns:
+            async with _turn_limit():
 
                 def snapshot():
                     with factory() as db:
@@ -105,13 +117,11 @@ async def chat_ws(ws: WebSocket):
         except ai.ChatError as e:
             _drop_unanswered(history)
             await send({"type": "error", "message": str(e)})
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("chat turn failed")
             _drop_unanswered(history)
-            try:
+            with contextlib.suppress(Exception):  # client already gone
                 await send({"type": "error", "message": ai.friendly_error(RuntimeError())})
-            except Exception:  # noqa: BLE001 - client already gone
-                pass
 
     running: asyncio.Task | None = None
     getter: asyncio.Task | None = None
@@ -152,7 +162,9 @@ async def chat_ws(ws: WebSocket):
             if running:
                 await send({"type": "error", "message": "Please wait for the current reply to finish."})
             elif len(content) > MAX_MESSAGE_CHARS:
-                await send({"type": "error", "message": f"That message is too long (max {MAX_MESSAGE_CHARS} characters)."})
+                await send(
+                    {"type": "error", "message": f"That message is too long (max {MAX_MESSAGE_CHARS} characters)."}
+                )
             elif not limiter.allow():
                 await send({"type": "error", "message": "You're sending messages too quickly. Please wait a moment."})
             else:
@@ -160,7 +172,7 @@ async def chat_ws(ws: WebSocket):
                 running = asyncio.create_task(
                     turn(content, sid if isinstance(sid, str) else None, msg.get("tool_events") is True)
                 )
-    except Exception:  # noqa: BLE001 - e.g. send on a closed socket
+    except Exception:
         log.debug("chat connection ended", exc_info=True)
     finally:
         for t in (running, getter, reader):

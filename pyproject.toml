@@ -1,8 +1,14 @@
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-extend-exclude = ["web", "frontend", "alembic/versions"]
+extend-exclude = ["web", "alembic/versions"]
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "UP"]
-ignore = ["E501", "B008", "UP042", "E741"]  # long lines left to authors; B008 = FastAPI Depends(); str+Enum kept for SQLAlchemy Enum
+select = ["E", "W", "F", "B", "UP", "I", "SIM", "C4", "RUF"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Depends()/Query() in argument defaults is the framework's idiom, not a mutable-default bug.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["superteacher"]

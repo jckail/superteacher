@@ -14,6 +14,7 @@ def fake(monkeypatch):
     def install(f):
         monkeypatch.setattr(ai, "client", lambda: f)
         return f
+
     return install
 
 
@@ -97,15 +98,19 @@ def test_disconnect_midstream_cancels_upstream(seeded, fake):
             async def gen():
                 yield "first"
                 await asyncio.sleep(30)
+
             return gen()
 
     f = fake(FakeAI([Hang([], "end_turn", [])]))
     with seeded.websocket_connect("/api/chat/ws") as ws:
         ws.send_json({"content": "q"})
         assert ws.receive_json()["type"] == "delta"
-    deadline = time.time() + 3
-    while not f.streams[0].closed and time.time() < deadline:
-        time.sleep(0.05)
+        ws.close()
+        # Wait for the server's disconnect cleanup *inside* the block: leaving it makes Starlette's TestClient cancel
+        # the app task right away, which races the cleanup and can surface as a spurious CancelledError.
+        deadline = time.time() + 3
+        while not f.streams[0].closed and time.time() < deadline:
+            time.sleep(0.05)
     assert f.streams[0].closed
 
 

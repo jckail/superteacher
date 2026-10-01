@@ -5,13 +5,13 @@ disagree with what the teacher sees. All free text that originates from users (s
 notes, course/section names, assignment titles) goes through :func:`clean` before reaching the
 model so it cannot forge structural tags.
 """
+
 from __future__ import annotations
 
 import json
 import re
 from collections import Counter
 from collections.abc import Callable
-from statistics import mean
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
@@ -19,14 +19,21 @@ from sqlalchemy.orm import Session
 
 from . import metrics
 from .models import Student
+from .queries import load_students
 
 MAX_TOOL_RESULT_CHARS = 12_000
 _CTRL = re.compile(r"[\x00-\x1f\x7f]+")
 
 
+def section_label(s: Student) -> str:
+    """'Course / Section' with untrusted names defanged, for prompts and tool results."""
+    return f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}"
+
+
 def clean(text: object, limit: int = 300) -> str:
     """Neutralise untrusted text: strip control chars, defang angle brackets, truncate."""
-    s = _CTRL.sub(" ", str(text)).replace("<", "‹").replace(">", "›")
+    # The look-alike quotes are deliberate: they keep the text readable while making it unable to close our tags.
+    s = _CTRL.sub(" ", str(text)).replace("<", "\u2039").replace(">", "\u203a")
     s = re.sub(r" {2,}", " ", s).strip()
     return s if len(s) <= limit else s[: limit - 1] + "…"
 
@@ -77,7 +84,10 @@ TOOLS: list[dict[str, Any]] = [
                 "max_average": {"type": "number", "description": "Only students with average <= this (0-100)."},
                 "min_average": {"type": "number"},
                 "max_attendance": {"type": "number", "description": "Only attendance rate <= this (0-100)."},
-                "min_missing": {"type": "integer", "description": "Only students with at least this many missing assignments."},
+                "min_missing": {
+                    "type": "integer",
+                    "description": "Only students with at least this many missing assignments.",
+                },
                 "sort_by": {"type": "string", "enum": ["name", "average", "attendance", "trend", "missing"]},
                 "descending": {"type": "boolean"},
                 "limit": {"type": "integer", "description": "Default 15, max 25."},
@@ -175,7 +185,11 @@ def find_students(students: list[Student], a: FindStudentsArgs) -> dict[str, Any
     have = [x for x in rows if k(x) is not None]  # unknowns sort last regardless of direction
     rows = sorted(have, key=k, reverse=a.descending) + [x for x in rows if k(x) is None]
     limit = min(a.limit, 25)
-    return {"total_matches": len(rows), "returned": min(limit, len(rows)), "students": [_row(s, m) for s, m in rows[:limit]]}
+    return {
+        "total_matches": len(rows),
+        "returned": min(limit, len(rows)),
+        "students": [_row(s, m) for s, m in rows[:limit]],
+    }
 
 
 def get_student(students: list[Student], a: GetStudentArgs) -> dict[str, Any] | str:
@@ -188,7 +202,10 @@ def get_student(students: list[Student], a: GetStudentArgs) -> dict[str, Any] | 
     if not hits:
         return {"error": "No matching student."}
     if len(hits) > 1:
-        return {"error": "Several students match; call again with student_id.", "candidates": [_row(s, metrics.compute(s)) for s in hits[:10]]}
+        return {
+            "error": "Several students match; call again with student_id.",
+            "candidates": [_row(s, metrics.compute(s)) for s in hits[:10]],
+        }
     s = hits[0]
     return "<student_record>\n" + student_block(s, metrics.compute(s), max_scores=15) + "\n</student_record>"
 
@@ -199,8 +216,8 @@ def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
         return {"error": "No students in that section."}
 
     def avg(vals):
-        vals = [v for v in vals if v is not None]
-        return round(mean(vals), 1) if vals else None
+        value = metrics.mean_of(vals)
+        return None if value is None else round(value, 1)
 
     out: dict[str, Any] = {
         "students": len(pool),
@@ -214,9 +231,14 @@ def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
     if not a.section:
         by_sec: dict[str, list[metrics.StudentMetrics]] = {}
         for s, m in pool:
-            by_sec.setdefault(f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}", []).append(m)
+            by_sec.setdefault(section_label(s), []).append(m)
         out["sections"] = [
-            {"section": k, "students": len(v), "average": avg(x.average for x in v), "at_risk": sum(x.risk == "at_risk" for x in v)}
+            {
+                "section": k,
+                "students": len(v),
+                "average": avg(x.average for x in v),
+                "at_risk": sum(x.risk == "at_risk" for x in v),
+            }
             for k, v in sorted(by_sec.items())
         ]
     return out
@@ -235,15 +257,15 @@ class ToolError(Exception):
 
 def execute(db: Session, name: str, raw_input: object) -> str:
     """Run one tool and return the string for the tool_result block (always bounded in size)."""
-    from .routers.roster import load_students  # local import: avoids a router<->ai cycle
-
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
     model, fn = _HANDLERS[name]
     try:
         args = model.model_validate(raw_input if isinstance(raw_input, dict) else {})
     except ValidationError as e:
-        raise ToolError("Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())) from None
+        raise ToolError(
+            "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
+        ) from None
     result = fn(load_students(db), args)
     text = result if isinstance(result, str) else json.dumps(result, separators=(",", ":"), default=str)
     if len(text) > MAX_TOOL_RESULT_CHARS:
