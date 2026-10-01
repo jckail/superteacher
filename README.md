@@ -1,59 +1,45 @@
-# 🦸‍♀️ Super Teacher
+# 🦸 Super Teacher
 
-A powerful web application designed to help teachers leverage AI to enhance student learning outcomes while saving time and reducing stress. This innovative platform combines classroom management with AI-powered insights to create a more efficient and effective teaching experience. ✨
+A classroom copilot: it answers **"who needs me today, and why?"** — then helps you act on it.
 
-[🚀 Try it out here](https://edutrack-292025398859.us-central1.run.app/) 
+![Dashboard](./web/public/screen_shot.png)
 
-![Super Teacher Dashboard](./frontend/public/screen_shot.png)
+## What it does
+- **Today** – class stats, a ranked *needs attention* list with plain-language reasons, grade distribution.
+- **Roster** – searchable, sortable, filter by status, CSV import; every student has a computed average, trend, attendance and homework rate.
+- **Student** – score trend, attendance strip, every assignment (missing ones flagged), private notes, and an AI insight card.
+- **Gradebook** – spreadsheet-style entry per section; averages and risk update live.
+- **Attendance** – one-tap daily roll call, optimistic UI.
+- **Reports** – class statistics per assignment, attendance-by-day, gradebook CSV export (injection-safe), and AI-drafted parent updates you edit before sending.
+- **Ask AI** – streaming Claude chat with tools (`find_students`, `get_student`, `class_stats`) that queries your real data, so answers are grounded and scale past a prompt-sized roster.
 
+## Architecture
+```mermaid
+flowchart LR
+  UI[React + Vite<br/>TanStack Query] -- REST /api --> API[FastAPI]
+  UI -- WebSocket /api/chat/ws --> API
+  API --> M[metrics.py<br/>one definition of grade / attendance / risk]
+  API --> DB[(SQLite via SQLAlchemy 2)]
+  API -- context + stream --> C[Claude]
+```
+Data model: `Course → Section → Student`, with real `Assessment`/`Score` and `AttendanceRecord` rows plus `Note` and a fingerprint-keyed `InsightCache`. Everything shown in the UI is *derived* from those rows in `superteacher/metrics.py`, so the roster, the student page, the overview and the AI context can't disagree.
 
-## ✨ Features
+AI: chat streams from `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`) with the roster snapshot as a prompt-cached system block; insight cards use `ANTHROPIC_INSIGHT_MODEL` (default Haiku 4.5) and are cached until the student's data changes. With no API key everything still works — insights fall back to rule-based text.
 
-### 🎯 Current Features
-- 🤖 **AI-Powered Chat Assistant**: Get instant help with lesson planning, student engagement strategies, and classroom management
-- 📊 **Student Progress Tracking**: Monitor individual student performance and identify areas needing attention
-- 📝 **Grade Management**: Easy-to-use interface for recording and analyzing student grades
-- 👥 **Classroom Organization**: Manage multiple sections and students efficiently
-- 💡 **AI Insights**: Receive personalized recommendations for each student based on their performance data
-- 📈 **Progress Reports**: Generate comprehensive student progress reports automatically
+## Run it
+```bash
+pip install -r requirements-dev.txt && (cd web && npm install)
+export AUTH_DISABLED=true               # local dev only; otherwise set AUTH_PASSWORD
+export ANTHROPIC_API_KEY=sk-...         # optional
+./local_test.sh                          # API :8080, UI http://localhost:4000
+python -m pytest && (cd web && npm test)
+```
+Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-![Super Teacher Dashboard](./frontend/public/prompt_shot.png)
+Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
 
-### 🔮 Coming Soon
-- 📚 **Lesson Plan Generator**: AI-assisted creation of engaging lesson plans tailored to your teaching style
-- 📊 **Behavioral Analytics**: Track and understand student engagement patterns
-- 💬 **Parent Communication Portal**: Streamline parent-teacher communication
-- ✍️ **Assignment Generator**: Create customized assignments based on student needs
-- 📚 **Resource Library**: Access a curated collection of teaching materials and resources
-- 🔄 **Integration with Popular Learning Management Systems**: Seamless data sync with existing educational platforms
+## Security
+Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. Single shared passcode only — no per-teacher accounts or roles yet.
 
-## 🛠️ Technical Overview
-
-### 🏗️ Architecture
-- 🎨 **Frontend**: Modern React application with Material-UI components
-- ⚡ **Backend**: FastAPI-powered Python backend with SQLite database
-- 🚀 **Deployment**: Containerized with Docker, deployable to Google Cloud Platform
-
-### 💻 Tech Stack
-
-#### 🎨 Frontend
-- ⚛️ React 18
-- 🎯 Material-UI (MUI)
-- 🛣️ React Router
-- ⚡ Vite for build tooling
-- 🔄 Context API for state management
-
-#### ⚙️ Backend
-- ⚡ FastAPI
-- 🗃️ SQLAlchemy ORM
-- 🎲 SQLite database
-- 🐍 Python 3.x
-
-#### 🚀 DevOps
-- 🐳 Docker containerization
-- ☁️ Google Cloud Platform deployment
-- 🔄 Automated CI/CD pipeline
-
-For detailed setup instructions and documentation:
-- 📘 [Frontend Documentation](./frontend/README.md)
-- 📗 [Backend Documentation](./backend/README.md)
+## Not yet
+Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.

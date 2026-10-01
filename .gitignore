@@ -54,3 +54,15 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 notes.txt
+
+# v2
+web/dist/
+web/node_modules/
+data/
+*.db
+.env
+.pytest_cache/
+
+# auth / tooling
+.session_secret
+.ruff_cache/

@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["web", "frontend", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP"]
+ignore = ["E501", "B008", "UP042", "E741"]  # long lines left to authors; B008 = FastAPI Depends(); str+Enum kept for SQLAlchemy Enum

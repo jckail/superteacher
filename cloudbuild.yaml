@@ -1,26 +1,16 @@
 steps:
-  # Build the container image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/edutrack', '.']
-
-  # Push the container image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/edutrack']
-
-  # Deploy container image to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/superteacher', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', 'gcr.io/$PROJECT_ID/superteacher']
+  # Secrets come from Secret Manager (create them first, see docs/DEPLOYMENT.md); never put values here.
+  # --allow-unauthenticated only opens the Cloud Run front door: the app itself enforces AUTH_PASSWORD.
+  # SQLite needs a single writer, hence max-instances=1.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'edutrack'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/edutrack'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-
+    args: ['run', 'deploy', 'superteacher', '--image', 'gcr.io/$PROJECT_ID/superteacher', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated',
+           '--max-instances', '1',
+           '--set-secrets', 'AUTH_PASSWORD=superteacher-auth-password:latest,SESSION_SECRET=superteacher-session-secret:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest',
+           '--set-env-vars', 'SEED_DEMO_DATA=false']
 images:
-  - 'gcr.io/$PROJECT_ID/edutrack'
+  - 'gcr.io/$PROJECT_ID/superteacher'
