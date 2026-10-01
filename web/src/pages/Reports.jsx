@@ -66,9 +66,10 @@ function AttendanceStrip({ days }) {
 
 function Summary({ section }) {
   const q = useQuery({ queryKey: ['report-summary', section.id], queryFn: () => api(`/reports/sections/${section.id}/summary`) });
-  if (q.isLoading) return <Loading />;
+  if (q.isPending) return <Loading />;
   if (q.error) return <ErrorBox error={q.error} />;
   const s = q.data;
+  if (!s) return null;
   if (!s.students) return <div className="card empty">No students in this section yet. Add some on the roster.</div>;
   return (
     <>

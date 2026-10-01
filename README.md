@@ -10,7 +10,8 @@ A classroom copilot: it answers **"who needs me today, and why?"** — then help
 - **Student** – score trend, attendance strip, every assignment (missing ones flagged), private notes, and an AI insight card.
 - **Gradebook** – spreadsheet-style entry per section; averages and risk update live.
 - **Attendance** – one-tap daily roll call, optimistic UI.
-- **Ask AI** – streaming Claude chat that sees your real roster (and the student you're viewing) — not scraped page text.
+- **Reports** – class statistics per assignment, attendance-by-day, gradebook CSV export (injection-safe), and AI-drafted parent updates you edit before sending.
+- **Ask AI** – streaming Claude chat with tools (`find_students`, `get_student`, `class_stats`) that queries your real data, so answers are grounded and scale past a prompt-sized roster.
 
 ## Architecture
 ```mermaid
@@ -28,13 +29,17 @@ AI: chat streams from `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`) with the r
 ## Run it
 ```bash
 pip install -r requirements-dev.txt && (cd web && npm install)
-export ANTHROPIC_API_KEY=sk-...        # optional
+export AUTH_DISABLED=true               # local dev only; otherwise set AUTH_PASSWORD
+export ANTHROPIC_API_KEY=sk-...         # optional
 ./local_test.sh                          # API :8080, UI http://localhost:4000
-python -m pytest                         # backend tests
+python -m pytest && (cd web && npm test)
 ```
-Production: `docker build -t superteacher . && docker run -p 8080:8080 -e ANTHROPIC_API_KEY -v data:/data superteacher`.
+Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-Config (env / `.env`): `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`.
+Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
+
+## Security
+Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. Single shared passcode only — no per-teacher accounts or roles yet.
 
 ## Not yet
-No authentication — this holds student data, so put it behind your platform's auth (e.g. IAP) before real use. Next up: auth/roles, parent summaries, migrations (Alembic) once the schema settles.
+Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.

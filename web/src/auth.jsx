@@ -49,7 +49,6 @@ export function AuthGate({ children, onLogout }) {
   return (
     <AuthContext.Provider value={{ authRequired: state.authRequired, logout }}>
       {children}
-      {state.authRequired && <button className="btn signout" onClick={logout}>Sign out</button>}
     </AuthContext.Provider>
   );
 }

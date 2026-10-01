@@ -1,3 +1,4 @@
+import { useAuth } from './auth';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink, Route, Routes, useLocation, useMatch } from 'react-router-dom';
 import { ScopeProvider } from './scope';
@@ -61,6 +62,7 @@ function NotFound() {
 function Shell() {
   const [chatOpen, setChatOpen] = useState(false);
   const [dark, toggleTheme] = useTheme();
+  const { authRequired, logout } = useAuth();
   const studentMatch = useMatch('/students/:id');
   const main = useRef(null);
   const pathname = useRouteAnnouncer(main);
@@ -76,6 +78,7 @@ function Shell() {
           <button type="button" className={`nav-btn ${chatOpen ? 'active' : ''}`} aria-expanded={chatOpen} onClick={() => setChatOpen((o) => !o)}><span aria-hidden>✨</span>Ask AI</button>
         </div>
         <div className="spacer" />
+        {authRequired && <button type="button" className="btn side-extra" onClick={logout}>Sign out</button>}
         <button type="button" className="btn side-extra" onClick={toggleTheme} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>{dark ? '☀️ Light' : '🌙 Dark'}</button>
       </nav>
       <main className="main" id="main" tabIndex={-1} ref={main}>
