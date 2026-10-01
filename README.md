@@ -34,6 +34,16 @@ export ANTHROPIC_API_KEY=sk-...         # optional
 ./local_test.sh                          # API :8080, UI http://localhost:4000
 python -m pytest && (cd web && npm test)
 ```
+Python **3.11+** is required (3.12 in the Docker image). With [uv](https://docs.astral.sh/uv/): `uv venv --python 3.12 && uv pip install -r requirements-dev.txt`.
+
+### Before you push
+CI runs exactly these; run them locally first:
+```bash
+ruff check . && ruff format --check .   # Python lint + format (ruff format . to fix)
+python -m pytest                        # warnings are errors on purpose
+(cd web && npm run lint && npm test && npm run build)
+```
+Layering: routers → services (`ai.py`, `reports.py`) → `queries.py` / `metrics.py` → `models.py`. Nothing below a router imports a router (enforced in `tests/test_architecture.py`). Schema changes need an Alembic revision (`alembic revision --autogenerate -m "..."`); `tests/test_migrations.py` fails on drift.
 Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.

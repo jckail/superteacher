@@ -72,19 +72,4 @@ export function Bar({ value, color }) {
   return <div className="bar" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%`, background: color }} /></div>;
 }
 
-/** Tiny inline trend line over 0-100 percentages. */
-export function Sparkline({ values, width = 220, height = 48 }) {
-  const pts = values.filter((v) => v != null);
-  if (pts.length < 2) return <span className="muted">Not enough data</span>;
-  const x = (i) => (i / (pts.length - 1)) * (width - 8) + 4;
-  const y = (v) => height - 4 - (Math.max(40, Math.min(100, v)) - 40) / 60 * (height - 8);
-  const d = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  return (
-    <svg width={width} height={height} role="img" aria-label={`Score trend, latest ${Math.round(pts.at(-1))}%`}>
-      <path d={d} fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={x(pts.length - 1)} cy={y(pts.at(-1))} r="4" fill="var(--brand)" />
-    </svg>
-  );
-}
-
 export const gradeColor = (pct) => pct == null ? 'var(--muted)' : pct >= 80 ? 'var(--good)' : pct >= 70 ? 'var(--warn)' : 'var(--bad)';
