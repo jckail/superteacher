@@ -23,9 +23,10 @@ from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from . import ai_tools, metrics, schemas
-from .ai_tools import clean, student_block, student_line
+from .ai_tools import clean, section_label, student_block, student_line
 from .config import get_settings
 from .models import InsightCache, Student
+from .queries import load_students
 
 log = logging.getLogger(__name__)
 
@@ -94,8 +95,6 @@ def client() -> AsyncAnthropic | None:
 # ── context ─────────────────────────────────────────────────────────────
 def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str, str]:
     """(roster snapshot, focus block). The roster part is stable across turns, so it carries the cache breakpoint."""
-    from .routers.roster import load_students  # local import: avoids a router<->ai cycle
-
     cap = setting_int("chat_roster_cap", 60)
     students = load_students(db)
     computed = {s.id: metrics.compute(s) for s in students}
@@ -110,16 +109,10 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
         )
         by_sec: dict[str, list[metrics.StudentMetrics]] = {}
         for s in students:
-            by_sec.setdefault(f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}", []).append(
-                computed[s.id]
-            )
+            by_sec.setdefault(section_label(s), []).append(computed[s.id])
         for name, ms in sorted(by_sec.items()):
-            avgs = [m.average for m in ms if m.average is not None]
-            out.append(
-                f"- {name}: {len(ms)} students, avg {sum(avgs) / len(avgs):.0f}%"
-                if avgs
-                else f"- {name}: {len(ms)} students"
-            )
+            avg = metrics.mean_of(m.average for m in ms)
+            out.append(f"- {name}: {len(ms)} students" + ("" if avg is None else f", avg {avg:.0f}%"))
         need = sorted(
             (s for s in students if computed[s.id].risk != "on_track"),
             key=lambda s: (computed[s.id].risk != "at_risk", s.name),

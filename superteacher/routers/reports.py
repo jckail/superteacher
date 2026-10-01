@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session, selectinload
 from .. import reports as svc
 from ..db import get_db
 from ..models import Section
-from .roster import get_student_or_404, load_students
+from ..queries import load_students
+from .roster import get_student_or_404
 
 router = APIRouter(tags=["reports"])
 

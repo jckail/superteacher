@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import schemas
 from ..db import get_db
 from ..models import Assessment, Score, Section, Student
-from .roster import load_summaries
+from ..queries import load_summaries
 
 router = APIRouter(tags=["gradebook"])
 

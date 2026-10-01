@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .. import schemas
+from .. import metrics, schemas
 from ..config import get_settings
 from ..db import get_db
-from .roster import load_summaries, summarize
+from ..queries import load_summaries
+from .roster import summarize
 
 router = APIRouter(tags=["system"])
 
@@ -27,11 +28,6 @@ def version():
 @router.get("/overview", response_model=schemas.Overview)
 def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
     computed = load_summaries(db, course_id=course_id, section_id=section_id)
-    students = computed
-
-    def avg(xs):
-        xs = [x for x in xs if x is not None]
-        return sum(xs) / len(xs) if xs else None
 
     bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
     for _, m in computed:
@@ -43,10 +39,10 @@ def overview(course_id: str | None = None, section_id: str | None = None, db: Se
         key=lambda c: (order[c[1].risk], c[1].average if c[1].average is not None else 101),
     )
     return schemas.Overview(
-        students=len(students),
-        average=avg(m.average for _, m in computed),
-        attendance_rate=avg(m.attendance_rate for _, m in computed),
-        homework_rate=avg(m.homework_rate for _, m in computed),
+        students=len(computed),
+        average=metrics.mean_of(m.average for _, m in computed),
+        attendance_rate=metrics.mean_of(m.attendance_rate for _, m in computed),
+        homework_rate=metrics.mean_of(m.homework_rate for _, m in computed),
         at_risk=sum(1 for _, m in computed if m.risk == "at_risk"),
         watch=sum(1 for _, m in computed if m.risk == "watch"),
         distribution=bands,

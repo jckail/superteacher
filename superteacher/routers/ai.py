@@ -3,6 +3,7 @@ import contextlib
 import json
 import logging
 import time
+import weakref
 from collections import deque
 from collections.abc import Callable
 
@@ -20,7 +21,17 @@ MAX_HISTORY = 20  # messages kept per connection
 MAX_MESSAGE_CHARS = 4000  # one user message
 MAX_FRAME_CHARS = 64_000  # raw websocket text frame; larger closes the socket (1009)
 MAX_CONCURRENT_TURNS = 8  # model calls in flight across all connections
-_turns = asyncio.Semaphore(MAX_CONCURRENT_TURNS)
+_turn_limits: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = weakref.WeakKeyDictionary()
+
+
+def _turn_limit() -> asyncio.Semaphore:
+    """The turn limiter for the running loop. A semaphore binds to the loop that first contends on it, so a
+    module-level one breaks as soon as a second loop (tests, multiple workers' reloads) uses it."""
+    loop = asyncio.get_running_loop()
+    limit = _turn_limits.get(loop)
+    if limit is None:
+        limit = _turn_limits[loop] = asyncio.Semaphore(MAX_CONCURRENT_TURNS)
+    return limit
 
 
 class RateLimiter:
@@ -85,7 +96,7 @@ async def chat_ws(ws: WebSocket):
             history.pop(0)
         reply: list[str] = []
         try:
-            async with _turns:
+            async with _turn_limit():
 
                 def snapshot():
                     with factory() as db:

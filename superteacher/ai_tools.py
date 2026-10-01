@@ -12,7 +12,6 @@ import json
 import re
 from collections import Counter
 from collections.abc import Callable
-from statistics import mean
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
@@ -20,9 +19,15 @@ from sqlalchemy.orm import Session
 
 from . import metrics
 from .models import Student
+from .queries import load_students
 
 MAX_TOOL_RESULT_CHARS = 12_000
 _CTRL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def section_label(s: Student) -> str:
+    """'Course / Section' with untrusted names defanged, for prompts and tool results."""
+    return f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}"
 
 
 def clean(text: object, limit: int = 300) -> str:
@@ -211,8 +216,8 @@ def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
         return {"error": "No students in that section."}
 
     def avg(vals):
-        vals = [v for v in vals if v is not None]
-        return round(mean(vals), 1) if vals else None
+        value = metrics.mean_of(vals)
+        return None if value is None else round(value, 1)
 
     out: dict[str, Any] = {
         "students": len(pool),
@@ -226,7 +231,7 @@ def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
     if not a.section:
         by_sec: dict[str, list[metrics.StudentMetrics]] = {}
         for s, m in pool:
-            by_sec.setdefault(f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}", []).append(m)
+            by_sec.setdefault(section_label(s), []).append(m)
         out["sections"] = [
             {
                 "section": k,
@@ -252,8 +257,6 @@ class ToolError(Exception):
 
 def execute(db: Session, name: str, raw_input: object) -> str:
     """Run one tool and return the string for the tool_result block (always bounded in size)."""
-    from .routers.roster import load_students  # local import: avoids a router<->ai cycle
-
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
     model, fn = _HANDLERS[name]

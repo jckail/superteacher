@@ -7,6 +7,7 @@ detail view, the overview and the AI context, so the numbers never disagree.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from statistics import mean
@@ -25,6 +26,12 @@ _LETTERS = [
     (93, "A", 4.0), (90, "A-", 3.7), (87, "B+", 3.3), (83, "B", 3.0), (80, "B-", 2.7),
     (77, "C+", 2.3), (73, "C", 2.0), (70, "C-", 1.7), (60, "D", 1.0), (0, "F", 0.0),
 ]  # fmt: skip
+
+
+def mean_of(values: Iterable[float | None]) -> float | None:
+    """Mean of the values that are present; None when there are none."""
+    present = [v for v in values if v is not None]
+    return mean(present) if present else None
 
 
 def letter_and_gpa(pct: float | None) -> tuple[str | None, float | None]:
