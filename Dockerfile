@@ -1,67 +1,25 @@
-# Build stage for React frontend
-FROM node:18 AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ ./
+# --- web build ---
+FROM node:22-slim AS web
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
 RUN npm run build
 
-# Final stage
-FROM python:3.11-slim
-
-# Get version from build arg
-ARG VERSION
-ARG ANTHROPIC_API_KEY
-LABEL version=${VERSION}
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
+# --- runtime ---
+FROM python:3.12-slim
 WORKDIR /app
-
-# Copy frontend build
-COPY --from=frontend-builder /app/frontend/build /app/frontend/build
-
-# Install backend dependencies
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# Copy backend code including setup.py
-COPY backend/ ./backend/
-
-# Install backend package in development mode
-WORKDIR /app/backend
-RUN pip install -e .
-WORKDIR /app
-
-# Copy server script
+RUN pip install --no-cache-dir -r requirements.txt
+COPY superteacher/ ./superteacher/
 COPY server.py .
+COPY --from=web /web/dist ./web/dist
 
-# Create directory for SQLite database and set permissions
-RUN touch /app/edutrack.db && \
-    chown -R nobody:nogroup /app && \
-    chmod 666 /app/edutrack.db
-
-# Set environment variables
-ENV PORT=8080
-ENV HOST=0.0.0.0
-ENV VERSION=${VERSION}
-ENV GIT_PYTHON_REFRESH=quiet
-ENV NODE_ENV=production
-ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
-# Add healthcheck
-HEALTHCHECK --interval=3s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/ || exit 1
-
-# Expose the port
-EXPOSE ${PORT}
-
-# Switch to non-root user
-USER nobody
-
-# Command to run the application
+# Data lives on a volume; secrets (ANTHROPIC_API_KEY) are injected at runtime, never baked into the image.
+RUN useradd -m app && mkdir -p /data && chown app /data
+USER app
+ENV PORT=8080 DATABASE_URL=sqlite:////data/superteacher.db STATIC_DIR=web/dist
+VOLUME /data
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=3s CMD python -c "import urllib.request,os;urllib.request.urlopen(f'http://localhost:{os.environ[\"PORT\"]}/api/health')"
 CMD ["python", "server.py"]

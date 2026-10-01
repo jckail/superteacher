@@ -1,26 +1,11 @@
 steps:
-  # Build the container image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/edutrack', '.']
-
-  # Push the container image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/edutrack']
-
-  # Deploy container image to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/superteacher', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', 'gcr.io/$PROJECT_ID/superteacher']
+  # ANTHROPIC_API_KEY: set on the Cloud Run service from Secret Manager, not here.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'edutrack'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/edutrack'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-
+    args: ['run', 'deploy', 'superteacher', '--image', 'gcr.io/$PROJECT_ID/superteacher', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
 images:
-  - 'gcr.io/$PROJECT_ID/edutrack'
+  - 'gcr.io/$PROJECT_ID/superteacher'
