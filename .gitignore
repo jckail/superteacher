@@ -62,3 +62,7 @@ data/
 *.db
 .env
 .pytest_cache/
+
+# auth / tooling
+.session_secret
+.ruff_cache/

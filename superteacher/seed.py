@@ -6,7 +6,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import (
-    Assessment, AssessmentKind, AttendanceRecord, AttendanceStatus, Course, Score, Section, Student,
+    Assessment,
+    AssessmentKind,
+    AttendanceRecord,
+    AttendanceStatus,
+    Course,
+    Score,
+    Section,
+    Student,
 )  # fmt: skip
 
 FIRST = ["Ava", "Liam", "Maya", "Noah", "Zoe", "Ethan", "Isla", "Lucas", "Amara", "Mateo", "Priya", "Owen",

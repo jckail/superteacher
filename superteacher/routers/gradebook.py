@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from .. import metrics, schemas
+from .. import schemas
 from ..db import get_db
 from ..models import Assessment, Score, Section, Student
-from .roster import load_students
+from .roster import load_summaries
 
 router = APIRouter(tags=["gradebook"])
 
@@ -22,13 +22,11 @@ def build_gradebook(db: Session, section: Section) -> schemas.Gradebook:
         select(Assessment).where(Assessment.section_id == section.id).order_by(Assessment.due_date, Assessment.title)
     ).all()
     rows = []
-    for st in load_students(db, section_id=section.id):
-        m = metrics.compute(st)
+    for st, m in load_summaries(db, section_id=section.id):
+        points = {a.id: None for a in assessments}  # every column present, even without a score row
+        points.update({sp.assessment_id: sp.points for sp in m.scores})
         rows.append(
-            schemas.GradebookRow(
-                student_id=st.id, name=st.name, average=m.average, letter=m.letter,
-                points={sp.assessment_id: sp.points for sp in m.scores},
-            )  # fmt: skip
+            schemas.GradebookRow(student_id=st.id, name=st.name, average=m.average, letter=m.letter, points=points)
         )
     return schemas.Gradebook(
         section=schemas.SectionOut.model_validate(section),
@@ -49,8 +47,10 @@ def create_assessment(section_id: str, body: schemas.AssessmentIn, db: Session =
     db.add(a)
     db.flush()
     # Every enrolled student gets an empty score row so "missing" is explicit, not implied.
-    for st in db.scalars(select(Student).where(Student.section_id == section.id)):
-        db.add(Score(assessment_id=a.id, student_id=st.id, points=None))
+    db.add_all(
+        Score(assessment_id=a.id, student_id=sid, points=None)
+        for sid in db.scalars(select(Student.id).where(Student.section_id == section.id))
+    )
     db.commit()
     return build_gradebook(db, section)
 
@@ -62,11 +62,14 @@ def put_scores(assessment_id: str, body: schemas.ScoresIn, db: Session = Depends
         raise HTTPException(404, "Assessment not found")
     by_student = {sc.student_id: sc for sc in a.scores}
     enrolled = set(db.scalars(select(Student.id).where(Student.section_id == a.section_id)))
-    for entry in body.scores:
+    # Validate everything before mutating; a repeated student_id in one request: last entry wins.
+    latest = {e.student_id: e for e in body.scores}
+    for entry in latest.values():
         if entry.student_id not in enrolled:
             raise HTTPException(422, f"Student {entry.student_id} is not in this section")
         if entry.points is not None and entry.points > a.max_points * 1.5:
             raise HTTPException(422, f"{entry.points} is far above the {a.max_points:g}-point maximum")
+    for entry in latest.values():
         sc = by_student.get(entry.student_id)
         if sc:
             sc.points = entry.points

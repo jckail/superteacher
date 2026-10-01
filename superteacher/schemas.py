@@ -1,12 +1,31 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
 from .models import AssessmentKind, AttendanceStatus
 
 Risk = str  # on_track | watch | at_risk
+
+
+# Trimmed, non-blank text: "   " is rejected (422) instead of being stored as an empty name.
+def _text(max_length: int):
+    return Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=max_length)]
+
+
+def _finite(v):
+    # Starlette can't JSON-encode NaN/Infinity, so echoing one back in a 422 body would turn it into a 500.
+    # Swap it for a string so pydantic rejects it with a serialisable error.
+    if isinstance(v, float) and (v != v or v in (float("inf"), float("-inf"))):
+        return "non-finite number"
+    return v
+
+
+Num = Annotated[float, BeforeValidator(_finite)]
+
+MAX_BATCH = 1000  # entries per scores / attendance PUT
 
 
 class ORM(BaseModel):
@@ -27,24 +46,32 @@ class CourseOut(ORM):
 
 
 class CourseIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: _text(120)
 
 
 class SectionIn(BaseModel):
     course_id: str
-    name: str = Field(min_length=1, max_length=60)
+    name: _text(60)
 
 
 class StudentIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: _text(120)
     grade_level: int = Field(ge=1, le=12)
     section_id: str
 
 
 class StudentPatch(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
+    name: _text(120) | None = None
     grade_level: int | None = Field(default=None, ge=1, le=12)
     section_id: str | None = None
+
+    @model_validator(mode="after")
+    def _no_explicit_null(self):
+        # Omit a field to leave it alone; sending null would violate NOT NULL columns.
+        for k in self.model_fields_set:
+            if getattr(self, k) is None:
+                raise ValueError(f"{k} cannot be null")
+        return self
 
 
 class StudentSummary(BaseModel):
@@ -88,7 +115,7 @@ class NoteOut(ORM):
 
 
 class NoteIn(BaseModel):
-    body: str = Field(min_length=1, max_length=2000)
+    body: _text(2000)
 
 
 class StudentDetail(StudentSummary):
@@ -101,9 +128,9 @@ class StudentDetail(StudentSummary):
 
 # ── gradebook ───────────────────────────────────────────────────────────
 class AssessmentIn(BaseModel):
-    title: str = Field(min_length=1, max_length=120)
+    title: _text(120)
     kind: AssessmentKind = AssessmentKind.test
-    max_points: float = Field(default=100, gt=0)
+    max_points: Num = Field(default=100, gt=0, le=1_000_000, allow_inf_nan=False)
     due_date: date = Field(default_factory=date.today)
 
 
@@ -118,11 +145,11 @@ class AssessmentOut(ORM):
 
 class ScoreEntry(BaseModel):
     student_id: str
-    points: float | None = Field(default=None, ge=0)
+    points: Num | None = Field(default=None, ge=0, allow_inf_nan=False)
 
 
 class ScoresIn(BaseModel):
-    scores: list[ScoreEntry]
+    scores: list[ScoreEntry] = Field(max_length=MAX_BATCH)
 
 
 class GradebookRow(BaseModel):
@@ -147,7 +174,7 @@ class AttendanceMark(BaseModel):
 
 class AttendanceIn(BaseModel):
     day: date = Field(default_factory=date.today)
-    marks: list[AttendanceMark]
+    marks: list[AttendanceMark] = Field(max_length=MAX_BATCH)
 
 
 class AttendanceSheetRow(BaseModel):

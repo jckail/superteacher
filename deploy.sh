@@ -10,5 +10,6 @@ echo "🐳 Image";          docker build -t superteacher:"$VERSION" .
 
 if [[ "${1:-}" == "run" ]]; then
   docker run --rm -p 8080:8080 -e VERSION="$VERSION" -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+    -e AUTH_PASSWORD="${AUTH_PASSWORD:?set AUTH_PASSWORD to run the container}" -e SESSION_SECRET="${SESSION_SECRET:-}" \
     -v superteacher-data:/data superteacher:"$VERSION"
 fi

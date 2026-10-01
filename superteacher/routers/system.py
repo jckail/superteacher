@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .. import metrics, schemas
+from .. import schemas
 from ..config import get_settings
 from ..db import get_db
-from .roster import load_students, summarize
+from .roster import load_summaries, summarize
 
 router = APIRouter(tags=["system"])
 
@@ -26,8 +26,8 @@ def version():
 
 @router.get("/overview", response_model=schemas.Overview)
 def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
-    students = load_students(db, course_id=course_id, section_id=section_id)
-    computed = [(s, metrics.compute(s)) for s in students]
+    computed = load_summaries(db, course_id=course_id, section_id=section_id)
+    students = computed
 
     def avg(xs):
         xs = [x for x in xs if x is not None]

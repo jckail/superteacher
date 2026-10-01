@@ -2,25 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useScope } from '../scope';
-import { ScopePicker } from '../App';
-import { ErrorBox, Loading, RiskChip, Stat, gradeColor } from '../components/ui';
-
-const BANDS = [['A', 'var(--good)'], ['B', '#5bb98c'], ['C', '#e8a33d'], ['D', '#e0703c'], ['F', 'var(--bad)']];
-
-function Distribution({ dist }) {
-  const max = Math.max(1, ...Object.values(dist));
-  return (
-    <div role="img" aria-label={`Grade distribution: ${BANDS.map(([b]) => `${dist[b]} ${b}`).join(', ')}`} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', height: 140 }}>
-      {BANDS.map(([b, color]) => (
-        <div key={b} style={{ flex: 1, textAlign: 'center' }}>
-          <div className="num" style={{ fontWeight: 600 }}>{dist[b]}</div>
-          <div style={{ height: Math.max(4, (dist[b] / max) * 100), background: color, borderRadius: 8, margin: '4px 0' }} />
-          <div className="muted">{b}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import ScopePicker from '../components/ScopePicker';
+import { Distribution } from '../components/charts';
+import { EmptyState, ErrorBox, Loading, RiskChip, Stat, gradeColor } from '../components/ui';
 
 export default function Overview() {
   const { course, section } = useScope();
@@ -39,10 +23,13 @@ export default function Overview() {
         </div>
         <ScopePicker />
       </div>
-      <ErrorBox error={q.error} />
+      <ErrorBox error={q.error} onRetry={() => q.refetch()} />
       {q.isLoading && <Loading />}
       {o && (o.students === 0 ? (
-        <div className="card empty">No students yet. Add some from the <Link to="/roster">roster</Link>.</div>
+        <EmptyState title="No students yet">
+          <p>Add your first student or import a class to see who needs you today.</p>
+          <div className="row"><Link className="btn primary" to="/roster">Go to roster</Link></div>
+        </EmptyState>
       ) : (
         <>
           <div className="grid stats">
@@ -72,7 +59,7 @@ export default function Overview() {
               )}
             </section>
             <section className="card">
-              <h2>Grade distribution</h2>
+              <h2 id="dist-h">Grade distribution</h2>
               <Distribution dist={o.distribution} />
             </section>
           </div>

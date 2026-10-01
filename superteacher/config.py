@@ -19,6 +19,20 @@ class Settings(BaseSettings):
     version: str = "dev"
     static_dir: str = "web/dist"
 
+    # --- auth (see docs/DEPLOYMENT.md) ---
+    # Single shared passcode. Required unless auth_disabled is explicitly true.
+    auth_password: str | None = None
+    # Explicit opt-out for local development / tests. Never the implicit default.
+    auth_disabled: bool = False
+    # HMAC key for session cookies. If unset, one is generated and persisted next to the SQLite file
+    # (or kept in memory with a warning when the DB is not file based).
+    session_secret: str | None = None
+    session_ttl_hours: int = 12
+    # None = auto (Secure when the request is https, incl. X-Forwarded-Proto). Set true/false to force.
+    cookie_secure: bool | None = None
+    # Interactive API docs are off by default (they would expose the schema without a login).
+    enable_docs: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

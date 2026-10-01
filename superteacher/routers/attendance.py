@@ -44,15 +44,18 @@ def put_sheet(section_id: str, body: schemas.AttendanceIn, db: Session = Depends
     enrolled = set(db.scalars(select(Student.id).where(Student.section_id == section_id)))
     existing = {
         r.student_id: r
-        for r in db.scalars(select(AttendanceRecord).where(AttendanceRecord.day == body.day))
-        if r.student_id in enrolled
+        for r in db.scalars(
+            select(AttendanceRecord).where(AttendanceRecord.day == body.day, AttendanceRecord.student_id.in_(enrolled))
+        )
     }
-    for mark in body.marks:
-        if mark.student_id not in enrolled:
-            raise HTTPException(422, f"Student {mark.student_id} is not in this section")
-        if rec := existing.get(mark.student_id):
+    latest = {m.student_id: m for m in body.marks}  # repeated student in one request: last mark wins
+    for sid in latest:
+        if sid not in enrolled:
+            raise HTTPException(422, f"Student {sid} is not in this section")
+    for sid, mark in latest.items():
+        if rec := existing.get(sid):
             rec.status = mark.status
         else:
-            db.add(AttendanceRecord(student_id=mark.student_id, day=body.day, status=mark.status))
+            db.add(AttendanceRecord(student_id=sid, day=body.day, status=mark.status))
     db.commit()
     return _sheet(db, section, body.day)

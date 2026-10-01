@@ -62,18 +62,31 @@ class StudentMetrics:
     scores: list[ScorePoint] = field(default_factory=list)
 
 
+def make_point(aid: str, title: str, kind: AssessmentKind, due: date, max_points: float, points: float | None) -> ScorePoint:
+    pct = None if points is None or not max_points else points / max_points * 100
+    return ScorePoint(aid, title, kind, due, max_points, points, pct)
+
+
+def _sort(points: list[ScorePoint]) -> list[ScorePoint]:
+    # Total order (not just due_date) so the trend window is deterministic for same-day assessments.
+    return sorted(points, key=lambda s: (s.due_date, s.title, s.assessment_id))
+
+
 def score_points(student: Student, today: date | None = None) -> list[ScorePoint]:
-    out = []
-    for sc in student.scores:
-        a = sc.assessment
-        pct = None if sc.points is None or not a.max_points else sc.points / a.max_points * 100
-        out.append(ScorePoint(a.id, a.title, a.kind, a.due_date, a.max_points, sc.points, pct))
-    return sorted(out, key=lambda s: s.due_date)
+    return _sort(
+        [make_point(sc.assessment.id, sc.assessment.title, sc.assessment.kind, sc.assessment.due_date,
+                    sc.assessment.max_points, sc.points) for sc in student.scores]
+    )  # fmt: skip
 
 
 def compute(student: Student, today: date | None = None) -> StudentMetrics:
+    return compute_from(score_points(student), [a.status for a in student.attendance], today)
+
+
+def compute_from(points: list[ScorePoint], statuses: list[AttendanceStatus], today: date | None = None) -> StudentMetrics:
+    """Same as :func:`compute` but over plain values, so bulk callers can skip ORM hydration."""
     today = today or date.today()
-    m = StudentMetrics(scores=score_points(student))
+    m = StudentMetrics(scores=_sort(points))
     due = [s for s in m.scores if s.due_date <= today]
     graded = [s for s in due if s.pct is not None]
 
@@ -99,12 +112,12 @@ def compute(student: Student, today: date | None = None) -> StudentMetrics:
     if hw_due:
         m.homework_rate = sum(1 for s in hw_due if s.points is not None) / len(hw_due) * 100
 
-    counted = [a for a in student.attendance if a.status is not AttendanceStatus.excused]
+    counted = [st for st in statuses if st is not AttendanceStatus.excused]
     if counted:
-        attended = sum(1 for a in counted if a.status in (AttendanceStatus.present, AttendanceStatus.tardy))
+        attended = sum(1 for st in counted if st in (AttendanceStatus.present, AttendanceStatus.tardy))
         m.attendance_rate = attended / len(counted) * 100
-    m.absences = sum(1 for a in student.attendance if a.status is AttendanceStatus.absent)
-    m.tardies = sum(1 for a in student.attendance if a.status is AttendanceStatus.tardy)
+    m.absences = sum(1 for st in statuses if st is AttendanceStatus.absent)
+    m.tardies = sum(1 for st in statuses if st is AttendanceStatus.tardy)
 
     _assess_risk(m)
     return m

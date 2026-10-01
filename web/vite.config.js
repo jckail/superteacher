@@ -6,4 +6,15 @@ export default defineConfig({
   server: {
     proxy: { '/api': { target: 'http://localhost:8080', ws: true, changeOrigin: true } },
   },
+  build: {
+    rollupOptions: {
+      output: { manualChunks: { vendor: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'] } },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+    css: false,
+  },
 });
