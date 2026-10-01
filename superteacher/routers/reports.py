@@ -33,7 +33,8 @@ def gradebook_csv(section_id: str, db: Session = Depends(get_db)):
     body = svc.gradebook_csv(sec, load_students(db, section_id=section_id))
     name = f"gradebook-{svc.slug(sec.course.name)}-{svc.slug(sec.name)}.csv"
     return Response(
-        "﻿" + body, media_type="text/csv; charset=utf-8",
+        "﻿" + body,
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"},
     )
 

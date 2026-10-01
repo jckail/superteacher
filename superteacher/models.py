@@ -8,6 +8,7 @@ Course 1─* Section 1─* Student 1─* Score *─1 Assessment *─1 Section
 Grades and attendance are real rows (not "85%" strings in JSON blobs), so every
 number the UI shows is derived — see ``metrics.py``.
 """
+
 from __future__ import annotations
 
 import enum
@@ -28,14 +29,14 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class AssessmentKind(str, enum.Enum):
+class AssessmentKind(enum.StrEnum):
     test = "test"
     quiz = "quiz"
     homework = "homework"
     project = "project"
 
 
-class AttendanceStatus(str, enum.Enum):
+class AttendanceStatus(enum.StrEnum):
     present = "present"
     tardy = "tardy"
     absent = "absent"

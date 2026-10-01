@@ -3,6 +3,7 @@
 Grades, attendance and risk come from ``metrics`` (one definition); this module only
 aggregates them. Nothing here is sent anywhere -- drafts are for the teacher to edit.
 """
+
 from __future__ import annotations
 
 import csv
@@ -198,7 +199,9 @@ def _first(name: str) -> str:
     return name.split()[0] if name.split() else name
 
 
-def template_draft(s: Student, m: metrics.StudentMetrics, tone: Tone, teacher: str = "Your child's teacher") -> ParentDraft:
+def template_draft(
+    s: Student, m: metrics.StudentMetrics, tone: Tone, teacher: str = "Your child's teacher"
+) -> ParentDraft:
     first, course = _first(s.name), s.section.course.name
     strengths, concerns = [], []
     if m.average is not None and m.average >= 85:
@@ -223,7 +226,9 @@ def template_draft(s: Student, m: metrics.StudentMetrics, tone: Tone, teacher: s
     opener = {
         "warm": f"I hope you are well! I wanted to share a quick update on how {first} is doing in {course}.",
         "neutral": f"I am writing to share an update on {first}'s progress in {course}.",
-        "concerned": f"I am writing about {first}'s progress in {course} and would like to work together on next steps.",
+        "concerned": (
+            f"I am writing about {first}'s progress in {course} and would like to work together on next steps."
+        ),
     }[tone]
     lines = ["Hello,", "", opener, ""]
     if strengths:
@@ -231,7 +236,10 @@ def template_draft(s: Student, m: metrics.StudentMetrics, tone: Tone, teacher: s
     if concerns:
         lines += ["Where we can focus: " + "; ".join(concerns) + ".", ""]
     if not strengths and not concerns:
-        lines += ["There is not yet enough graded work to report a clear picture, and I will update you as it comes in.", ""]
+        lines += [
+            "There is not yet enough graded work to report a clear picture, and I will update you as it comes in.",
+            "",
+        ]
     closing = {
         "warm": "Please reach out if you have any questions. Thank you for your support!",
         "neutral": "Please let me know if you have any questions or would like to talk.",
@@ -270,7 +278,8 @@ def make_client() -> AsyncAnthropic | None:
 def _context(s: Student, m: metrics.StudentMetrics) -> str:
     f = lambda v, suf="": "n/a" if v is None else f"{v:.0f}{suf}"  # noqa: E731
     lines = [
-        f"Student first name: {_first(s.name)}", f"Course: {s.section.course.name}",
+        f"Student first name: {_first(s.name)}",
+        f"Course: {s.section.course.name}",
         f"Average: {f(m.average, '%')} ({m.letter or 'n/a'}); trend vs earlier work: "
         + ("n/a" if m.trend is None else f"{m.trend:+.0f} points"),
         f"Attendance: {f(m.attendance_rate, '%')} ({m.absences} absences, {m.tardies} tardies)",
@@ -300,6 +309,6 @@ async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["a
             text = resp.content[0].text
             raw = json.loads(text[text.index("{") : text.rindex("}") + 1])
             return ParentDraft(subject=raw["subject"], body=raw["body"]), "ai"
-        except (Exception, ValidationError):  # noqa: BLE001 -- a flaky model must never break the page
+        except (Exception, ValidationError):
             log.exception("parent update generation failed; using template")
     return template_draft(s, m, tone), "template"

@@ -16,7 +16,10 @@ def _shape(eng):
             continue
         out[t] = (
             sorted((c["name"], str(c["type"]), c["nullable"]) for c in insp.get_columns(t)),
-            sorted((tuple(f["constrained_columns"]), f["referred_table"], f["options"].get("ondelete")) for f in insp.get_foreign_keys(t)),
+            sorted(
+                (tuple(f["constrained_columns"]), f["referred_table"], f["options"].get("ondelete"))
+                for f in insp.get_foreign_keys(t)
+            ),
             sorted((i["name"], tuple(i["column_names"]), bool(i["unique"])) for i in insp.get_indexes(t)),
             sorted(tuple(u["column_names"]) for u in insp.get_unique_constraints(t)),
             tuple(insp.get_pk_constraint(t)["constrained_columns"]),
@@ -31,7 +34,10 @@ def test_migration_matches_metadata(tmp_path):
     database.Base.metadata.create_all(created)
     assert _shape(migrated) == _shape(created)
     with migrated.connect() as conn:  # no drift between models and migration head
-        assert compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), database.Base.metadata) == []
+        assert (
+            compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), database.Base.metadata)
+            == []
+        )
         assert conn.execute(text("select version_num from alembic_version")).scalar() is not None
 
 

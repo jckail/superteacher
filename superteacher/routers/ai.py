@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -52,7 +53,7 @@ async def _read(ws: WebSocket, inbox: asyncio.Queue) -> None:
             if msg["type"] == "websocket.disconnect":
                 break
             await inbox.put(msg.get("text") if msg.get("text") is not None else b"")
-    except Exception:  # noqa: BLE001 - socket already gone
+    except Exception:
         pass
     await inbox.put(None)
 
@@ -105,13 +106,11 @@ async def chat_ws(ws: WebSocket):
         except ai.ChatError as e:
             _drop_unanswered(history)
             await send({"type": "error", "message": str(e)})
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("chat turn failed")
             _drop_unanswered(history)
-            try:
+            with contextlib.suppress(Exception):  # client already gone
                 await send({"type": "error", "message": ai.friendly_error(RuntimeError())})
-            except Exception:  # noqa: BLE001 - client already gone
-                pass
 
     running: asyncio.Task | None = None
     getter: asyncio.Task | None = None
@@ -152,7 +151,9 @@ async def chat_ws(ws: WebSocket):
             if running:
                 await send({"type": "error", "message": "Please wait for the current reply to finish."})
             elif len(content) > MAX_MESSAGE_CHARS:
-                await send({"type": "error", "message": f"That message is too long (max {MAX_MESSAGE_CHARS} characters)."})
+                await send(
+                    {"type": "error", "message": f"That message is too long (max {MAX_MESSAGE_CHARS} characters)."}
+                )
             elif not limiter.allow():
                 await send({"type": "error", "message": "You're sending messages too quickly. Please wait a moment."})
             else:
@@ -160,7 +161,7 @@ async def chat_ws(ws: WebSocket):
                 running = asyncio.create_task(
                     turn(content, sid if isinstance(sid, str) else None, msg.get("tool_events") is True)
                 )
-    except Exception:  # noqa: BLE001 - e.g. send on a closed socket
+    except Exception:
         log.debug("chat connection ended", exc_info=True)
     finally:
         for t in (running, getter, reader):

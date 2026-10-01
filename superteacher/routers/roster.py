@@ -226,7 +226,7 @@ def add_note(student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db
 
 @router.post("/sections/{section_id}/import", response_model=schemas.ImportResult)
 def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depends(get_db)):
-    """Bulk-add students from CSV with columns ``name,grade_level`` (header optional). Bad rows are skipped, not fatal."""
+    """Bulk-add students from CSV (``name,grade_level``, header optional). Bad rows are skipped, not fatal."""
     if not db.get(Section, section_id):
         raise HTTPException(404, "Section not found")
     existing = {n.casefold() for n in db.scalars(select(Student.name).where(Student.section_id == section_id))}

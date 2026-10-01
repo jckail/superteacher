@@ -15,7 +15,7 @@ def health(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "ok", "ai": bool(get_settings().anthropic_api_key)}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "unhealthy", "database": str(e), "ai": False}
 
 

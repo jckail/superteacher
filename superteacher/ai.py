@@ -5,6 +5,7 @@ The model never sees scraped page text. It sees a compact snapshot of the teache
 (``ai_tools``) for exact data. All user-authored text is delimited and defanged: see
 ``ai_tools.clean`` and the untrusted-data rules in ``SYSTEM_PROMPT``.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +23,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from . import ai_tools, metrics, schemas
-from .ai_tools import clean, student_block, student_line  # noqa: F401  (re-exported)
+from .ai_tools import clean, student_block, student_line
 from .config import get_settings
 from .models import InsightCache, Student
 
@@ -109,13 +110,20 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
         )
         by_sec: dict[str, list[metrics.StudentMetrics]] = {}
         for s in students:
-            by_sec.setdefault(f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}", []).append(computed[s.id])
+            by_sec.setdefault(f"{clean(s.section.course.name, 60)} / {clean(s.section.name, 40)}", []).append(
+                computed[s.id]
+            )
         for name, ms in sorted(by_sec.items()):
             avgs = [m.average for m in ms if m.average is not None]
             out.append(
-                f"- {name}: {len(ms)} students, avg {sum(avgs) / len(avgs):.0f}%" if avgs else f"- {name}: {len(ms)} students"
+                f"- {name}: {len(ms)} students, avg {sum(avgs) / len(avgs):.0f}%"
+                if avgs
+                else f"- {name}: {len(ms)} students"
             )
-        need = sorted((s for s in students if computed[s.id].risk != "on_track"), key=lambda s: (computed[s.id].risk != "at_risk", s.name))
+        need = sorted(
+            (s for s in students if computed[s.id].risk != "on_track"),
+            key=lambda s: (computed[s.id].risk != "at_risk", s.name),
+        )
         out += [student_line(s, computed[s.id]) for s in need[:cap]]
         if len(need) > cap:
             out.append(f"... and {len(need) - cap} more students flagged; use find_students.")
@@ -164,7 +172,12 @@ async def run_chat(
     """
     ai = client()
     if ai is None:
-        yield {"type": "delta", "text": "AI is not configured on this server (set `ANTHROPIC_API_KEY`). The rest of the app works without it."}
+        yield {
+            "type": "delta",
+            "text": (
+                "AI is not configured on this server (set `ANTHROPIC_API_KEY`). The rest of the app works without it."
+            ),
+        }
         return
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
     system = system_blocks(roster, focus)
@@ -173,7 +186,12 @@ async def run_chat(
     model = get_settings().anthropic_model
 
     for _ in range(limit):
-        kwargs: dict[str, Any] = {"model": model, "max_tokens": MAX_OUTPUT_TOKENS, "system": system, "messages": messages}
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "max_tokens": MAX_OUTPUT_TOKENS,
+            "system": system,
+            "messages": messages,
+        }
         if tools:
             kwargs["tools"] = tools
         try:
@@ -217,7 +235,7 @@ async def _run_tool(session_factory, block: Any) -> dict:
         return {"type": "tool_result", "tool_use_id": block.id, "content": content}
     except ai_tools.ToolError as e:
         return {"type": "tool_result", "tool_use_id": block.id, "content": str(e), "is_error": True}
-    except Exception:  # noqa: BLE001 - a broken lookup should not kill the whole turn
+    except Exception:
         log.exception("tool %s failed", block.name)
         return {"type": "tool_result", "tool_use_id": block.id, "content": "The lookup failed.", "is_error": True}
 
@@ -335,7 +353,12 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
     cached = db.get(InsightCache, s.id)
     if cached and cached.fingerprint == fp:
         try:
-            return schemas.Insight(**InsightPayload.model_validate(cached.payload).model_dump(), source="ai", model=cached.model, generated_at=cached.created_at)
+            return schemas.Insight(
+                **InsightPayload.model_validate(cached.payload).model_dump(),
+                source="ai",
+                model=cached.model,
+                generated_at=cached.created_at,
+            )
         except (ValidationError, TypeError):
             log.warning("cached insight for %s is malformed; regenerating", s.id)
 
@@ -354,7 +377,7 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
         task.add_done_callback(lambda _t, k=key: _inflight.pop(k, None))
     try:
         payload = await asyncio.shield(task)
-    except Exception:  # noqa: BLE001 - never let a flaky model call break the student page
+    except Exception:
         log.exception("insight generation failed; falling back to rules")
         return rule_insight(s, m)
     if payload is None:
@@ -369,7 +392,7 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
         else:
             db.add(InsightCache(student_id=s.id, fingerprint=fp, model=model, payload=data))
         db.commit()
-    except Exception:  # noqa: BLE001 - e.g. a concurrent follower already wrote it
+    except Exception:
         db.rollback()
         log.warning("could not cache insight for %s", s.id)
     return schemas.Insight(**data, source="ai", model=model, generated_at=datetime.now(UTC))
