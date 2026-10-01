@@ -1,3 +1,6 @@
+import csv
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -143,3 +146,33 @@ def add_note(student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db
     db.add(note)
     db.commit()
     return note
+
+
+@router.post("/sections/{section_id}/import", response_model=schemas.ImportResult)
+def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depends(get_db)):
+    """Bulk-add students from CSV with columns ``name,grade_level`` (header optional). Bad rows are skipped, not fatal."""
+    if not db.get(Section, section_id):
+        raise HTTPException(404, "Section not found")
+    existing = {n.lower() for n in db.scalars(select(Student.name).where(Student.section_id == section_id))}
+    created, skipped = 0, []
+    for i, row in enumerate(csv.reader(io.StringIO(body.csv.lstrip("\ufeff"))), start=1):
+        if not row or not "".join(row).strip():
+            continue
+        name = row[0].strip()
+        if i == 1 and name.lower() in {"name", "student", "student name"}:
+            continue
+        try:
+            level = int(row[1]) if len(row) > 1 and row[1].strip() else 9
+            if not 1 <= level <= 12 or not 0 < len(name) <= 120:
+                raise ValueError
+        except ValueError:
+            skipped.append(f"Row {i}: invalid name or grade level")
+            continue
+        if name.lower() in existing:
+            skipped.append(f"Row {i}: {name} is already in this section")
+            continue
+        existing.add(name.lower())
+        db.add(Student(name=name, grade_level=level, section_id=section_id))
+        created += 1
+    db.commit()
+    return schemas.ImportResult(created=created, skipped=skipped)

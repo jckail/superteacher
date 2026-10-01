@@ -6,7 +6,7 @@ A classroom copilot: it answers **"who needs me today, and why?"** — then help
 
 ## What it does
 - **Today** – class stats, a ranked *needs attention* list with plain-language reasons, grade distribution.
-- **Roster** – searchable, sortable, filter by status; every student has a computed average, trend, attendance and homework rate.
+- **Roster** – searchable, sortable, filter by status, CSV import; every student has a computed average, trend, attendance and homework rate.
 - **Student** – score trend, attendance strip, every assignment (missing ones flagged), private notes, and an AI insight card.
 - **Gradebook** – spreadsheet-style entry per section; averages and risk update live.
 - **Attendance** – one-tap daily roll call, optimistic UI.
@@ -37,4 +37,4 @@ Production: `docker build -t superteacher . && docker run -p 8080:8080 -e ANTHRO
 Config (env / `.env`): `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`.
 
 ## Not yet
-No authentication — this holds student data, so put it behind your platform's auth (e.g. IAP) before real use. Next up: auth/roles, CSV import, parent summaries, migrations (Alembic) once the schema settles.
+No authentication — this holds student data, so put it behind your platform's auth (e.g. IAP) before real use. Next up: auth/roles, parent summaries, migrations (Alembic) once the schema settles.

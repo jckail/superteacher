@@ -93,6 +93,14 @@ def test_seeded_data_has_stories_and_filters(seeded):
     q = seeded.get("/api/students", params={"q": all_[0]["name"][:3]}).json()
     assert q and all(all_[0]["name"][:3].lower() in r["name"].lower() for r in q)
     # seeding is idempotent: a second startup must not duplicate or wipe anything
-    from superteacher.seed import seed_demo
-    from superteacher.main import app  # noqa: F401
     assert len(seeded.get("/api/courses").json()) == 3
+
+
+def test_csv_import_skips_bad_rows(client):
+    _, sec = mk_class(client)
+    csv_text = "name,grade_level\nAda Lovelace,10\n,9\nGrace Hopper,99\nada lovelace,10\nAlan Turing\n"
+    r = client.post(f"/api/sections/{sec['id']}/import", json={"csv": csv_text}).json()
+    assert r["created"] == 2 and len(r["skipped"]) == 3
+    names = sorted(s["name"] for s in client.get("/api/students").json())
+    assert names == ["Ada Lovelace", "Alan Turing"]
+    assert client.post("/api/sections/zzz/import", json={"csv": "a"}).status_code == 404

@@ -83,6 +83,37 @@ export function NewClassDialog({ onClose }) {
   );
 }
 
+function ImportDialog({ onClose }) {
+  const { allSections } = useScope();
+  const qc = useQueryClient();
+  const [sectionId, setSectionId] = useState(allSections[0]?.id ?? '');
+  const [text, setText] = useState('');
+  const run = useMutation({
+    mutationFn: () => api(`/sections/${sectionId}/import`, { method: 'POST', body: { csv: text } }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+  const onFile = async (e) => { const f = e.target.files[0]; if (f) setText(await f.text()); };
+  return (
+    <Modal title="Import students from CSV" onClose={onClose}>
+      <div className="grid">
+        <label className="field">Section
+          <select className="input" value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
+            {allSections.map((s) => <option key={s.id} value={s.id}>{s.course} · {s.name}</option>)}
+          </select>
+        </label>
+        <label className="field">CSV file (columns: name, grade_level)<input className="input" type="file" accept=".csv,text/csv" onChange={onFile} /></label>
+        <textarea className="input" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'name,grade_level\nAda Lovelace,10'} aria-label="CSV text" />
+        <ErrorBox error={run.error} />
+        {run.data && <div role="status"><strong>{run.data.created} added.</strong>{run.data.skipped.length > 0 && <ul>{run.data.skipped.map((m) => <li key={m} className="muted">{m}</li>)}</ul>}</div>}
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose}>{run.data ? 'Done' : 'Cancel'}</button>
+          <button className="btn primary" disabled={run.isPending || !text.trim() || !sectionId} onClick={() => run.mutate()}>Import</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function Roster() {
   const { course, section } = useScope();
   const nav = useNavigate();
@@ -112,7 +143,7 @@ export default function Roster() {
     <>
       <div className="topbar">
         <div><h1>Roster</h1><div className="page-sub">{q.data ? `${rows.length} of ${q.data.length} students` : ' '}</div></div>
-        <div className="row"><ScopePicker /><button className="btn" onClick={() => setDialog('class')}>+ Course</button><button className="btn primary" onClick={() => setDialog('student')}>+ Student</button></div>
+        <div className="row"><ScopePicker /><button className="btn" onClick={() => setDialog('import')}>Import CSV</button><button className="btn" onClick={() => setDialog('class')}>+ Course</button><button className="btn primary" onClick={() => setDialog('student')}>+ Student</button></div>
       </div>
       <div className="row" style={{ marginBottom: 14 }}>
         <input className="input" style={{ maxWidth: 280 }} type="search" placeholder="Search students…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search students" />
@@ -143,6 +174,7 @@ export default function Roster() {
         </div>
       )}
       {dialog === 'student' && <NewStudentDialog onClose={() => setDialog(null)} />}
+      {dialog === 'import' && <ImportDialog onClose={() => setDialog(null)} />}
       {dialog === 'class' && <NewClassDialog onClose={() => setDialog(null)} />}
     </>
   );

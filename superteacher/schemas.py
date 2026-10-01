@@ -183,3 +183,12 @@ class Insight(BaseModel):
     source: str  # "ai" | "rules"
     model: str | None = None
     generated_at: datetime | None = None
+
+
+class ImportIn(BaseModel):
+    csv: str = Field(max_length=500_000)
+
+
+class ImportResult(BaseModel):
+    created: int
+    skipped: list[str]  # human-readable reasons, one per rejected row
