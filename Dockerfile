@@ -29,6 +29,8 @@ COPY alembic/ ./alembic/
 COPY alembic.ini server.py litestream.yml docker-entrypoint.sh ./
 # Do not rely on git preserving the executable bit (repos on Windows/WSL mounts often do not).
 RUN chmod 0755 /app/docker-entrypoint.sh
+# Release archives may also preserve owner-only modes on copied runtime files.
+RUN chmod 0644 /app/alembic.ini /app/server.py /app/litestream.yml
 COPY --from=web /web/dist ./web/dist
 # Private release archives may contain root-owned directories with mode 0700.
 # The runtime user must be able to traverse and read copied code and static assets.

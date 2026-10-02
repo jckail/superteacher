@@ -1,3 +1,9 @@
+import shlex
+import shutil
+import stat
+import subprocess
+from pathlib import Path
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -67,3 +73,31 @@ def test_cloud_run_accepts_entrypoint_verified_replica(monkeypatch, tmp_path):
         assert app.state.session_factory.kw["bind"] is engine
     finally:
         engine.dispose()
+
+
+def test_runtime_root_files_are_readable_after_owner_only_archive_copy(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    names = ("alembic.ini", "server.py", "litestream.yml", "docker-entrypoint.sh")
+    copied = {}
+    for name in names:
+        target = tmp_path / name
+        shutil.copyfile(root / name, target)
+        target.chmod(0o600)
+        copied[f"/app/{name}"] = target
+
+    # Exercise the Dockerfile's actual permission operations before its non-root
+    # USER boundary, starting with the modes retained by a private release archive.
+    dockerfile = (root / "Dockerfile").read_text().split("USER app", 1)[0]
+    for line in dockerfile.splitlines():
+        if not line.startswith("RUN chmod "):
+            continue
+        command = shlex.split(line.removeprefix("RUN "))
+        if not all(path in copied for path in command[2:]):
+            continue
+        subprocess.run([*command[:2], *(str(copied[path]) for path in command[2:])], check=True)
+
+    for target in copied.values():
+        mode = stat.S_IMODE(target.stat().st_mode)
+        assert mode & stat.S_IROTH, f"runtime UID 10001 cannot read {target.name}"
+        assert not mode & stat.S_IWOTH, f"runtime file is writable by other users: {target.name}"
+    assert stat.S_IMODE(copied["/app/docker-entrypoint.sh"].stat().st_mode) & stat.S_IXOTH
