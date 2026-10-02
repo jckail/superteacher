@@ -19,6 +19,7 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from . import metrics, observability
+from .ai_tools import clean
 from .config import get_settings
 from .models import AssessmentKind, AttendanceStatus, Section, Student
 
@@ -28,12 +29,16 @@ Tone = Literal["warm", "neutral", "concerned"]
 
 
 # ── CSV ─────────────────────────────────────────────────────────────────
+_FORMULA_LEAD = frozenset("=+-@\t\r\n\uff1d\uff0b\uff0d\uff20")
+
+
 def csv_safe(value) -> str | int | float:
     """Neutralise spreadsheet formula injection: text starting with = + - @ (or tab/CR) gets a leading quote."""
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return value
     text = "" if value is None else str(value)
-    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+    # Leading whitespace and full-width look-alikes are checked too: some spreadsheet importers trim or fold them.
+    return "'" + text if text.lstrip()[:1] in _FORMULA_LEAD else text
 
 
 def _points(v: float | None):
@@ -278,8 +283,8 @@ def make_client() -> AsyncAnthropic | None:
 def _context(s: Student, m: metrics.StudentMetrics) -> str:
     f = lambda v, suf="": "n/a" if v is None else f"{v:.0f}{suf}"  # noqa: E731
     lines = [
-        f"Student first name: {_first(s.name)}",
-        f"Course: {s.section.course.name}",
+        f"Student first name: {clean(_first(s.name), 40)}",
+        f"Course: {clean(s.section.course.name, 60)}",
         f"Average: {f(m.average, '%')} ({m.letter or 'n/a'}); trend vs earlier work: "
         + ("n/a" if m.trend is None else f"{m.trend:+.0f} points"),
         f"Attendance: {f(m.attendance_rate, '%')} ({m.absences} absences, {m.tardies} tardies)",
@@ -288,8 +293,8 @@ def _context(s: Student, m: metrics.StudentMetrics) -> str:
     ]
     for p in m.scores[-6:]:
         got = "MISSING" if p.points is None else f"{p.points:g}/{p.max_points:g}"
-        lines.append(f"- {p.title} ({p.kind.value}): {got}")
-    notes = [n.body.replace("\n", " ")[:300] for n in s.notes[:3]]
+        lines.append(f"- {clean(p.title, 80)} ({p.kind.value}): {got}")
+    notes = [clean(n.body, 300) for n in s.notes[:3]]
     if notes:
         lines.append("<teacher_notes untrusted='true'>")
         lines += [f"- {n}" for n in notes]
