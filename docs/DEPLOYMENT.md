@@ -76,6 +76,22 @@ state live in the database. Quotas are per user per UTC day and enforced on the 
 Cache hits and rule-based/template fallbacks (no API key) do not use quota. When exceeded the API answers `429` with a friendly
 message and reset time (`detail.code = "quota_exceeded"`; chat sends an error frame with the same fields).
 
+### If sign-in emails are not arriving
+
+The sign-in endpoint answers the same generic `202` whether or not a message could be sent (so it cannot be used to find out
+who has an account). That makes a broken mail provider invisible from the outside, so check in this order:
+
+1. **Logs.** Cloud Logging, `severity=ERROR`, message `sign-in email failed`. It now includes the provider's own reason, for
+   example `sendgrid returned HTTP 401: Maximum credits exceeded` (the SendGrid account had used its allowance; the key was
+   fine). Anything that looks like a key or address is redacted.
+2. **`GET /api/auth/config`** returns `"email_available": false` once three sends in a row have failed.
+3. **What users see.** While the breaker is open the sign-in form shows "Sign-in email is temporarily unavailable" (HTTP `503`,
+   `Retry-After: 300`) instead of promising a link that is not coming. After 5 minutes one attempt is let through to see
+   whether delivery has recovered.
+4. **Do not leave a public deployment in accounts mode while mail is down.** Accounts mode turns the shared passcode off, so
+   nobody can sign in. Roll back with `gcloud run services update SERVICE --update-env-vars AUTH_MODE=passcode` (then move
+   traffic, as in the deploy procedure), or switch `AUTH_EMAIL_BACKEND` to another provider.
+
 ## Environment variables
 
 | Variable | Default | Notes |
@@ -94,8 +110,11 @@ message and reset time (`detail.code = "quota_exceeded"`; chat sends an error fr
 | `LOGIN_TOKEN_TTL_MINUTES` | `15` | Lifetime of a sign-in link. |
 | `ACCOUNTS_SESSION_IDLE_HOURS` / `ACCOUNTS_SESSION_ABSOLUTE_HOURS` | `72` / `720` | Idle and absolute session lifetime (server-enforced). |
 | `ACCOUNTS_LINK_PER_EMAIL_HOUR` / `_PER_IP_HOUR` / `_GLOBAL_HOUR` | `3` / `10` / `300` | Sign-in link requests. Per-email overflow is silent (generic 202); per-address/global answer 429 + `Retry-After`. Address = `request.client` (honours `X-Forwarded-For` only through uvicorn's trusted-proxy setting). |
-| `AUTH_EMAIL_BACKEND` | `sendgrid` | `sendgrid`, `console` (redacted log line) or `file` (writes full messages to `AUTH_EMAIL_OUTBOX_DIR`). |
-| `AUTH_EMAIL_FROM`, `SENDGRID_API_KEY` | none | Required for `sendgrid`. |
+| `AUTH_EMAIL_BACKEND` | `sendgrid` | `sendgrid`, `smtp`, `console` (redacted log line) or `file` (writes full messages to `AUTH_EMAIL_OUTBOX_DIR`). |
+| `AUTH_EMAIL_FROM`, `SENDGRID_API_KEY` | none | Required for `sendgrid` (`AUTH_EMAIL_FROM` for `smtp` too). |
+| `SMTP_HOST`, `SMTP_PORT` | none, `587` | Required for `smtp`. Works with any provider that offers SMTP (Gmail app password, Amazon SES, Mailgun...). |
+| `SMTP_SECURITY` | `starttls` | `starttls` (port 587) or `ssl` (port 465). Plain-text SMTP is not supported; the server certificate is verified. |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | none | Optional pair; keep the password in Secret Manager. |
 | `AUTH_EMAIL_OUTBOX_DIR` | none | Required for `file`. |
 | `AUTH_EMAIL_ALLOW_INSECURE_BACKEND` | `false` | Allow `console`/`file` when `K_SERVICE` is set. Do not. |
 | `QUOTA_CHAT_PER_DAY` / `QUOTA_INSIGHT_PER_DAY` / `QUOTA_PARENT_UPDATE_PER_DAY` | `100` / `60` / `20` | Per user per UTC day. |

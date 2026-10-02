@@ -168,7 +168,7 @@ def test_websocket_requires_a_live_session(tmp_path):
 def test_passcode_endpoint_is_not_available_in_accounts_mode(tmp_path):
     with build(tmp_path) as c:
         assert c.post("/api/auth/login", json={"password": "x"}, headers=H).status_code == 404
-        assert c.get("/api/auth/config").json() == {"auth_mode": "accounts"}
+        assert c.get("/api/auth/config").json() == {"auth_mode": "accounts", "email_available": True}
 
 
 def test_accounts_endpoints_are_404_in_passcode_mode():
@@ -177,7 +177,7 @@ def test_accounts_endpoints_are_404_in_passcode_mode():
     with build_passcode() as c:
         assert request_link(c, "a@example.com").status_code == 404
         assert c.post("/api/auth/verify", json={"token": "x" * 30}, headers=H).status_code == 404
-        assert c.get("/api/auth/config").json() == {"auth_mode": "passcode"}
+        assert c.get("/api/auth/config").json() == {"auth_mode": "passcode", "email_available": True}
 
 
 def test_readonly_session_polling_does_not_extend_idle_expiry(tmp_path, monkeypatch):
