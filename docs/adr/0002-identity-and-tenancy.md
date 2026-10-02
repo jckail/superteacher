@@ -46,7 +46,7 @@ server-side revocable sessions instead of the stateless cookie.
 
 - `AUTH_MODE=passcode|accounts` (default `passcode`, unchanged behaviour; the passcode maps to an implicit owner user).
 - Tables: `users`, `sessions` (SHA-256 of a 256-bit id, idle + absolute expiry, revocable), `login_tokens` (hashed, 15 min, single use),
-  `usage_counters`, `ai_budget`; `courses.owner_id` with `UNIQUE(owner_id, lower(name))`; migration `0002` backfills existing rows to the owner user.
+  `usage_counters`, `ai_budget`; `courses.owner_id` with `UNIQUE(owner_id, lower(name))`. The original accounts branch used migration `0002`; current native accounts migration is `0003`, following integrity `0002`, and backfills existing rows to the owner user. An original accounts-`0002` snapshot requires the [offline adoption procedure](../IDENTITY_INTEGRATION.md); do not change its stamp or start native migrations against it.
 - Links open an SPA page with the token in the URL fragment, which POSTs it (scanner-safe, CSRF + origin checked). Generic `202` replies,
   per-address/per-email/global rate limits, `ACCOUNTS_MAX_USERS`, optional domain allowlist. SendGrid over httpx; `console`/`file`
   backends refused in production.

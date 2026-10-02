@@ -957,5 +957,9 @@ rejection; the internal installation entry must preserve the worktree lock and
 shared verification gate. Findings are recorded on the existing
 [JCK-72](https://linear.app/jckail/issue/JCK-72/developer-experience-one-command-setup-and-dev-container),
 and author ownership is preserved. No bootstrap or production database operation
-was executed by this review. Docs PR73–75 remain under independent integration
-review; the source257 candidate artifact stays frozen.
+was executed by this review. Docs PR74, PR75 and PR73 passed independent SPEC/QUALITY review and exact-head
+seven-job CI plus Bugbot, then merged in that order as `803ec61e`, `81c7fd34`
+and `5e9f7cd6`. Root fast-forwarded the working branch and verified all 49 relative
+file links in the merged checkout. Their changes are documentation only; the
+source257 candidate artifact stays frozen. A focused follow-up clarifies the
+ADR accounts migration numbering and links the offline adoption procedure.
