@@ -187,21 +187,29 @@ export default function Student() {
   const toast = useToast();
   const confirm = useConfirm();
   const [kind, setKind] = useState<AssessmentKind | ''>('');
+  const deletionLifecycle = useMemo(() => ({ active: true, studentId: id, client: qc }), [id, qc]);
+  useEffect(() => {
+    deletionLifecycle.active = true;
+    return () => { deletionLifecycle.active = false; };
+  }, [deletionLifecycle]);
   const q = useQuery({ queryKey: ['student', id], queryFn: ({ signal }) => {
     if (!id) throw new ApiError(404, 'Student not found');
     return api<StudentDetail>(`/students/${id}`, { signal });
   }, retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 1 });
   const del = useMutation({
-    mutationFn: () => api<null>(`/students/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      // Drop the deleted student's own queries first: invalidating them would refetch the still-mounted page and 404.
-      qc.removeQueries({ queryKey: ['student', id] });
-      qc.removeQueries({ queryKey: ['insight', id] });
-      qc.invalidateQueries();
-      toast.success('Student removed');
-      nav('/roster');
+    mutationFn: ({ studentId }: { studentId: string; client: typeof qc; lifecycle: typeof deletionLifecycle }) => api<null>(`/students/${studentId}`, { method: 'DELETE' }),
+    onSuccess: (_data, { studentId, client, lifecycle }) => {
+      // Mutation observer options can change while DELETE is pending; its target and client cannot.
+      // Remove before invalidation so the still-mounted deleted page does not refetch and 404.
+      client.removeQueries({ queryKey: ['student', studentId] });
+      client.removeQueries({ queryKey: ['insight', studentId] });
+      void client.invalidateQueries();
+      if (lifecycle.active) {
+        toast.success('Student removed');
+        nav('/roster');
+      }
     },
-    onError: (e) => toast.error(`Couldn’t remove student: ${e.message}`),
+    onError: (e, { client }) => { if (client === qc) toast.error(`Couldn’t remove student: ${e.message}`); },
   });
   const s = q.data;
   const calendar = useSchoolCalendar(Boolean(id));
@@ -237,7 +245,8 @@ export default function Student() {
   const lastDays = s.attendance.filter((x) => x.day <= s.as_of).slice(-30);
   const shown = s.scores.filter((x) => !kind || x.kind === kind);
   const remove = async () => {
-    if (await confirm({ title: `Remove ${s.name}?`, message: 'This permanently deletes the student and all of their scores, attendance and notes.', confirmLabel: 'Remove student', danger: true })) del.mutate();
+    const target = { studentId: s.id, client: qc, lifecycle: deletionLifecycle };
+    if (await confirm({ title: `Remove ${s.name}?`, message: 'This permanently deletes the student and all of their scores, attendance and notes.', confirmLabel: 'Remove student', danger: true }) && target.lifecycle.active) del.mutate(target);
   };
   return (
     <>
