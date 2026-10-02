@@ -1,15 +1,19 @@
 # Server-revocable passcode sessions
 
-Implementation plan grounded in native HEAD `9a8da6a`, 2026-10-02. Planning
-only: no authentication implementation or verification has been performed.
+Implementation plan grounded in native HEAD `9a8da6a`, 2026-10-02. Implemented
+at `583cfc0`, with 153 focused cases and scoped lint/format checks passing.
+Independent review and exact-head full CI are pending; no serving image or
+production authentication configuration changed.
 
 ## Problem and outcome
 
-`superteacher/auth.py` issues signed `{v:1}` cookies and authenticates passcode
-requests by signature alone. Passcode logout clears the browser cookie but
-cannot revoke a copied cookie; its regression remains xfailed in
-`tests/test_security_session.py`. Cookies issued in the same second can also be
-identical. The WebSocket watcher rechecks that same stateless gate.
+At the baseline, `superteacher/auth.py` issued signed `{v:1}` cookies and
+authenticated passcode requests by signature alone. Passcode logout cleared the
+browser cookie but
+could not revoke a copied cookie; the former xfail in
+`tests/test_security_session.py` is now a passing regression. Baseline cookies
+issued in the same second could also be identical. The baseline WebSocket
+watcher rechecked that stateless gate.
 
 Reuse existing `User` and `AuthSession` tables to require both a valid signed
 passcode cookie and a live server session. Preserve passcode access to `OWNER_ID`,

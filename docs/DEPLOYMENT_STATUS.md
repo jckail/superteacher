@@ -7,6 +7,17 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `583cfc0` implements server-revocable passcode sessions using the existing
+session table, with independent spec/quality review approval and 153 focused
+auth/accounts/WebSocket cases passing. Signed v2 cookies require a live owner
+session; logout revokes copied cookies, login rotation is atomic, accounts wire
+formats guard reads and writes, and conditional SQL prevents stale refresh races.
+A real database/fake-provider test proves active-chat cancellation and capacity
+release. Legacy v1 cookies require one new sign-in after deployment. No migration,
+real provider call, production configuration or serving image change occurred.
+Final exact-head CI and a new image are pending. See
+[passcode_session_revocation.md](plans/passcode_session_revocation.md).
+
 Offline legacy roster conversion is implemented at `8291cae`, with 54 focused
 synthetic tests and independent review approval. The exact private API archive
 rehearsal and full-row backup/restore passed: 11 courses, 33 sections, 30 students,
@@ -38,8 +49,7 @@ showed native `superteacher-00006-cjv`, staging `00001-7kx`, and legacy
 `edutrack-00018-t58` each still Ready at 100% of its respective service.
 No deployment or traffic mutation occurred.
 
-Remaining authentication work is saved in
-[passcode_session_revocation.md](plans/passcode_session_revocation.md). Other
+The implemented authentication change still needs broad CI and deployment. Other
 original-scope work remains: [historical archival access](plans/legacy_archive_access.md),
 grading policies/terms,
 API pagination/large exports, dedicated least-privilege runtime identity, broader
