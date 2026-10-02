@@ -50,7 +50,10 @@ running a benchmark:
 python scripts/check_bench_budgets.py bench-1k.json
 ```
 
-The `bench-smoke` CI job runs this checker after the existing benchmark. It no
+The `bench-smoke` CI job uses `--fixed-runs` to retain all 15 timed samples,
+even when its untimed probe or import cleanup is slow. Exploratory sweeps keep
+their existing adaptive sample counts unless this flag is selected.
+The CI job runs this checker after the benchmark. It no
 longer permits job failures; reports and the Markdown summary are retained on
 failure when available, so exceeding a budget fails CI with reviewable evidence.
 
