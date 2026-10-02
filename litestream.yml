@@ -1,6 +1,6 @@
 # Continuous SQLite replication. Values come from the environment (expanded by Litestream):
 #   DB_FILE                 absolute path of the live database (docker-entrypoint.sh derives it from DATABASE_URL)
-#   LITESTREAM_REPLICA_URL  e.g. gcs://BUCKET/superteacher   (on Cloud Run, credentials come from the metadata server)
+#   LITESTREAM_REPLICA_URL  e.g. gs://BUCKET/superteacher   (on Cloud Run, credentials come from the metadata server)
 dbs:
   - path: ${DB_FILE}
     replica:

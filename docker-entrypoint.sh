@@ -28,6 +28,10 @@ if [ -z "${LITESTREAM_REPLICA_URL:-}" ]; then
   exec "$@"
 fi
 
+case "$LITESTREAM_REPLICA_URL" in
+  gcs://*) log ERROR litestream_config "Litestream's scheme for Cloud Storage is gs://, not gcs://"; exit 78 ;;
+esac
+
 case "${DATABASE_URL:-}" in
   sqlite:////*) DB_FILE="${DATABASE_URL#sqlite:///}" ;;
   *) log ERROR litestream_config "LITESTREAM_REPLICA_URL needs DATABASE_URL=sqlite:////absolute/path.db"; exit 78 ;;
