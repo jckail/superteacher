@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Callable
 from typing import Any, Literal
@@ -22,7 +23,7 @@ from .models import Student
 from .queries import load_students
 
 MAX_TOOL_RESULT_CHARS = 12_000
-_CTRL = re.compile(r"[\x00-\x1f\x7f]+")
+_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f]+")  # C0, DEL and C1 (incl. NEL \x85)
 
 
 def section_label(s: Student) -> str:
@@ -33,7 +34,14 @@ def section_label(s: Student) -> str:
 def clean(text: object, limit: int = 300) -> str:
     """Neutralise untrusted text: strip control chars, defang angle brackets, truncate."""
     # The look-alike quotes are deliberate: they keep the text readable while making it unable to close our tags.
-    s = _CTRL.sub(" ", str(text)).replace("<", "\u2039").replace(">", "\u203a")
+    # NFKC folds full-width/compat brackets to ASCII first so they are defanged too; format characters (zero-width,
+    # bidi overrides, Unicode "tag" characters that can smuggle invisible text) are dropped, line/paragraph
+    # separators become spaces.
+    folded = unicodedata.normalize("NFKC", str(text))
+    folded = "".join(
+        "" if (cat := unicodedata.category(ch)) == "Cf" else " " if cat in ("Zl", "Zp") else ch for ch in folded
+    )
+    s = _CTRL.sub(" ", folded).replace("<", "\u2039").replace(">", "\u203a")
     s = re.sub(r" {2,}", " ", s).strip()
     return s if len(s) <= limit else s[: limit - 1] + "…"
 

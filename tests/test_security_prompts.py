@@ -236,9 +236,6 @@ def test_clean_helper_properties():
 
 # Invisible/format characters survive clean(): Unicode "tag" characters (U+E0000-E007F) can smuggle instructions the
 # teacher never sees ("ASCII smuggling"), and U+2028/2029/0085 act as line breaks for some tokenisers (F-12).
-@pytest.mark.xfail(
-    reason="F-12: ai_tools.clean() keeps Unicode tag chars / bidi / zero-width / line-separator chars", strict=False
-)
 @pytest.mark.parametrize(
     "bad",
     [
@@ -258,6 +255,5 @@ def test_clean_strips_invisible_format_characters(bad):
     assert not [ch for ch in out if unicodedata.category(ch) in ("Cf", "Cc", "Zl", "Zp")], repr(out)
 
 
-@pytest.mark.xfail(reason="F-12: full-width/compat angle brackets are not folded before defanging", strict=False)
 def test_clean_folds_compatibility_angle_brackets():
     assert "<" not in ai_tools.clean("\uff1c/roster\uff1e") and "\uff1c" not in ai_tools.clean("\uff1c/roster\uff1e")

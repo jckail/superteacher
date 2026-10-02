@@ -98,11 +98,8 @@ def test_unauthenticated_unknown_method_does_not_reach_handlers(app_client):
 
 
 # ── CSRF / Origin matrix ────────────────────────────────────────────────
-# Scheme is never validated: only the host part of the Origin is compared, so a non-web scheme with the right host is
-# accepted. Browsers never send one, so this is hardening only (docs/SECURITY_REVIEW.md, F-11). xfail, not strict.
-SCHEME_GAP = pytest.param(
-    "ftp://testserver", marks=pytest.mark.xfail(reason="origin_ok ignores the scheme (F-11)", strict=False)
-)
+# Only http(s) origins are ever accepted: a non-web scheme with the right host must be refused (F-11, fixed).
+SCHEME_GAP = "ftp://testserver"
 BAD_ORIGINS = [
     "https://evil.com",
     "http://evil.com",

@@ -60,12 +60,7 @@ TRAVERSAL = [
 
 
 # NUL bytes: the SPA handler calls Path.resolve(), which raises ValueError -> an unauthenticated bare 500 (F-10).
-NUL_PATHS = [
-    pytest.param(
-        p, marks=pytest.mark.xfail(reason="F-10: NUL byte in SPA path -> ValueError -> 500 (main.py)", strict=False)
-    )
-    for p in ("/%00", "/index.html%00.png", "/assets%00", "/a/%00/b")
-]
+NUL_PATHS = ["/%00", "/index.html%00.png", "/assets%00", "/a/%00/b"]
 
 
 @pytest.mark.parametrize("path", [*TRAVERSAL, *NUL_PATHS])
@@ -107,11 +102,6 @@ def test_session_secret_file_is_outside_any_served_directory(tmp_path):
     assert ".session_secret" in (ROOT / ".gitignore").read_text()
 
 
-@pytest.mark.xfail(
-    reason="F-09: the SPA catch-all (GET /{path:path}) also answers unknown /api/* GETs with index.html (200). "
-    "Patch in main.py: 404 JSON for api/ paths (docs/SECURITY_REVIEW.md).",
-    strict=False,
-)
 @pytest.mark.parametrize(
     "path", ["/api/nope", "/api/students/../x", "/api", "/api/", "/api/auth/nope", "/api/openapi.json"]
 )
@@ -146,10 +136,6 @@ def api():
         yield c
 
 
-@pytest.mark.xfail(
-    reason="F-04: no request body size cap; a 30 MB body is buffered and parsed before the 401 (main.py middleware)",
-    strict=False,
-)
 def test_oversized_request_bodies_are_rejected_early(api):
     big = b'{"name":"' + b"x" * 8_000_000 + b'"}'
     r = api.post("/api/courses", content=big, headers={**H, "content-type": "application/json"})

@@ -103,7 +103,7 @@ class AuthState:
             return False
 
     def check_password(self, candidate: str) -> bool:
-        a = hashlib.sha256(candidate.encode()).digest()
+        a = hashlib.sha256(candidate.encode("utf-8", "surrogatepass")).digest()
         b = hashlib.sha256((self.settings.auth_password or "").encode()).digest()
         return hmac.compare_digest(a, b)
 
@@ -115,8 +115,9 @@ class AuthState:
         origin = origin.rstrip("/").lower()
         if origin in self.origins:
             return True
-        host = (urlparse(origin).netloc or "").lower()
-        return bool(host) and host == (conn.headers.get("host") or "").lower()
+        parsed = urlparse(origin)
+        host = (parsed.netloc or "").lower()
+        return parsed.scheme in ("http", "https") and bool(host) and host == (conn.headers.get("host") or "").lower()
 
     # --- throttle ---
     def _lock_remaining(self, key: str) -> int:

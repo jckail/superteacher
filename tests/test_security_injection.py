@@ -423,11 +423,6 @@ def test_nesting_and_size_do_not_crash_the_server(api):
     assert api.get("/api/overview").status_code == 200  # still serving afterwards
 
 
-@pytest.mark.xfail(
-    reason="F-07: ~5000-deep JSON makes json.loads raise RecursionError -> bare 500 (before auth, in main.py). "
-    "Patch in docs/SECURITY_REVIEW.md.",
-    strict=False,
-)
 def test_very_deeply_nested_json_is_a_4xx(api):
     deep = '{"name":' + "[" * 5000 + "]" * 5000 + "}"
     assert api.post("/api/courses", content=deep, headers={**H, "content-type": "application/json"}).status_code < 500
@@ -462,11 +457,6 @@ def test_ai_tool_arguments_are_bounded_and_validated(api):
     assert tables_intact(api)[0] == 4
 
 
-@pytest.mark.xfail(
-    reason="F-08: a 422 echoes the offending 'input'; a lone surrogate there cannot be JSON-encoded -> 500. "
-    "Needs a RequestValidationError handler in main.py (patch in docs/SECURITY_REVIEW.md).",
-    strict=False,
-)
 def test_surrogate_in_a_numeric_field_is_a_422(api):
     r = api.post(
         "/api/students",
