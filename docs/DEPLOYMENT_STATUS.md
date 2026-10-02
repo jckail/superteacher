@@ -7,14 +7,33 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
-Source through `c95d9f9` implements roster pagination (`4ad8c5b`), CSV streaming
+Source `3e6629c` implements roster pagination (`4ad8c5b`), CSV streaming
 (`5890342`), account JSON streaming (`464136a`), and the roster client
 (`9504fc1`), with independent task and integrated source review approval. Root's
 focused verification passed 67 pagination/CSV cases, 12 account-stream cases,
-two CORS cases and 50 frontend/session cases. The last source commit adds the
+two CORS cases and 50 frontend/session cases. This source includes the
 cursor header to the explicit CORS allowlist and two PostgreSQL acceptance cases;
-those database cases skipped locally because no test URL is configured and must
-execute in CI. Broad exact-head CI, a new image and deployment remain pending.
+those database cases skipped locally because no test URL is configured.
+Exact-source [CI36996126364](https://github.com/jckail/superteacher/actions/runs/36996126364)
+passed every gate: 1195 API tests without skips/xfails, 137 web tests, four
+browser tests, 83 E2E tests, strict lint/types, frontend build, Docker/auth smoke
+and the informational benchmark. The PostgreSQL cases executed. The previous
+candidate's two stale test mocks and browser interceptor were corrected without
+weakening recovery assertions before this successful run.
+
+Protected foreground Cloud Build `3bc0704a-fe6a-4264-80b8-e1ef47ec0b8b`
+succeeded at 10:51:11 UTC from a Git archive of that exact source (SHA256
+`b70b141fc4298f98cd53f1be3cbbf427e5dcb3af5fcee1a7c6f818c23353af20`).
+Image: `gcr.io/portfolio-383615/superteacher@sha256:64212aa76b885ce196c59eba50388a91f096b390f952d1bd82a27c7029907c81`.
+Isolated staging revision `superteacher-overhaul-staging-00002-jqp` serves it,
+with VERSION equal to full source SHA and a verified fresh replica prefix
+`overhaul-staging/3e6629cdacd622721290a9d4ff4c89b4d78cbe9b-b59e6468eb20`.
+AI/demo disabled; max one instance, no minimum. Synthetic creation, raw precision,
+transfer/history, readiness, login/logout and copied-cookie revocation passed.
+Additional HTTP checks passed scoped cursor continuations/counts, Unicode/BOM/CRLF
+CSV with raw extra-credit points, and historical account JSON. Private proof and
+credentials remain outside Git. Independent replica recovery is being checked;
+production service traffic and custom domains were not changed.
 
 The roster loads 50 rows on demand and preserves filter/sort URLs. Previous/Next
 uses transient header cursors; numbered links restart at the first page with a
@@ -23,6 +42,13 @@ assessment width and account single-record values still scale allocations;
 browser blob downloads remain buffered. Streams join cleanup before response
 exit, including repeated cancellation. Live reads are not database snapshots.
 See [roster_pagination_exports.md](plans/roster_pagination_exports.md).
+
+A preexisting saved-scope hydration issue is confirmed: unresolved or failed
+course metadata can display a broader current-owner roster. A separate reviewed
+fix is in progress, preserving shell/signout and distinguishing pending, failed,
+missing and valid empty scopes. It is not part of this pinned staging image.
+Offline archival history access is the next synthetic implementation slice;
+real-data recipient/owner approval and native authenticated integration remain open.
 
 Linear/Obsidian integrations are unavailable in this session, and Agent Hub does
 not recognize this repository scope; Git documents and local task ledgers retain

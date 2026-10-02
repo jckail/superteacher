@@ -404,3 +404,32 @@ access remains planned separately from auth release. Preservation and ownership 
 datasets, final freeze, compatible rollback, writer drain, domain acceptance,
 grading terms, dedicated runtime identity, broader PostgreSQL workflows and
 real-provider AI evaluation remain open.
+
+## Verified continuation checkpoint: roster paging and streamed exports
+
+Reviewed source `3e6629c` is pushed to main and the feature branch. Roster API
+and client use bounded pages with in-memory header continuations, deterministic
+Unicode/order and exact counts. CSV/account JSON stream column records with
+joined cleanup on disconnect/repeated cancellation. Full metric/history scans,
+wide rows/single values, live-read consistency and browser blob buffering remain
+explicit limitations. CORS and real PostgreSQL server-cursor/history regressions
+are included. Exact-source CI36996126364 passed all gates: 1195 API tests without
+skips/xfails, 137 web tests, four browser tests and 83 E2E tests.
+
+Protected Cloud Build3bc0704a succeeded. Its immutable source-bound image is
+serving isolated staging00002-jqp on a fresh replica prefix, with AI/demo disabled
+and max one instance. Synthetic writes, transfer/history, precision, paging and
+exports, readiness and copied-cookie revocation passed; independent replica
+recovery is pending. [Deployment status](DEPLOYMENT_STATUS.md) records exact
+identifiers. Production/domain mappings remain unchanged. Shared Graphify refresh
+passed with 164478 nodes, zero duplicate IDs/dangling edges; native source coverage
+is still absent and conclusions use current inspected source.
+
+Saved-scope hydration/error fallback is a confirmed preexisting UI issue; a
+separate shell-preserving fix is in progress. Offline operator archival history
+access is being implemented with synthetic fixtures; real ownership/recipient
+authorization and native integration remain unresolved. The original overhaul
+goal remains active, including terms/grading policies, other complete HTTP
+representations, browser downloads, least-privilege runtime identity, broader
+PostgreSQL and real-provider AI evaluation, final data authority/merge, writer
+drain, compatible rollback and domain cutover.

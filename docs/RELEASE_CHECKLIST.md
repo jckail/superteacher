@@ -4,12 +4,22 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
-New reviewed source through `c95d9f9` adds roster API/client pagination and
+Reviewed source `3e6629c` adds roster API/client pagination and
 CSV/account JSON streaming. Root focused verification: 67 pagination/CSV,
 12 account stream, two CORS and 50 frontend/session cases passed. Two new
-PostgreSQL integration cases skipped locally; real CI execution is required.
-Broad exact-head CI and a new image/deployment are pending. The last complete
-release evidence follows; it does not verify the new source.
+PostgreSQL integration cases skipped locally, then executed in exact-source
+[CI36996126364](https://github.com/jckail/superteacher/actions/runs/36996126364):
+1195 API tests without skips/xfails, 137 web tests, four browser tests and 83 E2E
+tests passed. All required lint/types/build/Docker gates and benchmark passed.
+Protected Cloud Build `3bc0704a-fe6a-4264-80b8-e1ef47ec0b8b` succeeded;
+the immutable digest is serving isolated staging revision `00002-jqp` with fresh
+storage, AI/demo disabled and max one instance. Synthetic writes/transfer/history,
+raw precision, cursor scope/counts, CSV/account exports and copied-cookie logout
+passed. Independent replica recovery is pending. Exact image/prefix/source archive
+evidence is in [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). Production traffic
+and custom-domain mappings remain unchanged; the full overhaul is active.
+
+Historical release evidence follows:
 
 Source `881a2af` passed all gates in
 [CI36989700391](https://github.com/jckail/superteacher/actions/runs/36989700391):

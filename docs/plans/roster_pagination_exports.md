@@ -255,7 +255,18 @@ origin/session regressions passing. It also adds two PostgreSQL cases for real
 server cursors, cross-batch reads and owned historical export data. They skipped
 locally without a test database URL; CI must supply that evidence.
 
-Broad exact-head CI, a new image/deployment, the report picker and other complete
-HTTP representations remain outstanding. No full metric/history CPU or global
+Exact source `3e6629c` subsequently passed
+[CI36996126364](https://github.com/jckail/superteacher/actions/runs/36996126364):
+1195 API cases (including real PostgreSQL), 137 web cases, four browser cases,
+83 E2E cases and all release gates. Its immutable image was built and deployed
+to isolated staging revision `00002-jqp`; synthetic HTTP paging, exports,
+precision/history and copied-cookie logout passed. Replica recovery is pending;
+see [deployment status](../DEPLOYMENT_STATUS.md) for artifact bindings.
+
+Six read-only probes confirmed a preexisting saved-scope hydration race and
+metadata-error fallback to broader owned rows. A shell-preserving readiness/error/
+missing-selection fix is in progress separately from the pinned staging artifact.
+The report picker and other complete HTTP representations remain outstanding.
+No full metric/history CPU or global
 memory bound, snapshot, browser streaming download or latency guarantee is
 claimed by these changes.
