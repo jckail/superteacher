@@ -148,6 +148,13 @@ def create_app(
         response = await call_next(request)
         for k, v in _security_headers().items():
             response.headers.setdefault(k, v)
+        # HSTS only on HTTPS (Cloud Run terminates TLS, so honour X-Forwarded-Proto). No includeSubDomains/preload: the
+        # parent domain also serves other sites. Six months, so a mistake is recoverable.
+        if (
+            request.url.scheme == "https"
+            or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+        ):
+            response.headers.setdefault("Strict-Transport-Security", "max-age=15552000")
         if request.url.path.startswith("/api"):
             response.headers.setdefault("Cache-Control", "no-store")
         return response

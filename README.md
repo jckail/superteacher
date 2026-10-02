@@ -46,6 +46,8 @@ python -m pytest                        # warnings are errors on purpose
 ```
 Browser application code is strict TypeScript; `npm run typecheck` checks API contracts, components, and Vite configuration. Runtime API validation remains in FastAPI/Pydantic.
 
+Dependencies: edit `requirements.txt` (ranges), then run `scripts/update_lock.sh`; the image installs the hash-pinned `requirements.lock`, and a test fails if the two disagree. Dependabot opens weekly update PRs.
+
 Layering: routers → services (`ai.py`, `reports.py`) → `queries.py` / `metrics.py` → `models.py`. Nothing below a router imports a router (enforced in `tests/test_architecture.py`). Schema changes need an Alembic revision (`alembic revision --autogenerate -m "..."`); `tests/test_migrations.py` fails on drift.
 SQLite recovery: [tested online backup and restore rehearsal](docs/BACKUP_RECOVERY.md).
 

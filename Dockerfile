@@ -12,9 +12,13 @@ FROM python:3.12.15-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf2
 ARG VERSION=dev
 ENV VERSION=$VERSION
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+# Production must never seed fake demo students into a real database (the app default stays true for local dev).
+ENV SEED_DEMO_DATA=false
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Hash-pinned, fully resolved lock (scripts/update_lock.sh): every image build gets the exact versions CI tested,
+# and pip refuses any file whose hash differs. requirements.txt stays the human-edited list of ranges.
+COPY requirements.txt requirements.lock ./
+RUN pip install --require-hashes --no-deps -r requirements.lock
 # Litestream: pinned release, checksum-verified (scripts/install_litestream.py). Upgrading = change both values.
 ARG LITESTREAM_VERSION=0.5.17
 ARG LITESTREAM_SHA256=cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d
