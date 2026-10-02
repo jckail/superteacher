@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../api', async (orig) => ({ ...(await orig<typeof import('../api')>()), api: vi.fn() }));
 const scope = vi.hoisted(() => ({ course: null as { id: string } | null, section: null as { id: string } | null }));
-vi.mock('../scope', () => ({ useScope: () => ({ courses: [{ id: 'algebra', name: 'Algebra', sections: [{ id: 'p1', name: 'P1', course_id: 'algebra' }] }], ...scope, sections: [], allSections: [{ id: 'p1', name: 'P1', course_id: 'algebra', course: 'Algebra' }], setCourse() {}, setSection() {} }) }));
+vi.mock('../scope', () => ({ useScope: () => ({ ready: true, courses: [{ id: 'algebra', name: 'Algebra', sections: [{ id: 'p1', name: 'P1', course_id: 'algebra' }] }], ...scope, sections: [], allSections: [{ id: 'p1', name: 'P1', course_id: 'algebra', course: 'Algebra' }], setCourse() {}, setSection() {} }) }));
 
 import type { Risk, StudentPage, StudentSummary } from '../types';
 import { ApiError, api } from '../api';

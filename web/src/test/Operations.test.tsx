@@ -11,7 +11,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 const section: Section = { id: 'section-1', course_id: 'course-1', name: 'Class A' };
 const emptySummary: ClassSummary = { as_of: '2026-10-01', section_id: section.id, section: section.name, course: 'Math', students: 0, unknown: 0, on_track: 0, watch: 0, at_risk: 0, average: null, distribution: { A: 0, B: 0, C: 0, D: 0, F: 0 }, assessments: [], attention: [], attendance: [], attendance_rate: null };
 vi.mock('../api', async (load) => ({ ...await load<typeof import('../api')>(), api: request }));
-vi.mock('../scope', () => ({ useActiveSection: () => section, useScope: () => ({ isLoading: false }) }));
+vi.mock('../scope', () => ({ useActiveSection: () => section, useScope: () => ({ isLoading: false, ready: true }) }));
 vi.mock('../components/ScopePicker', () => ({ default: () => null }));
 function deferred<T>() {
   let resolve!: (value: T) => void;

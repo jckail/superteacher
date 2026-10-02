@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
+import ScopeStatus from '../components/ScopeStatus';
 import { ErrorBox, Loading, RiskChip, Stat } from '../components/ui';
 import '../reports.css';
 
@@ -192,9 +193,10 @@ function ParentComposer({ section }: { section: Section }) {
 
 export default function Reports() {
   const section = useActiveSection();
-  const { isLoading } = useScope();
+  const { isLoading, ready } = useScope();
+  if (!ready) return <><div className="topbar"><h1>Reports</h1><ScopePicker /></div><ScopeStatus /></>;
   if (isLoading) return <Loading />;
-  if (!section) return <div className="card empty">Create a course and section on the roster first.</div>;
+  if (!section) return <><div className="topbar"><h1>Reports</h1><ScopePicker /></div><ScopeStatus /><div className="card empty">Create a course and section on the roster first.</div></>;
   return (
     <>
       <div className="topbar">
@@ -204,6 +206,7 @@ export default function Reports() {
           <a className="btn" href={`/api/reports/sections/${section.id}/gradebook.csv`} download>Download CSV</a>
         </div>
       </div>
+      <ScopeStatus />
       <Summary section={section} />
       <ParentComposer key={section.id} section={section} />
     </>

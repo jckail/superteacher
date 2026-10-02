@@ -9,6 +9,7 @@ import { ImportDialog, NewClassDialog, NewStudentDialog } from '../pages/Roster'
 
 vi.mock('../api', async (original) => ({ ...(await original<typeof import('../api')>()), api: vi.fn() }));
 vi.mock('../scope', () => ({ useScope: () => ({
+  ready: true,
   courses: [{ id: 'math', name: 'Math', sections: [{ id: 'one', name: 'Period 1' }, { id: 'two', name: 'Period 2' }] }],
   allSections: [{ id: 'one', name: 'Period 1', course: 'Math' }, { id: 'two', name: 'Period 2', course: 'Math' }],
 }) }));

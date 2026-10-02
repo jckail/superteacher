@@ -4,16 +4,18 @@ import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
+import ScopeStatus from '../components/ScopeStatus';
 import { Distribution } from '../components/charts';
 import { EmptyState, ErrorBox, Loading, RiskChip, Stat, gradeColor } from '../components/ui';
 
 export default function Overview() {
-  const { course, section } = useScope();
+  const { course, section, ready } = useScope();
   const q = useQuery({
+    enabled: ready,
     queryKey: ['overview', course?.id, section?.id],
     queryFn: ({ signal }) => api<OverviewData>(`/overview?${new URLSearchParams({ ...(course && { course_id: course.id }), ...(section && { section_id: section.id }) })}`, { signal }),
   });
-  const o = q.data;
+  const o = ready ? q.data : undefined;
   const hour = new Date().getHours();
   return (
     <>
@@ -24,8 +26,9 @@ export default function Overview() {
         </div>
         <ScopePicker />
       </div>
-      <ErrorBox error={q.error} onRetry={() => q.refetch()} />
-      {q.isLoading && <Loading />}
+      <ScopeStatus />
+      <ErrorBox error={ready ? q.error : null} onRetry={() => q.refetch()} />
+      {ready && q.isLoading && <Loading />}
       {o && (o.students === 0 ? (
         <EmptyState title="No students yet">
           <p>Add your first student or import a class to see who needs you today.</p>

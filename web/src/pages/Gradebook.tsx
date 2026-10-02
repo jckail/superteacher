@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
+import ScopeStatus from '../components/ScopeStatus';
 import { useToast } from '../components/Toast';
 import { useSchoolCalendar } from '../schoolCalendar';
 import { EmptyState, ErrorBox, Loading, Modal, gradeColor } from '../components/ui';
@@ -131,7 +132,7 @@ const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x
 export default function Gradebook() {
   const section = useActiveSection();
   const calendar = useSchoolCalendar(!!section);
-  const { isLoading: scopeLoading } = useScope();
+  const { isLoading: scopeLoading, ready } = useScope();
   const qc = useQueryClient();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
@@ -186,10 +187,12 @@ export default function Gradebook() {
     return true;
   };
 
+  if (!ready) return <><div className="topbar"><h1>Gradebook</h1><ScopePicker /></div><ScopeStatus /></>;
   if (scopeLoading) return <Loading />;
   if (!section) return (
     <>
-      <div className="topbar"><h1>Gradebook</h1></div>
+      <div className="topbar"><h1>Gradebook</h1><ScopePicker /></div>
+      <ScopeStatus />
       <EmptyState title="No classes yet"><p>Create a course and section to start grading.</p><div className="row"><Link className="btn primary" to="/roster">Go to roster</Link></div></EmptyState>
     </>
   );
@@ -201,6 +204,7 @@ export default function Gradebook() {
         <div><h1>Gradebook</h1><div className="page-sub">{section.name} · Type a score and press Enter (or ↓/↑) to move down · empty = missing · Esc undoes</div></div>
         <div className="row"><ScopePicker /><button type="button" className="btn primary" disabled={!calendar.data} onClick={() => setAdding(true)}>+ Assignment</button></div>
       </div>
+      <ScopeStatus />
       <ErrorBox error={calendar.error} onRetry={() => calendar.refetch()} />
       {calendar.data && <p className="muted">School dates use {calendar.data.timezone}.</p>}
       <ErrorBox error={q.error} onRetry={() => q.refetch()} />

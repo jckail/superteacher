@@ -6,6 +6,7 @@ import { useSchoolCalendar } from '../schoolCalendar';
 import { useActiveSection, useScope } from '../scope';
 import { Link } from 'react-router-dom';
 import ScopePicker from '../components/ScopePicker';
+import ScopeStatus from '../components/ScopeStatus';
 import { useToast } from '../components/Toast';
 import { EmptyState, ErrorBox, Loading } from '../components/ui';
 
@@ -14,7 +15,7 @@ interface AttendanceChange { sectionId: string; day: string; marks: AttendanceMa
 
 export default function Attendance() {
   const section = useActiveSection();
-  const { isLoading: scopeLoading } = useScope();
+  const { isLoading: scopeLoading, ready } = useScope();
   const qc = useQueryClient();
   const toast = useToast();
   const calendar = useSchoolCalendar(!!section);
@@ -47,15 +48,17 @@ export default function Attendance() {
       void qc.invalidateQueries({ queryKey: ['overview'] }); void qc.invalidateQueries({ queryKey: ['students'] }); void qc.invalidateQueries({ queryKey: ['student'] });
     },
   });
+  if (!ready) return <><div className="topbar"><h1>Attendance</h1><ScopePicker /></div><ScopeStatus /></>;
   if (scopeLoading) return <Loading />;
   if (!section) return (
     <>
-      <div className="topbar"><h1>Attendance</h1></div>
+      <div className="topbar"><h1>Attendance</h1><ScopePicker /></div>
+      <ScopeStatus />
       <EmptyState title="No classes yet"><p>Create a course and section to take attendance.</p><div className="row"><Link className="btn primary" to="/roster">Go to roster</Link></div></EmptyState>
     </>
   );
-  if (calendar.isLoading) return <Loading />;
-  if (!calendar.data) return <ErrorBox error={calendar.error} onRetry={() => calendar.refetch()} />;
+  if (calendar.isLoading) return <><ScopeStatus /><Loading /></>;
+  if (!calendar.data) return <><ScopeStatus /><ErrorBox error={calendar.error} onRetry={() => calendar.refetch()} /></>;
   const sheet = q.data;
   const unmarked = sheet?.rows.filter((r) => !r.status) ?? [];
   return (
@@ -65,6 +68,7 @@ export default function Attendance() {
         <div className="row"><ScopePicker /><input className="input compact" type="date" value={day} max={calendar.data.today} onChange={(e) => e.target.value && setDay(e.target.value)} aria-label="Date" /></div>
       </div>
       <p className="muted">School dates use {calendar.data.timezone}.</p>
+      <ScopeStatus />
       <ErrorBox error={q.error} onRetry={() => q.refetch()} />
       {q.isLoading && <Loading />}
       {sheet && sheet.rows.length === 0 && (

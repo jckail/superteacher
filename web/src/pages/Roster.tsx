@@ -6,6 +6,7 @@ import { api, fmt } from '../api';
 import { useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
 import { useRosterPage } from '../useRosterPage';
+import ScopeStatus from '../components/ScopeStatus';
 import { useToast } from '../components/Toast';
 import { Bar, EmptyState, ErrorBox, Loading, Modal, RiskChip, gradeColor } from '../components/ui';
 
@@ -25,14 +26,14 @@ function Trend({ v }: { v: number | null }) {
 }
 
 export function NewStudentDialog({ onClose }: DialogProps) {
-  const { courses, allSections } = useScope();
+  const { courses, allSections, ready } = useScope();
   const qc = useQueryClient();
   const toast = useToast();
   const busy = useRef(false);
   const [form, setForm] = useState({ name: '', grade_level: '9', section_id: allSections[0]?.id ?? '' });
   const sectionId = form.section_id || allSections[0]?.id || '';
   const grade = Number(form.grade_level);
-  const valid = Boolean(form.name.trim()) && form.name.trim().length <= 120 && Number.isInteger(grade) && grade >= 1 && grade <= 12 && allSections.some((s) => s.id === sectionId);
+  const valid = ready && Boolean(form.name.trim()) && form.name.trim().length <= 120 && Number.isInteger(grade) && grade >= 1 && grade <= 12 && allSections.some((s) => s.id === sectionId);
   const create = useMutation({
     mutationFn: (body: { name: string; grade_level: number; section_id: string }) => api<StudentDetail>('/students', { method: 'POST', body }),
     onSuccess: (_student, body) => { qc.invalidateQueries(); toast.success(`Added ${body.name}`); onClose(); },
@@ -42,13 +43,14 @@ export function NewStudentDialog({ onClose }: DialogProps) {
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { if (busy.current) return; create.reset(); setForm((f) => ({ ...f, [k]: e.target.value })); };
   return (
     <Modal title="Add student" onClose={close}>
+      {!ready && <p role="status">Restore your scope before saving this draft.</p>}
       <form className="grid" onSubmit={(e) => { e.preventDefault(); if (!valid || busy.current) return; busy.current = true; create.mutate({ name: form.name.trim(), grade_level: grade, section_id: sectionId }); }}>
-        <label className="field">Name<input className="input" autoFocus required maxLength={120} disabled={create.isPending} value={form.name} onChange={set('name')} /></label>
+        <label className="field">Name<input className="input" autoFocus required maxLength={120} disabled={create.isPending || !ready} value={form.name} onChange={set('name')} /></label>
         <label className="field">Grade level
-          <select className="input" disabled={create.isPending} value={form.grade_level} onChange={set('grade_level')}>{[...Array(12)].map((_, i) => <option key={i + 1}>{i + 1}</option>)}</select>
+          <select className="input" disabled={create.isPending || !ready} value={form.grade_level} onChange={set('grade_level')}>{[...Array(12)].map((_, i) => <option key={i + 1}>{i + 1}</option>)}</select>
         </label>
         <label className="field">Section
-          <select className="input" required disabled={create.isPending} value={sectionId} onChange={set('section_id')}>
+          <select className="input" required disabled={create.isPending || !ready} value={sectionId} onChange={set('section_id')}>
             {courses.map((c) => <optgroup key={c.id} label={c.name}>{c.sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</optgroup>)}
           </select>
         </label>
@@ -63,13 +65,13 @@ export function NewStudentDialog({ onClose }: DialogProps) {
 }
 
 export function NewClassDialog({ onClose }: DialogProps) {
-  const { courses } = useScope();
+  const { courses, ready } = useScope();
   const qc = useQueryClient();
   const toast = useToast();
   const busy = useRef(false);
   const [courseId, setCourseId] = useState('');
   const [name, setName] = useState('');
-  const valid = Boolean(name.trim()) && name.trim().length <= (courseId ? 60 : 120) && (!courseId || courses.some((c) => c.id === courseId));
+  const valid = ready && Boolean(name.trim()) && name.trim().length <= (courseId ? 60 : 120) && (!courseId || courses.some((c) => c.id === courseId));
   const create = useMutation<CourseOut | SectionOut, Error, { courseId: string; name: string }>({
     mutationFn: ({ courseId, name }) => courseId
       ? api<SectionOut>('/sections', { method: 'POST', body: { course_id: courseId, name } })
@@ -80,15 +82,16 @@ export function NewClassDialog({ onClose }: DialogProps) {
   const close = () => { if (!busy.current) onClose(); };
   return (
     <Modal title="Add course or section" onClose={close}>
+      {!ready && <p role="status">Restore your scope before saving this draft.</p>}
       <form className="grid" onSubmit={(e) => { e.preventDefault(); if (!valid || busy.current) return; busy.current = true; create.mutate({ courseId, name: name.trim() }); }}>
         <label className="field">Add to
-          <select className="input" disabled={create.isPending} value={courseId} onChange={(e) => { if (busy.current) return; create.reset(); setCourseId(e.target.value); }}>
+          <select className="input" disabled={create.isPending || !ready} value={courseId} onChange={(e) => { if (busy.current) return; create.reset(); setCourseId(e.target.value); }}>
             <option value="">New course…</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name} (new section)</option>)}
           </select>
         </label>
         <label className="field">{courseId ? 'Section name' : 'Course name'}
-          <input className="input" required autoFocus maxLength={courseId ? 60 : 120} disabled={create.isPending} value={name} onChange={(e) => { if (busy.current) return; create.reset(); setName(e.target.value); }} placeholder={courseId ? 'Period 6' : 'Chemistry'} />
+          <input className="input" required autoFocus maxLength={courseId ? 60 : 120} disabled={create.isPending || !ready} value={name} onChange={(e) => { if (busy.current) return; create.reset(); setName(e.target.value); }} placeholder={courseId ? 'Period 6' : 'Chemistry'} />
         </label>
         <ErrorBox error={create.error} />
         <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -101,7 +104,7 @@ export function NewClassDialog({ onClose }: DialogProps) {
 }
 
 export function ImportDialog({ onClose }: DialogProps) {
-  const { allSections } = useScope();
+  const { allSections, ready } = useScope();
   const qc = useQueryClient();
   const busy = useRef(false);
   const fileRead = useRef(0);
@@ -142,17 +145,18 @@ export function ImportDialog({ onClose }: DialogProps) {
       if (request === fileRead.current) { reading.current = false; setIsReading(false); }
     }
   };
-  const valid = Boolean(text.trim()) && allSections.some((s) => s.id === sectionId);
+  const valid = ready && Boolean(text.trim()) && allSections.some((s) => s.id === sectionId);
   return (
     <Modal title="Import students from CSV" onClose={close}>
+      {!ready && <p role="status">Restore your scope before importing this draft.</p>}
       <div className="grid">
         <label className="field">Section
-          <select className="input" disabled={run.isPending} value={sectionId} onChange={(e) => { if (busy.current) return; resetDraft(); setSectionId(e.target.value); }}>
+          <select className="input" disabled={run.isPending || !ready} value={sectionId} onChange={(e) => { if (busy.current) return; resetDraft(); setSectionId(e.target.value); }}>
             {allSections.map((s) => <option key={s.id} value={s.id}>{s.course} · {s.name}</option>)}
           </select>
         </label>
-        <label className="field">CSV file (columns: name, grade_level)<input className="input" type="file" accept=".csv,text/csv" disabled={run.isPending} onChange={onFile} /></label>
-        <textarea className="input" rows={5} disabled={run.isPending} value={text} onChange={(e) => { if (busy.current) return; resetDraft(); setText(e.target.value); }} placeholder={'name,grade_level\nAda Lovelace,10'} aria-label="CSV text" />
+        <label className="field">CSV file (columns: name, grade_level)<input className="input" type="file" accept=".csv,text/csv" disabled={run.isPending || !ready} onChange={onFile} /></label>
+        <textarea className="input" rows={5} disabled={run.isPending || !ready} value={text} onChange={(e) => { if (busy.current) return; resetDraft(); setText(e.target.value); }} placeholder={'name,grade_level\nAda Lovelace,10'} aria-label="CSV text" />
         {isReading && <div role="status">Reading CSV file…</div>}
         <ErrorBox error={fileError ?? run.error} />
         {run.data && <div role="status"><strong>{run.data.created} added.</strong>{run.data.skipped.length > 0 && <ul>{run.data.skipped.map((m) => <li key={m} className="muted">{m}</li>)}</ul>}</div>}
@@ -171,7 +175,7 @@ function isSortKey(value: string | null): value is SortKey {
 }
 
 export default function Roster() {
-  const { course, section } = useScope();
+  const { course, section, ready } = useScope();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const [dialog, setDialog] = useState<'student' | 'class' | 'import' | null>(null);
@@ -189,7 +193,7 @@ export default function Roster() {
   }, { replace: true });
 
   const [legacyPageNotice, setLegacyPageNotice] = useState(() => params.has('page'));
-  const q = useRosterPage({ courseId: course?.id, sectionId: section?.id, search, risk, sort: sort.key, direction: sort.dir === -1 ? 'desc' : 'asc' });
+  const q = useRosterPage({ enabled: ready, courseId: course?.id, sectionId: section?.id, search, risk, sort: sort.key, direction: sort.dir === -1 ? 'desc' : 'asc' });
   const { page: rosterPage, restart: restartRoster } = q;
   useEffect(() => {
     if (params.has('page')) {
@@ -210,7 +214,7 @@ export default function Roster() {
     <>
       <div className="topbar">
         <div><h1>Roster</h1><div className="page-sub" aria-live="polite">{q.data ? `${q.data.total_matches} of ${q.data.total_scoped} students` : ' '}</div></div>
-        <div className="row"><ScopePicker /><button type="button" className="btn" onClick={() => setDialog('import')}>Import CSV</button><button type="button" className="btn" onClick={() => setDialog('class')}>+ Course</button><button type="button" className="btn primary" onClick={() => setDialog('student')}>+ Student</button></div>
+        <div className="row"><ScopePicker /><button type="button" className="btn" disabled={!ready} onClick={() => setDialog('import')}>Import CSV</button><button type="button" className="btn" disabled={!ready} onClick={() => setDialog('class')}>+ Course</button><button type="button" className="btn primary" disabled={!ready} onClick={() => setDialog('student')}>+ Student</button></div>
       </div>
       {legacyPageNotice && <p role="status">Roster page links now start at the first page. Your filters and sort are preserved.</p>}
       <div className="row" style={{ marginBottom: 14 }}>
@@ -220,12 +224,13 @@ export default function Roster() {
         </div>
         {filtered && <button type="button" className="btn small" onClick={clear}>Clear filters</button>}
       </div>
+      <ScopeStatus />
       <ErrorBox error={q.error} onRetry={q.invalidCursor ? undefined : q.retry} />
       {q.invalidCursor && <button type="button" className="btn" onClick={q.restart}>Restart roster</button>}
-      {q.loading ? <Loading /> : q.data && q.data.total_scoped === 0 ? (
+      {!ready ? null : q.loading ? <Loading /> : q.data && q.data.total_scoped === 0 ? (
         <EmptyState title="No students yet">
           <p>Add your first student, or import a whole class from a CSV.</p>
-          <div className="row"><button type="button" className="btn primary" onClick={() => setDialog('student')}>+ Add student</button><button type="button" className="btn" onClick={() => setDialog('import')}>Import CSV</button></div>
+          <div className="row"><button type="button" className="btn primary" disabled={!ready} onClick={() => setDialog('student')}>+ Add student</button><button type="button" className="btn" disabled={!ready} onClick={() => setDialog('import')}>Import CSV</button></div>
         </EmptyState>
       ) : q.data && (
         <div className="card table-wrap" style={{ padding: 6 }}>

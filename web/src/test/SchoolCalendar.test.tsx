@@ -12,7 +12,7 @@ import Student from '../pages/Student';
 import type { StudentDetail } from '../types';
 
 vi.mock('../api', async (original) => ({ ...(await original<typeof import('../api')>()), api: vi.fn() }));
-vi.mock('../scope', () => ({ useActiveSection: () => ({ id: 'class', course_id: 'math', name: 'Math' }), useScope: () => ({ isLoading: false }) }));
+vi.mock('../scope', () => ({ useActiveSection: () => ({ id: 'class', course_id: 'math', name: 'Math' }), useScope: () => ({ isLoading: false, ready: true }) }));
 vi.mock('../components/ScopePicker', () => ({ default: () => null }));
 function setup(page: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
