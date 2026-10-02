@@ -324,3 +324,38 @@ roster/history preservation, authority/owner mapping, rollback and public-domain
 cutover remain open. Further original-scope work includes grading policies/terms,
 true API pagination and large exports, dedicated runtime IAM, broader PostgreSQL
 workflows and real-provider AI quality evaluation. Keep the original goal active.
+
+## Verified continuation checkpoint: offline import and truthful risk
+
+Source `c2812f4` is pushed to main and passed CI36987004974, all release gates:
+1081 API tests/one known passcode-logout xfail, 119 web, 4 browser and 82 E2E
+tests, strict types/lint, frontend and Docker builds/auth smoke. Independent
+implementation reviews approved the adapter and unknown-risk integration.
+Initial CI caught trusted prompt metadata inside the untrusted roster block and
+a timer-based calendar-test assertion; specific fixes restored the existing
+security boundary and awaited rendered state without weakening assertions.
+
+The exact private legacy archive converted to a new restricted bundle: 11
+courses, 33 sections, 30 students, disabled synthetic principal, all ownership
+chains/head0003/integrity checked, zero fabricated event/cache/auth/usage rows.
+Original bytes and every native row survive backup/restore. Read-only metrics
+show30unknown and foreign-owner0. Bundle upload is exclusive, private and
+SHA256-roundtrip verified. See LEGACY_IMPORT_PLAN.md for curated hashes/location;
+private mappings/content remain outside Git and hosted memory.
+
+The protected c2812f4 serving-image build returned exit75 before Cloud Build
+began. Do not retry unchanged or bypass the shared lock. Fresh service metadata
+at09:00:48UTC confirmed native00006-cjv/staging00001-7kx/legacy00018-t58 each
+Ready at100% of its service. No production or staging routing/config changed.
+Shared Graphify refresh passed (164478nodes); native corpus coverage remains
+absent, so code conclusions used verified live source. Agent Hub did not
+recognize this repository's memory scope; these committed documents are the
+verified handoff, with no private transcript upload.
+
+Next bounded implementation is server-revocable passcode sessions, planned in
+docs/plans/passcode_session_revocation.md. Retained historical access is planned
+in docs/plans/legacy_archive_access.md. Dataset authority/merge, final ownership,
+recoverable rollback, final writer drain and domain acceptance remain open,
+alongside grading policies/terms, pagination/exports, dedicated runtime identity,
+broader PostgreSQL and real-provider AI evaluation. The original full overhaul
+goal stays active and has not been reduced to these completed milestones.

@@ -21,8 +21,22 @@ passed. Initial integrated [CI36986440202](https://github.com/jckail/superteache
 passed lint and both browser suites (4 and 82 cases), but found prompt-boundary
 shape failures and an asynchronous calendar-test assertion. Source `91b3662`
 corrects both: 165 focused security/risk/context tests and four calendar tests
-passed without weakening assertions. Corrected exact-head CI and a new serving
-image remain pending.
+passed without weakening assertions. Corrected exact-head
+[CI36987004974](https://github.com/jckail/superteacher/actions/runs/36987004974)
+passed every required gate and the informational benchmark at `c2812f4`: 1081
+API tests plus one known passcode-logout xfail, 119 web tests, 4 browser tests,
+82 E2E tests, strict types/lint, frontend build, Docker build/auth smoke. A new
+serving image remains pending.
+
+The protected build of immutable source `c2812f4` stopped with exit75 before
+Cloud Build began when another session acquired the shared lock. Log:
+`/tmp/st-release-c2812f4-build.log`; do not retry the unchanged attempt or bypass
+the lock. The source context was exported from Git (archive SHA256
+`b8c922ed10cdcf6fe5d371e63efd66ebd0371038460ac173613a3d5aa5ab5451`),
+excluding untracked local material. At 09:00:48 UTC, fresh service metadata
+showed native `superteacher-00006-cjv`, staging `00001-7kx`, and legacy
+`edutrack-00018-t58` each still Ready at 100% of its respective service.
+No deployment or traffic mutation occurred.
 
 Remaining authentication work is saved in
 [passcode_session_revocation.md](plans/passcode_session_revocation.md). Other

@@ -4,19 +4,34 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+Source `c2812f4` passed all gates in
+[CI36987004974](https://github.com/jckail/superteacher/actions/runs/36987004974):
+1081 API tests and one known passcode-logout xfail, 119 web tests, 4 browser tests,
+82 E2E tests, strict types/lint, frontend build and Docker build/auth smoke. The
+legacy roster adapter has independent review and an exact private archive
+conversion/recovery proof (11 courses, 33 sections, 30 students; no fabricated
+events). All converted students truthfully derive unknown risk. The source and
+converted bundle have verified private GCS hash roundtrips. A new serving image
+build stopped at shared-lock exit75 before Cloud Build; staging remains7166813,
+production services and domain mappings were not changed. Do not retry the
+unchanged build or bypass the lock. Full overhaul remains active; auth revocation,
+archive access, final dataset/owner decisions and production cutover are open.
+
+Earlier integrated release evidence follows:
+
 PR15 merged source7166813 into main8ceb050. Subsequent main5113de8 passed
 [CI36978867068](https://github.com/jckail/superteacher/actions/runs/36978867068):
 all six required jobs plus informational benchmark, **996 API tests, one known
 legacy-passcode logout xfail**. Source7166813 has an immutable built image,
 isolated authenticated/synthetic staging verification and a successful independent
 replica restore. Exact image, revision and limits are in
-[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The latest9de97ce image build
+[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The earlier9de97ce image build
 stopped at shared verification-lock exit75 before any cloud build began.
 
 Corrected-helper adoption on a private restored production copy also passed in
 recovery-only executionhbrzh, using a checked helper artifact in runtime7166813.
 It did not build/validate a newer serving image or change the live schema.
-Still required: fresh post-drain adoption, faithful legacy data import, authoritative dataset,
+Still required: fresh post-drain adoption, production legacy dataset/owner mapping,
 compatible rollback, observed final writer drain and public-domain acceptance.
 See [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md) and the drain protocol below.
 
