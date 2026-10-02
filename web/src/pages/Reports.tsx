@@ -6,6 +6,7 @@ import { ApiError, api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
+import AssessmentAnalysis from '../components/AssessmentAnalysis';
 import { useRosterPage } from '../useRosterPage';
 import { useSchoolCalendar } from '../schoolCalendar';
 import { ErrorBox, Loading, RiskChip, Stat } from '../components/ui';
@@ -115,6 +116,7 @@ function Summary({ section }: { section: Section }) {
         <Stat label="Not enough data" value={s.unknown} hint="Work or attendance evidence needed" />
       </div>
       <div className="rep-grid">
+        <AssessmentAnalysis rows={s.assessments} asOf={s.as_of} students={s.students} />
         <section className="card" aria-labelledby="rep-assess">
           <h2 id="rep-assess">Assessment averages</h2>
           <AssessmentBars rows={s.assessments} />
