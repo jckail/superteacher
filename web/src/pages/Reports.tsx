@@ -1,12 +1,13 @@
 import type { AssessmentStat, AttendanceDay, ClassSummary, ParentUpdateIn, ParentUpdateOut, Section, Tone } from '../types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
 import { useRosterPage } from '../useRosterPage';
+import { useSchoolCalendar } from '../schoolCalendar';
 import { ErrorBox, Loading, RiskChip, Stat } from '../components/ui';
 import '../reports.css';
 
@@ -71,13 +72,41 @@ function AttendanceStrip({ days }: { days: AttendanceDay[] }) {
 function Summary({ section }: { section: Section }) {
   const { setSection } = useScope();
   const q = useQuery({ queryKey: ['report-summary', section.id], queryFn: ({ signal }) => api<ClassSummary>(`/reports/sections/${section.id}/summary`, { signal }) });
-  if (q.isPending) return <Loading />;
-  if (q.error) return <ErrorBox error={q.error} />;
+  const qc = useQueryClient();
+  const calendar = useSchoolCalendar();
+  const attempt = useRef({ sectionId: section.id, day: null as string | null });
+  if (attempt.current.sectionId !== section.id) attempt.current = { sectionId: section.id, day: null };
   const s = q.data;
-  if (!s) return null;
-  if (!s.students) return <div className="card empty">No students in this section yet. Add some on the roster.</div>;
+  const sectionId = section.id;
+  const schoolDay = calendar.data?.today;
+  const cutoff = s?.as_of;
+  const fetching = q.isFetching;
+  const readError = q.error;
+  useEffect(() => {
+    if (!schoolDay || !cutoff || cutoff >= schoolDay || fetching || readError) return;
+    if (attempt.current.day === schoolDay) return;
+    // Mark before invalidation; a stale successful response must not loop this read.
+    attempt.current.day = schoolDay;
+    void qc.invalidateQueries({ queryKey: ['report-summary', sectionId], exact: true });
+  }, [sectionId, schoolDay, cutoff, fetching, readError, qc]);
+  const controls = <>
+    {calendar.error && <div>
+      <ErrorBox error={calendar.error} />
+      <button className="btn" disabled={calendar.isFetching} onClick={() => void calendar.refetch()}>Retry school calendar</button>
+    </div>}
+    {s && <p className="muted">Summary calculated through {s.as_of}</p>}
+    {cutoff && schoolDay && cutoff < schoolDay && <p role="status">
+      Summary is shown through {cutoff}. {fetching ? 'Updating school-day calculations…' : readError ? 'Refresh failed. Use Retry to update the summary.' : 'Newer school-day calculations are available.'}
+      {!fetching && !readError && <> <button className="btn small" onClick={() => void q.refetch()}>Refresh summary</button></>}
+    </p>}
+    <ErrorBox error={q.error} onRetry={() => q.refetch()} />
+  </>;
+  if (q.isPending) return <>{controls}<Loading /></>;
+  if (!s) return controls;
+  if (!s.students) return <>{controls}<div className="card empty">No students in this section yet. Add some on the roster.</div></>;
   return (
     <>
+      {controls}
       <div className="grid stats">
         <Stat label="Students" value={s.students} />
         <Stat label="Class average" value={fmt(s.average, '%')} />
