@@ -1,0 +1,32 @@
+.conference-page { min-width: 0; }
+.conference-controls fieldset { margin: 16px 0; min-width: 0; }
+.conference-controls label { display: block; margin: 8px 0; overflow-wrap: anywhere; }
+.conference-preview { max-width: 100%; overflow: auto; margin-top: 20px; padding: 2px; }
+.conference-sheet { width: 7.5in; height: 10in; box-sizing: border-box; padding: .25in; background: white; color: #111; font: 14px/1.35 Arial, sans-serif; overflow-wrap: anywhere; border: 1px solid #aaa; }
+.conference-sheet h2 { font-size: 24px; margin: 0 0 8px; }
+.conference-sheet h3 { font-size: 17px; margin: 20px 0 8px; }
+.conference-sheet p { margin: 8px 0; }
+.conference-sheet ul { padding-left: 22px; }
+.conference-sheet li { margin-bottom: 6px; }
+.conference-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+.conference-metrics dt { font-weight: bold; }
+.conference-metrics dd { margin: 3px 0 0; }
+.conference-note { white-space: pre-wrap; }
+.conference-print-warning { display: none; }
+@media print {
+  @page conference { size: letter; margin: .5in; }
+  .conference-page { page: conference; }
+  body:has(.conference-page) { background: white; overflow: visible !important; }
+  body:has(.conference-page) .shell { display: block; min-height: 0; }
+  body:has(.conference-page) .shell > :not(.main),
+  body:has(.conference-page) .main > :not(.conference-page),
+  body:has(.conference-page) .chat,
+  body:has(.conference-page) .scrim,
+  body:has(.conference-page) .toasts,
+  body:has(.conference-page) .conference-controls { display: none !important; }
+  body:has(.conference-page) .main { margin: 0; padding: 0; width: auto; }
+  .conference-preview { margin: 0; padding: 0; overflow: visible; }
+  .conference-sheet { border-color: transparent; }
+  .conference-page:not(.conference-ready) .conference-preview { display: none; }
+  .conference-page:not(.conference-ready) .conference-print-warning { display: block; }
+}

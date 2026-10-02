@@ -16,6 +16,7 @@ import DemoNoticeLink from './components/DemoNoticeLink';
 const Overview = lazy(() => import('./pages/Overview'));
 const Roster = lazy(() => import('./pages/Roster'));
 const Student = lazy(() => import('./pages/Student'));
+const ConferenceSheet = lazy(() => import('./pages/ConferenceSheet'));
 const Gradebook = lazy(() => import('./pages/Gradebook'));
 const Attendance = lazy(() => import('./pages/Attendance'));
 const Chat = lazy(() => import('./components/Chat'));
@@ -54,6 +55,7 @@ function Shell() {
   const [dark, toggleTheme] = useTheme();
   const { authRequired, logout, mode } = useAuth();
   const studentMatch = useMatch('/students/:id');
+  const conferenceMatch = useMatch('/students/:id/conference');
   const main = useRef<HTMLElement>(null);
   const pathname = useRouteAnnouncer(main);
   return (
@@ -79,6 +81,7 @@ function Shell() {
               <Route path="/" element={<Overview />} />
               <Route path="/roster" element={<Roster />} />
               <Route path="/students/:id" element={<Student />} />
+              <Route path="/students/:id/conference" element={<ConferenceSheet />} />
               <Route path="/gradebook" element={<Gradebook />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/reports" element={<Reports />} />
@@ -88,7 +91,7 @@ function Shell() {
         </ErrorBoundary>
         <DemoNoticeLink />
       </main>
-      {chatOpen && <Suspense fallback={<div className="chat"><Loading /></div>}><Chat studentId={studentMatch?.params.id} onClose={() => setChatOpen(false)} /></Suspense>}
+      {chatOpen && <Suspense fallback={<div className="chat"><Loading /></div>}><Chat studentId={studentMatch?.params.id ?? conferenceMatch?.params.id} onClose={() => setChatOpen(false)} /></Suspense>}
     </div>
   );
 }

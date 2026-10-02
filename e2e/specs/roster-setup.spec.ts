@@ -60,7 +60,7 @@ test('CSV import adds good rows and explains every skipped row', async ({ page, 
   await expect(status).toContainText(/row 3/i);
 
   await dialog.getByRole('button', { name: 'Done' }).click();
-  for (const n of good) await expect(page.getByRole('link', { name: n })).toBeVisible();
+  for (const n of good) await expect(page.getByRole('link', { name: n, exact: true })).toBeVisible();
 });
 
 test('CSV import from a file upload', async ({ page, api }) => {

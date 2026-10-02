@@ -8,7 +8,7 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
   await page.request.put(`/api/assessments/${aid}/scores`, { data: { scores: [{ student_id: c.students[0].id, points: 41 }] }, headers: { 'X-Requested-With': 'superteacher' } });
 
   await page.goto('/roster');
-  await page.getByRole('link', { name }).click();
+  await page.getByRole('link', { name, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/students/${c.students[0].id}$`));
   await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
 
