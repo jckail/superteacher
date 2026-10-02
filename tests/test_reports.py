@@ -7,6 +7,7 @@ import pytest
 
 from superteacher import reports as svc
 from superteacher.config import get_settings
+from superteacher.models import OWNER_ID
 from superteacher.routers.reports import router as reports_router
 
 
@@ -142,7 +143,7 @@ def test_bulk_attendance_loading_preserves_each_students_day_order(client, sessi
         assert response.status_code == 200, response.text
 
     with session_factory() as session:
-        loaded = load_students(session, section_id=sec["id"])
+        loaded = load_students(session, OWNER_ID, section_id=sec["id"])
         assert [student.name for student in loaded] == ["Ada", "Bob"]
         for student in loaded:
             assert [record.day for record in student.attendance] == sorted(days)
