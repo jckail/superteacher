@@ -29,14 +29,17 @@ distributions; all 39 prior observed package resolutions match. The focused actu
 runtime compatibility set remains 259 passing cases. Prior `c3277b4` retention/runtime
 and `07974de` summary/Gradebook evidence is preserved in the deployment ledger.
 
-Fresh service metadata confirms native `00006-cjv`, legacy `00018-t58` and staging
+Metadata at B5 acceptance confirmed native `00006-cjv`, legacy `00018-t58` and staging
 `00007-9lq` Ready at 100%. Production traffic and domains remain unchanged; both
 public Super Teacher domain mappings still route to `edutrack`. Dedicated runtime
 IAM resources are provisioned separately, but runtime acceptance is pending and
 no production identity change is claimed. Other consumers' date freshness,
 grading policies/terms/enrollment, real-provider evaluation and final production
 adoption/drain/rollback/cutover remain open. See the deployment ledger for exact
-source/image/prefix bindings and proof limitations.
+source/image/prefix bindings and proof limitations. Subsequent metadata confirms
+another session advanced native production to `00008-96g` at 100%; legacy and
+B5 staging retain their revisions. See the separate release checkpoint for
+that session's live-database lineage and mail-delivery blockers.
 
 Earlier feature milestone through `c95d9f9`: independently reviewed roster API
 and client pagination, CSV streaming and account JSON streaming. Root verified

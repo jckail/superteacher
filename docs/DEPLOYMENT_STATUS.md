@@ -7,6 +7,26 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Subsequent shared-session update: fresh metadata confirms native production now
+serves `superteacher-00008-96g` at 100%, while legacy remains `edutrack-00018-t58`
+and staging remains `superteacher-overhaul-staging-00007-9lq`. The native service
+changed in another session; this release operator did not promote it. The B5
+acceptance evidence below records the earlier production observations. Read
+[RELEASE_CHECKPOINT.md](RELEASE_CHECKPOINT.md) for the other session's migration
+lineage and email-delivery blockers; they do not establish acceptance of this
+overhaul against the live database.
+
+Reviewed Reports Summary freshness source `6cad257` is committed and pushed to
+main and the working branch. Exact-source CI is
+[37020532918](https://github.com/jckail/superteacher/actions/runs/37020532918),
+currently running. Fifteen new mounted cases cover dated refresh, retained
+old results/recovery, edited parent drafts and pending generation. Independent
+specification/quality review and root's fresh 78-test compatibility set, types
+and focused lint passed. Exact combined-source CI and deployment remain pending.
+The branch also integrates the shared main changes for SMTP delivery resilience
+and its release checkpoint; two substantiated breaker issues are being addressed
+before the next combined candidate is released.
+
 Source `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` is pushed to main and the
 working branch. Exact-source
 [CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634)
@@ -43,9 +63,9 @@ notes, attendance and both raw extra-credit values. Structured restore proofs
 and subsequent staging receipt readback passed; the overridden entrypoint never
 starts a server or replica writer. Executed final-image inventory confirms Python
 3.12.15, OpenSSL 3.0.22, SQLite 3.40.1 and 40 distributions; all 39 prior observed
-package resolutions matched. Fresh service metadata confirms native `00006-cjv`,
-legacy `00018-t58` and staging `00007-9lq` Ready at 100%. Production services and
-custom-domain mappings remain unchanged; both public Super Teacher domains still
+package resolutions matched. Metadata at that acceptance checkpoint confirmed native `00006-cjv`,
+legacy `00018-t58` and staging `00007-9lq` Ready at 100%. This operator did not change production services or
+custom-domain mappings; both public Super Teacher domains were confirmed to
 route to `edutrack`. Final writer drain and zero-loss RPO remain unproven.
 
 Next: other date consumers (Student/Reports), AI snapshot/draft semantics,
