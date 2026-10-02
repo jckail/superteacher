@@ -18,7 +18,7 @@ from typing import Literal
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from . import metrics
+from . import metrics, observability
 from .ai_tools import clean
 from .config import get_settings
 from .models import AssessmentKind, AttendanceStatus, Section, Student
@@ -302,6 +302,7 @@ def _context(s: Student, m: metrics.StudentMetrics) -> str:
     return "\n".join(lines)
 
 
+@observability.ai_observed("parent_update", observability.source_outcome)
 async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["ai", "template"]]:
     m = metrics.compute(s)
     ai = make_client()
