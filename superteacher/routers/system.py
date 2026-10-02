@@ -1,3 +1,5 @@
+from bisect import bisect_right
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -19,28 +21,40 @@ def overview(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(current_user),
 ):
-    computed = list(iter_summaries(db, user.id, retain_scores=False, course_id=course_id, section_id=section_id))
-
+    rows = iter_summaries(db, user.id, retain_scores=False, course_id=course_id, section_id=section_id)
+    students = 0
+    averages, attendance_rates, homework_rates = [], [], []
+    risks = dict.fromkeys(("at_risk", "watch", "on_track", "unknown"), 0)
     bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
-    for _, m in computed:
-        if m.letter:
-            bands[m.letter[0]] += 1
     order = {"at_risk": 0, "watch": 1}
-    flagged = sorted(
-        (c for c in computed if c[1].risk in ("watch", "at_risk")),
-        key=lambda c: (order[c[1].risk], c[1].average if c[1].average is not None else 101),
-    )
+    attention = []
+    try:
+        for ordinal, (student, m) in enumerate(rows):
+            students += 1
+            risks[m.risk] += 1
+            averages.append(m.average)
+            attendance_rates.append(m.attendance_rate)
+            homework_rates.append(m.homework_rate)
+            if m.letter:
+                bands[m.letter[0]] += 1
+            if m.risk in order:
+                # Ordinal preserves the iterator's raw database name/id order for ties.
+                key = (order[m.risk], m.average if m.average is not None else 101, ordinal)
+                position = bisect_right(attention, key, key=lambda item: item[0])
+                if position < 8:
+                    if len(attention) == 8:
+                        attention.pop()
+                    attention.insert(position, (key, student, m))
+    finally:
+        rows.close()
     return schemas.Overview(
-        students=len(computed),
-        average=metrics.mean_of(m.average for _, m in computed),
-        attendance_rate=metrics.mean_of(m.attendance_rate for _, m in computed),
-        homework_rate=metrics.mean_of(m.homework_rate for _, m in computed),
-        at_risk=sum(1 for _, m in computed if m.risk == "at_risk"),
-        watch=sum(1 for _, m in computed if m.risk == "watch"),
-        on_track=sum(1 for _, m in computed if m.risk == "on_track"),
-        unknown=sum(1 for _, m in computed if m.risk == "unknown"),
+        students=students,
+        average=metrics.mean_of(averages),
+        attendance_rate=metrics.mean_of(attendance_rates),
+        homework_rate=metrics.mean_of(homework_rates),
+        **risks,
         distribution=bands,
-        attention=[summarize(s, m) for s, m in flagged[:8]],
+        attention=[summarize(s, m) for _, s, m in attention],
     )
 
 
