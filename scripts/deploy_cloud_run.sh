@@ -14,6 +14,9 @@ PROJECT="${PROJECT:?set PROJECT}"
 REGION="${REGION:-us-central1}"
 SERVICE="${SERVICE:?set the explicit target SERVICE}"
 BUCKET="${BUCKET:-${PROJECT}-superteacher-litestream}"
+# Where in the bucket this service replicates. Changing it starts a FRESH database lineage (the old prefix is left
+# untouched as an archive): needed when a database's migration history cannot be upgraded in place.
+REPLICA_PREFIX="${REPLICA_PREFIX:-$SERVICE}"
 REPLICA_PREFIX="${REPLICA_PREFIX:?set the explicit storage REPLICA_PREFIX}"
 
 fail() { printf '%s\n' "$1" >&2; exit 1; }
