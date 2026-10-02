@@ -53,3 +53,16 @@ Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket orig
 
 ## Not yet
 Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
+
+## End-to-end tests
+
+`e2e/` holds a Playwright suite (TypeScript) that drives the **real built app** in Chromium: login/logout, roster, CSV import, gradebook, attendance, student page, reports/CSV export, chat without an API key, keyboard and mobile behaviour, plus an axe-core accessibility audit (light/dark, desktop/390px, modals and chat panel; fails on serious/critical violations).
+
+```bash
+cd web && npm ci && npm run build          # the suite serves web/dist
+cd ../e2e && npm ci && npx playwright install chromium
+source <your venv> && npx playwright test   # boots uvicorn on 127.0.0.1:18080 (empty DB) and :18081 (demo data), fresh temp SQLite each run
+npx playwright show-report
+```
+
+Ports can be changed with `E2E_PORT` / `E2E_SEEDED_PORT`. Known app issues found by the suite are tracked in `e2e/FINDINGS.md`.
