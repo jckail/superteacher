@@ -1,7 +1,7 @@
-# Date freshness: accepted behavior and proposed Student detail slice
+# Date freshness: accepted behavior and locally integrated Student implementation
 
 This checkpoint records source-verified behavior, current verification status
-and proposed work. Grading/history, paging, authentication, provider calls and
+and locally integrated implementation awaiting publication and combined acceptance. Grading/history, paging, authentication, provider calls and
 draft provenance retain their separate contracts.
 
 ## Current status
@@ -12,31 +12,35 @@ calendar. Gradebook defers its automatic day read while score writes are pending
 Overview retains cached results through ordinary refresh errors. Their accepted
 cutoff/freshness work is the baseline for later consumers.
 
-Latest pinned candidate `1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven
-exact-source jobs in [CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054):
-1356 API tests in 182.23s, 225 web tests, four browser tests and 84 E2E tests,
-with lint/types/build, Docker/auth smoke and informational benchmark successful.
-Inside the locked Docker image, the focused 259-case runtime compatibility set
-passed in 32.34s. The full native API suite uses CI's ranged test installation;
-The full API suite has not been run in the locked production image.
+Latest exact-CI-verified candidate `9011f65509e5871c8425a99ebaaa4f17b638ab34`
+passed all seven exact-source jobs in
+[CI37028496201](https://github.com/jckail/superteacher/actions/runs/37028496201):
+1357 API tests in 131.56s, 225 web, four browser and 84 E2E tests, plus
+lint/types/build, Docker/auth smoke and informational benchmark. The locked Docker
+runtime compatibility set passed 259 cases in 35.76s; this is not the full native
+API suite inside that image. Reviewed Docker chmod PR63 and documentation PR64
+are merged into parent `9011f65`; main and the working branch are pushed.
 
-Root integrated reviewed PR19, the roadmap and the curated five-doc checkpoint
-in merge `52d6433`, then pushed main and the working branch. Its diff from the pinned 1cde
-candidate is documentation only. Source23's CI is historical; the newer 1cde source
-has its own exact verified run above. This does not accept any later unverified code.
+The immutable archive SHA256
+`1ed2b2f022aeaf39e4f22b5aecb0f787b86fe145d8f5b154b20c29e4e4c35d26`
+contains 305 entries/276 files, with regular files 0644/0755, directories 0755 and
+private roots 0700. Build-helper review passed. Protected session 19785 exited
+75 before the helper began: no new intent/proof or cloud call, image digest,
+deployment or restore acceptance exists. Do not retry unchanged automatically or
+bypass the wrapper; future execution requires fresh capacity and preflight.
+B5 `00007-9lq` remains the most recent root-accepted staging release.
 
-New immutable archive SHA256
+Historical 1cde checkpoint: exact source
+`1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven jobs in
+[CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054)
+(1356 API in 182.23s, 225 web, four browser, 84 E2E; locked Docker 259 in 32.34s).
+Reviewed PR19/roadmap and five-document checkpoint were integrated in `52d6433`;
+that merge differed from 1cde only in documentation. Archive SHA256
 `d2b7815c88bc588fe4933ddd9e2a0def0c08bf439dc0a4282991d3b7aa560353`
-contains 303 entries/274 files. Independent helper/source/archive/mode review passed;
-regular files 0644/0755, directories 0755, private 0700 roots, a distinct full-source
-`-b` image tag and exclusive outputs preserve the locked Dockerfile/archive bytes.
-Root's protected build session 7852 exited 75 when its queue wait expired. The
-helper never started: no new intent/proof or cloud build call occurred. No new
-build/digest/deployment/restore acceptance exists. This is a distinct candidate/
-context, not an unchanged retry of source23's exit 75 action. Preserve both queue
-blockers; do not retry the unchanged action or bypass the shared wrapper.
-B5 `00007-9lq` remains the latest accepted Ready at 100% staging release until fresh
-executed build, staging smoke, recovery and readback pass.
+had 303 entries/274 files and passed source/helper/layout/mode review. Protected
+session 7852 exited 75 before helper execution with no intent/proof or cloud call.
+Its blocked build is separate from source23's preserved failure and queue blocker;
+none establishes a new accepted runtime.
 
 Earlier source23 acceptance and runtime blocker:
 
@@ -59,96 +63,80 @@ same-archive corrected B context passed source review, but protected build exite
 before helper execution: no build-b intent/proof or cloud call. Do not retry unchanged.
 Do not infer deployment/restore acceptance from CI or corrected script source.
 
-Student detail editor-preserving freshness remains **proposed, not implemented**.
-Current [Student.tsx](../../web/src/pages/Student.tsx) reads `['student', id]`
-without subscribing to the school calendar. The backend already returns one
-response cutoff, and trend/attendance filters and future-versus-missing assignment
-labels correctly use that cutoff. Continuously mounted derived values can remain
-old until another read trigger. Its ordinary query-error early return also removes
-cached profile/note editors, losing their local drafts across unmount.
+Student follow-up was integrated into the parent in commits:
+`037e92f` (original isolated commit `73178da`) adds recorded-detail cutoff/
+forward-day refresh, ordinary-error draft retention, fatal typed404 handling and
+actual write-ordering regressions (35 new tests). `7e9b627` (original `79f85f3`)
+adds captured delete-target/client/lifecycle handling (11 new cases). Both tasks
+and the full branch diff have independent specification and quality approval with
+no actionable findings. Original worktree:
+`/home/jkail/projects/superteacher-student-freshness-20261002`.
+Root-executed final focused evidence is 80 tests across eight files in 7.04s, with
+types, focused lint and diff checks passing. Integration is local; publication,
+full combined exact CI and runtime acceptance remain pending. The 9011 CI does
+not cover these new commits. Independent Insight, generated-draft provenance and
+new-after-submit note settlement remain separate. Opening note B during a pending
+note-A modal has not been established as reachable; note/accessibility audits
+remain ongoing, without a confirmed interaction claim from that scenario.
 
-## Smallest proposed Student change
+## Locally integrated Student behavior
 
-Limit production changes to `web/src/pages/Student.tsx`, with a new
-`web/src/test/StudentCalendar.test.tsx` and minimal calendar-fixture updates in
-existing compatibility tests. Reuse [schoolCalendar.ts](../../web/src/schoolCalendar.ts)
-and existing backend/types; retain the exact student key and consumed AbortSignal.
+The integrated `Student.tsx` subscribes to the validated school calendar and retains
+its exact `['student', id]` key and consumed AbortSignal. The historical `9011f65` CI does not cover
+these integrated commits. Existing backend/types supply the response cutoff;
+no browser-date fallback, grading formula or history contract changed.
 
-- Preserve same-ID cached detail and its profile/note editor subtree through
-  ordinary background fetching/errors. Keep real typed404 behavior, cold initial
-  errors and actual authentication teardown distinct. Never retain another route's
-  data as fallback, key editors by cutoff, or overwrite local drafts from refreshed
-  props. Existing student-ID keys already preserve drafts across successful updates.
-- Label recorded metrics with the actual response `as_of`, outside the independent
-  Insight card. Retain old visible values/cutoff while updating or after failure.
-  Offer explicit detail Retry/manual refresh and separate calendar recovery.
-- Use one transient student-ID/day attempt, reset on identity change or unmount.
-  Mark before exact-key invalidation; skip missing calendar/data, fetching/errors,
-  equal/newer cutoffs and a previously attempted day. Do not add day to query keys
-  or retain an unbounded identity/day map.
-- Wait for an existing invalidated read. A response covering the day needs no
-  extra read; a stale successful response permits one bounded day attempt followed
-  by manual recovery. An error retains cached editors without a refresh loop.
-  One automatic attempt is distinct from existing bounded transport retries.
+- Same-ID cached detail/profile/note editors survive ordinary background errors
+  and successful refreshes. Cold errors, typed404 and actual auth teardown remain
+  distinct; typed404 hides removed/inaccessible student data and editors.
+- Recorded metrics display the response `as_of`, outside independent Insight.
+  Old values/cutoff remain visible during recovery, with detail Retry/manual
+  refresh and separate calendar recovery.
+- One transient student-ID/day attempt resets on identity change or unmount and
+  marks before exact-key invalidation. Missing/error calendar, fetching/error
+  detail, equal/newer cutoff and an already attempted day do not trigger a loop.
+  An existing invalidated read coalesces with the calendar observation; stale
+  success permits one bounded attempt and then manual recovery. No day key or
+  unbounded historical identity/day map is introduced.
 
-## Establish write ordering before selecting guards
+## Observed write ordering and integrated deletion follow-up
 
-A profile save writes a complete StudentDetail into the detail cache, then
-invalidates related queries. An older GET envelope includes old section, notes
-and metrics, so accepting it after transfer would overwrite the committed profile
-and change the active grade-history grouping. Current TanStack invalidation uses
-`cancelRefetch: true` by default and Student consumes the signal; this appears to
-protect the existing sequence. Notes perform no optimistic detail write and
-invalidate after their committed mutation. No reproduced overwrite has yet been
-established, so a blanket pending-write blocker is not part of this proposal.
+Actual deferred profile PATCH and detail GET regressions cover both completion
+orders, transfer/grade-history grouping, failures and late aborted reads. Existing
+signal cancellation/invalidation protects profile settlement; no blanket pending
+write blocker was added. Actual note add/edit/delete settlement regressions remain
+separate from the calendar's exact detail read and exercise captured completions.
 
-First defer genuine profile PATCH and detail GET promises under actual Student.
-Advance the day during transfer; resolve PATCH before the old GET, then resolve
-the cancelled GET late and the settlement GET. Assert old-read abortion, captured
-student/body, one mutation, retained pending dialog/draft, correct final cache and
-visible section, and correct active-section grade history. Reverse the resolution
-order, cover failed saves, and repeat for real note add/edit/delete settlement.
-If existing cancellation passes, add no write guard. If a failure demonstrates
-pre-write acceptance, identify that ordering and add only the narrow demonstrated
-student-detail protection, preserving existing mutation completion behavior.
+Integrated commit `7e9b627` (original `79f85f3`) captures the delete target and its
+QueryClient/lifecycle so late confirmation or completion cannot act on another
+student/session. Task 2 and whole-branch specification/quality reviews approve;
+publication, combined exact CI and runtime acceptance remain pending.
 
-Existing new-note input/edit-dialog settlement policies are separate: an input can
-be edited during pending add and completion clears its current body; another note
-can be opened while an edit is pending and completion closes editing. A calendar
-read guard does not resolve those policies. Draft provenance and any policy for
-new edits made after submission require separate work.
+Existing new-note input/edit-dialog settlement policies remain separate: an input
+can be edited during pending add and completion clears its current body. Opening
+note B while the pending note-A modal remains active has not been established as
+reachable; note settlement and accessibility audits remain ongoing. Calendar
+freshness does not settle the policy for edits made after submission or provide
+generated-draft provenance.
 
-## Required future verification
+## Focused evidence and remaining publication gates
 
-The new StudentCalendar tests must assert visible values, editor state and complete
-cache envelopes, not only invalidation counts:
+The 35 new freshness tests cover actual displayed calculations/raw points/cutoff,
+empty/reopened caches, repeated polls, stale-success/manual recovery, failed reads,
+calendar errors, newer cutoffs, preserved profile/new-note/edit-note drafts,
+real write ordering, route A→B→A, typed404 and actual auth/transport teardown.
+Day-only invalidation remains detail-scoped and does not independently refresh
+Insight/history/courses/provider calls or another student. Eleven additional
+cases exercise deletion targeting, captured client and lifecycle boundaries.
+Compatibility includes Student edit/notes/history, calendar and authentication
+fixtures. Final focused result: 80 tests/eight files in 7.04s, types/focused lint/
+diff checks PASS; these are root-executed focused checks, not full exact CI.
 
-1. A recorded future score becomes due after calendar advancement; average,
-   homework/missing labels, attendance and trend change with the new response
-   cutoff while raw points remain unchanged. Include empty data and reopened cache.
-2. Same-day notifications do not duplicate reads; stale-success/manual recovery,
-   refresh failure/Retry and unavailable-calendar recovery retain valid detail.
-   A newer response cutoff never moves backwards to match an older poll.
-3. Unsaved profile name/grade/section, new-note input and edit-note dialog survive
-   same-ID success and ordinary failure. Pending transfer/note writes retain captured
-   scope, settle once, and cannot be overwritten by late pre-write reads.
-4. Route A→B→A aborts superseded reads and resets the bounded attempt; late A data
-   cannot replace current data. Actual identity changes clear editor drafts;
-   same-ID day updates do not. Preserve active-section history mismatch protection.
-5. Cold and cached typed404 hide the removed/inaccessible student's editors without
-   retrying404. Actual AuthGate/Root expiry/logout clears private state, aborts reads
-   and isolates a new QueryClient from old-session read/mutation completion. Use
-   actual transport/event semantics rather than a mocked401 with no expiry event.
-6. Day-only refresh makes no Insight, history, course, provider or other-student
-   refresh request. Existing successful profile/note mutations may still perform
-   their existing Insight/history invalidations; distinguish those write requests.
-
-Compatibility coverage: `StudentEdit.test.tsx`, `StudentNotes.test.tsx`,
-`StudentHistory.test.tsx`, the Student cutoff case in `SchoolCalendar.test.tsx`,
-`Auth.test.tsx` and `AuthTransport.test.tsx`. Explicitly provide a valid calendar
-response in the existing Student calendar fixture. Root remains sole verification
-owner; coordinate expensive checks, use the shared heavy-check wrapper where
-required, and defer broader verification until changes settle.
+Whole-branch final review and local integration are complete. Root must publish
+the resulting candidate, run exact combined CI and verify its immutable
+build/staging/recovery before runtime acceptance. The existing 9011 CI and B5
+runtime do not cover the integrated Student commits. Root remains sole broad
+verification and release owner.
 
 ## Remaining limits and separate contracts
 

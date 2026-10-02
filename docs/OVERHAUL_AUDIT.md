@@ -10,31 +10,51 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
-Latest pinned candidate `1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven
-exact-source jobs in [CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054):
-1356 API tests in 182.23s, 225 web tests, four browser tests and 84 E2E tests,
-with lint/types/build, Docker/auth smoke and informational benchmark successful.
-Inside the locked Docker image, the focused 259-case runtime compatibility set
-passed in 32.34s. The full native API suite uses CI's ranged test installation;
-The full API suite has not been run in the locked production image.
+Latest exact-CI-verified candidate `9011f65509e5871c8425a99ebaaa4f17b638ab34`
+passed all seven exact-source jobs in
+[CI37028496201](https://github.com/jckail/superteacher/actions/runs/37028496201):
+1357 API tests in 131.56s, 225 web, four browser and 84 E2E tests, plus
+lint/types/build, Docker/auth smoke and informational benchmark. The locked Docker
+runtime compatibility set passed 259 cases in 35.76s; this is not the full native
+API suite inside that image. Reviewed Docker chmod PR63 and documentation PR64
+are merged into parent `9011f65`; main and the working branch are pushed.
 
-Root integrated reviewed PR19, the roadmap and the curated five-doc checkpoint
-in merge `52d6433`, then pushed main and the working branch. Its diff from the pinned 1cde
-candidate is documentation only. Source23's CI is historical; the newer 1cde source
-has its own exact verified run above. This does not accept any later unverified code.
+The immutable archive SHA256
+`1ed2b2f022aeaf39e4f22b5aecb0f787b86fe145d8f5b154b20c29e4e4c35d26`
+contains 305 entries/276 files, with regular files 0644/0755, directories 0755 and
+private roots 0700. Build-helper review passed. Protected session 19785 exited
+75 before the helper began: no new intent/proof or cloud call, image digest,
+deployment or restore acceptance exists. Do not retry unchanged automatically or
+bypass the wrapper; future execution requires fresh capacity and preflight.
+B5 `00007-9lq` remains the most recent root-accepted staging release.
 
-New immutable archive SHA256
+Historical 1cde checkpoint: exact source
+`1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven jobs in
+[CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054)
+(1356 API in 182.23s, 225 web, four browser, 84 E2E; locked Docker 259 in 32.34s).
+Reviewed PR19/roadmap and five-document checkpoint were integrated in `52d6433`;
+that merge differed from 1cde only in documentation. Archive SHA256
 `d2b7815c88bc588fe4933ddd9e2a0def0c08bf439dc0a4282991d3b7aa560353`
-contains 303 entries/274 files. Independent helper/source/archive/mode review passed;
-regular files 0644/0755, directories 0755, private 0700 roots, a distinct full-source
-`-b` image tag and exclusive outputs preserve the locked Dockerfile/archive bytes.
-Root's protected build session 7852 exited 75 when its queue wait expired. The
-helper never started: no new intent/proof or cloud build call occurred. No new
-build/digest/deployment/restore acceptance exists. This is a distinct candidate/
-context, not an unchanged retry of source23's exit 75 action. Preserve both queue
-blockers; do not retry the unchanged action or bypass the shared wrapper.
-B5 `00007-9lq` remains the latest accepted Ready at 100% staging release until fresh
-executed build, staging smoke, recovery and readback pass.
+had 303 entries/274 files and passed source/helper/layout/mode review. Protected
+session 7852 exited 75 before helper execution with no intent/proof or cloud call.
+Its blocked build is separate from source23's preserved failure and queue blocker;
+none establishes a new accepted runtime.
+
+Student follow-up was integrated into the parent in commits:
+`037e92f` (original isolated commit `73178da`) adds recorded-detail cutoff/
+forward-day refresh, ordinary-error draft retention, fatal typed404 handling and
+actual write-ordering regressions (35 new tests). `7e9b627` (original `79f85f3`)
+adds captured delete-target/client/lifecycle handling (11 new cases). Both tasks
+and the full branch diff have independent specification and quality approval with
+no actionable findings. Original worktree:
+`/home/jkail/projects/superteacher-student-freshness-20261002`.
+Root-executed final focused evidence is 80 tests across eight files in 7.04s, with
+types, focused lint and diff checks passing. Integration is local; publication,
+full combined exact CI and runtime acceptance remain pending. The 9011 CI does
+not cover these new commits. Independent Insight, generated-draft provenance and
+new-after-submit note settlement remain separate. Opening note B during a pending
+note-A modal has not been established as reachable; note/accessibility audits
+remain ongoing, without a confirmed interaction claim from that scenario.
 
 Earlier source23 candidate (historical CI/artifact/blocker):
 
@@ -78,7 +98,7 @@ Metadata at B5 acceptance confirmed native `00006-cjv`, legacy `00018-t58` and s
 `00007-9lq` Ready at 100%. Production traffic and domains remain unchanged; both
 public Super Teacher domain mappings still route to `edutrack`. Dedicated runtime
 IAM resources are provisioned separately, but runtime acceptance is pending and
-no production identity change is claimed. Student/Insight date freshness and draft provenance,
+no production identity change is claimed. Student publication/combined verification and independent Insight date freshness and draft provenance,
 grading policies/terms/enrollment, real-provider evaluation and final production
 adoption/drain/rollback/cutover remain open. See the deployment ledger for exact
 source/image/prefix bindings and proof limitations. Subsequent metadata confirms
