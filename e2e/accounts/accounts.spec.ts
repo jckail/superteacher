@@ -14,7 +14,7 @@ async function latestLink(to: string, notBefore = 0): Promise<string> {
     .poll(
       () => {
         try {
-          const files = readdirSync(OUTBOX).filter((f) => f.endsWith('.json'));
+          const files = readdirSync(OUTBOX).filter((f) => f.endsWith('.json')).sort(); // names are time-ordered
           const msgs = files.map((f) => JSON.parse(readFileSync(join(OUTBOX, f), 'utf8'))).filter((m) => m.to === to);
           if (msgs.length <= notBefore) return '';
           link = /(https?:\/\/\S+\/auth\/verify#token=[\w-]+)/.exec(msgs[msgs.length - 1].text)?.[1] ?? '';

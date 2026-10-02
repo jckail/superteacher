@@ -83,6 +83,16 @@ def test_file_backend_writes_the_message_privately(tmp_path):
     assert msg["to"] == TO and LINK in msg["text"] and msg["subject"] == mailer.SUBJECT
 
 
+def test_file_backend_names_sort_in_send_order(tmp_path):
+    """e2e picks "the newest message" by sorting file names; random names once made that a coin flip."""
+    s = settings(auth_email_backend="file", auth_email_outbox_dir=str(tmp_path / "o"))
+    links = [f"http://x/auth/verify#token=t{i}" for i in range(6)]
+    for link in links:
+        assert mailer.send_login_link(s, TO, link)
+    ordered = [json.loads(f.read_text())["text"] for f in sorted((tmp_path / "o").glob("*.json"))]
+    assert [next(link for link in links if link in text) for text in ordered] == links
+
+
 def test_html_escapes_the_link():
     m = mailer.build_login_message(TO, 'http://x/auth/verify#token="><script>alert(1)</script>', 15)
     assert "<script>" not in m.html and "&lt;script&gt;" in m.html

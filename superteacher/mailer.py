@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import secrets
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -91,7 +92,8 @@ def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None
     elif backend == "file":
         out = Path(settings.auth_email_outbox_dir or ".")
         out.mkdir(parents=True, exist_ok=True)
-        path = out / f"{secrets.token_hex(8)}.json"
+        # Time-ordered names (then a random suffix) so "the newest message" is well defined for tests/e2e.
+        path = out / f"{time.time_ns():020d}-{secrets.token_hex(4)}.json"
         path.write_text(json.dumps({"to": msg.to, "subject": msg.subject, "text": msg.text, "html": msg.html}))
         path.chmod(0o600)
     else:
