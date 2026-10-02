@@ -1,10 +1,11 @@
 # Offline EduTrack roster import and historical archive plan
 
-Planning only, verified against native source at `9de97ce` on 2026-10-02 UTC.
-No private archive records were read for this plan. No importer exists yet, and
-no database or cloud configuration was changed. Graphify was queried for the
-native models; its returned paths belonged to other repositories, so this plan
-uses current source directly.
+Implemented offline adapter at `8291cae`, verified on 2026-10-02 UTC.
+`superteacher/import_legacy_archive.py` and its 54 focused synthetic tests have
+independent spec/quality approval. Root privately rehearsed the exact authorized
+archive, then backed up and restored its converted database. No production
+database, service, prefix, traffic, or domain configuration changed. Graphify
+returned other repositories; live native source supplied the coverage gap.
 
 The input is the private, non-atomic API archive described in
 [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md). Preserve its original bytes and hash.
@@ -22,9 +23,9 @@ original numerator/denominator are not persisted by that function. Reusing a
 name overwrites its previous value. The API's submission schema therefore does
 not prove that its GET response retains actual dated score events.
 
-Exact deployed-image source provenance remains unverified. Before implementing
-an adapter, inspect the authorized input privately for its schema, without
-printing records, and report only field/type coverage. If nested entries really
+Exact deployed-image source provenance remains unverified. Before using
+an adapter with another capture, inspect its schema privately without printing
+records, and report only field/type coverage. If nested entries really
 contain additional event evidence, validate that evidence separately. A label
 and percentage alone cannot establish native `max_points`, `points`, or
 `due_date`. Neither a 100-point denominator nor the capture date is an acceptable
@@ -118,7 +119,9 @@ and manifest reconciliation are implemented and tested.
    oversized/control-bearing text, missing relations, percentage-only grades,
    unknown fields, interrupted writes, and destination-exists refusal. Fixtures
    must demonstrate that aggregate history never becomes fabricated events.
-   No tests or code changes were performed for this planning task.
+   Implemented synthetic coverage passed: 54 focused tests, including
+   exclusive publication, read failures, FIFO refusal, and legitimate access-time
+   updates.
 4. **Rehearse offline.** Run the adapter against the authorized archive into a
    new restricted database. Verify source bytes/hash unchanged, native schema
    head `0003`, `integrity_check`, `foreign_key_check`, uniqueness and all
@@ -149,16 +152,54 @@ and manifest reconciliation are implemented and tested.
 
 - Exact source/image provenance for the serving legacy revision, or explicit
   acceptance of a validated observed schema with historical-source limitations.
-- Private schema inspection of nested history and any independent evidence of
-  original points, denominators, dates, assignment identity, and category.
+- Independent evidence of original points, denominators, dates, assignment
+  identity, and category. Private schema inspection passed 18 checks and confirmed
+  224 test and 167 homework entries are percentage strings without those events.
   Historical source demonstrates those details can have been irreversibly lost.
 - Approved target principal and authority to expose retained legacy records to
   that account; account ownership cannot be recovered from the legacy API.
 - A policy for inaccessible or unrepresentable history. The default here is
   preservation in the private archive, not destruction or invented events.
-- Implemented adapter, exception dispositions, exact-archive rehearsal, and
-  recovery evidence. None is established by this document.
+- Final production dataset selection/merge and owner mapping. The implemented
+  adapter and exact-archive recovery rehearsal below establish offline conversion
+  only; they do not adopt records into production or merge an existing native
+  dataset.
 - A final capture/write-freeze decision and acceptance of instance/temporal gaps;
   existing API snapshot consistency checks do not prove full DB completeness.
 - A recoverable rollback service/image. The old revision being ready does not
   prove its missing registry image can be redeployed or cold-started.
+
+## Verified offline conversion checkpoint
+
+The CLI requires an expected source SHA256, explicit owner ID/email and a new
+output path. The owner is disabled by default. For Linux/WSL rehearsal, freeze a
+separate source copy with mode 0400 inside a mode 0700 directory; the original
+archive remains untouched. Publication is a new mode 0600 ZIP with exactly
+`native.db`, `manifest.json`, and byte-identical `original_archive.json`. Native
+IDs are deterministic for the exact source hash and source identity. The private
+manifest binds the importer-file hash, original hash, database hash, identity
+maps, normalization changes, and field-retention dispositions. It stays outside
+Git and hosted memory.
+
+Root independently verified 11 courses, 33 sections, and 30 students; native head
+`0003`, integrity, foreign keys, all ownership chains, the disabled synthetic
+principal, unchanged source bytes, and zero event/cache/auth/usage rows. Backup
+and restore preserved all native rows. A read-only check using source `9a8da6a`
+confirmed all 30 students have unknown metrics/risk and a foreign owner sees zero
+rows; the database bytes stayed unchanged. No historical percentage was presented
+as a native assessment or score.
+
+Source SHA256: `8079ba7624eb1d64dce273056bb4a33e9bcf86c3f43ca4e6ba30c65793131de3`.
+Importer SHA256: `79784f1179f71be2772affadc1539ec56ee5f420c7f50d9a192434c9e06f6f37`.
+Bundle SHA256: `133213d35e07aa5e9d5658b80b6d213eb2ea92dba0fce5a15cf07e4ba08fc3c9`.
+Private local bundle:
+`/home/jkail/.local/share/superteacher-backups/legacy-import-rehearsal-wzx1pde3/native-roster-bundle.zip`.
+Private independent proof: `/tmp/st-legacy-import-rehearsal-proof.json`. The
+original archive already has a verified private versioned GCS roundtrip, described
+in LEGACY_CUTOVER.md. The converted bundle has not yet been uploaded.
+
+The capture remains non-atomic, historical event evidence remains unavailable,
+and synthetic rehearsal ownership is not a production ownership decision. A
+final capture/freeze, recoverable rollback, preservation of the existing native
+dataset, writer drain, and an immutable validated serving image remain required
+before domain cutover.

@@ -7,6 +7,25 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Offline legacy roster conversion is implemented at `8291cae`, with 54 focused
+synthetic tests and independent review approval. The exact private API archive
+rehearsal and full-row backup/restore passed: 11 courses, 33 sections, 30 students,
+zero fabricated events, native head `0003`, ownership/integrity checks, original
+bytes preserved. The target is an explicitly disabled synthetic principal.
+Source `9a8da6a` adds truthful unknown risk across metrics, REST, reports, AI tools
+and UI; read-only checks of the converted database show all 30 unknown and zero
+foreign-owner rows. See [LEGACY_IMPORT_PLAN.md](LEGACY_IMPORT_PLAN.md) for hashes
+and limitations. Source `79ee831` preserves the displayed report section when
+opening unknown roster records; 11 focused UI tests and independent re-review
+passed. Final integrated CI and the new serving image remain pending.
+
+Remaining authentication work is saved in
+[passcode_session_revocation.md](plans/passcode_session_revocation.md). Other
+original-scope work remains: [historical archival access](plans/legacy_archive_access.md),
+grading policies/terms,
+API pagination/large exports, dedicated least-privilege runtime identity, broader
+PostgreSQL workflows and real-provider AI evaluation. The full overhaul is active.
+
 Main source `5113de8` passed every gate in
 [CI36978867068](https://github.com/jckail/superteacher/actions/runs/36978867068),
 including **996 API tests and one known legacy-passcode logout xfail**. It adds
@@ -26,8 +45,9 @@ compatible rollback and explicit live adoption/promotion procedure remain requir
 The legacy API archive is preserved locally and in private versioned GCS with
 verified SHA256 roundtrip; see [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md). It is a
 non-atomic API archive, not a consistent database backup. Preserve the existing
-legacy data during the overhaul. Faithful import, dataset authority, compatible
-rollback, final writer drain and domain cutover remain open.
+legacy data during the overhaul. Offline roster import is verified; production
+dataset authority/merge and ownership, compatible rollback, final writer drain
+and domain cutover remain open.
 
 ## Verified native staging release
 
