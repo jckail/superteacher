@@ -288,3 +288,25 @@ def test_cors_preflight_only_for_configured_origins(authed):
     assert ok.headers["access-control-allow-origin"] == "http://localhost:4000"
     # a wildcard with credentials would be a hole
     assert ok.headers["access-control-allow-origin"] != "*"
+
+
+def test_roster_cursor_preflight_preserves_origin_and_session_guards():
+    with build() as c:
+        headers = {
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-requested-with,x-roster-cursor",
+        }
+        allowed = c.options("/api/students/page", headers={**headers, "Origin": "http://localhost:4000"})
+        assert allowed.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == "http://localhost:4000"
+        assert allowed.headers["access-control-allow-credentials"] == "true"
+        assert "x-roster-cursor" in allowed.headers["access-control-allow-headers"].lower()
+        denied = c.options("/api/students/page", headers={**headers, "Origin": "https://evil.com"})
+        assert denied.status_code == 400
+        assert "access-control-allow-origin" not in denied.headers
+        # A permitted preflight is not authorization to read the roster.
+        protected = c.get(
+            "/api/students/page",
+            headers={"Origin": "http://localhost:4000", "X-Roster-Cursor": "synthetic", **H},
+        )
+        assert protected.status_code == 401
