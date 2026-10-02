@@ -5,10 +5,10 @@ verification. The native overhaul is merged and isolated staging is deployed;
 this release operator has not changed production traffic or custom-domain mappings. Private
 backup artifacts stay outside Git and hosted project memory.
 
-Latest verified source is `0bc37e5` (all seven combined CI jobs passed).
-The latest successful immutable build is source2989; the existing private
+Latest verified source is `fbaf3a6` (all seven combined CI jobs passed).
+The latest successful immutable build is sourcefbaf; the existing private
 candidate is frozen at source257 with runtime acceptance still pending.
-See [the latest integration checkpoint](#performance-budgets-integrated-2026-10-02)
+See [the latest integration checkpoint](#account-pagination-and-assessment-analysis-integrated-2026-10-02)
 and [candidate verification](#prepared-synthetic-candidate-verifier-2026-10-02).
 
 ## Attendance report freshness follow-up (2026-10-02)
@@ -1130,3 +1130,58 @@ review and exact CI before integration. A separate proof-required frozen257
 feature verifier is being prepared; actual continuation/synthetic receipts remain
 absent after admission75, and no private feature runtime phase is authorized by
 source preparation alone.
+
+## Account pagination and assessment analysis integrated (2026-10-02)
+
+PR78 exact `e8886ac1bdf56f7b525673b763fb1f9a7d835c0c` passed independent
+SPEC/QUALITY review, all seven CI jobs and Bugbot before merge `9e4b847`.
+The account operator CLI now defaults to 100 users, accepts a validated limit
+from 1 to 1000, and returns a bounded ID cursor for the next page. Parameterized
+keyset queries preserve private operator output and exclude the passcode owner.
+Pages are live rather than snapshots; concurrent account changes can affect
+subsequent pages. See [account operations](ACCOUNT_ADMIN.md). Full self-service
+account deletion/export auditing and abuse controls remain open under JCK-59.
+
+PR79 exact `774c5b0fbd55c14d364d29340d66e6a9707f3d08` passed independent
+SPEC/QUALITY review, all seven CI jobs and Bugbot before merge
+`fbaf3a6c6a54beead397fb6e8d045cdaceb3f675`. Reports reuse the existing
+owner-scoped class summary to show up to five lowest graded averages and five
+assessments with the most missing work. Due-date filtering uses the server's
+`as_of`; displayed graded counts and current-roster denominators explain the
+comparison. Missing work is a null score once due, not a measure of incorrect
+answers or student ability. Root ran 43 focused tests across assessment analysis,
+Reports calendar rollover and report selection; all passed. No additional
+summary request or provider call was introduced. Human product acceptance remains
+open under JCK-78.
+
+Exact combined [CI37064388597](https://github.com/jckail/superteacher/actions/runs/37064388597)
+passed all seven jobs, including 1585 API tests in205.06s and259 Docker tests
+in24.74s. Root captured authentic private metadata and full logs; CI-state SHA256
+is `092c7f17108b6180eab252116cd8fb81d8d1fe519d77d1076648c8d56a13d043`.
+Independent artifact review compared all308 files and337 entries against exact
+Git/archive/context bytes and executable bits. Root's local archive, mode and
+seven-job CI validation passed. Protected build session29598 exited0. Cloud
+Build `f5a13bff-cfd7-46bd-acff-2b00391de403` completed SUCCESS at
+`2026-10-02T21:20:20.327792Z`, producing immutable image
+`gcr.io/portfolio-383615/superteacher@sha256:203afd66dcb5e9bdb8f193915176002bf9c372aa4fc9cdd3525b3f5bbe797ba8`.
+Root verified the build state, image digest and source/archive/CI/mode bindings;
+private proof SHA256 is
+`2e4579a18944b08095a5fc2bd9fa3a1336615471981f64ecd7ed4f19122c7df0`.
+This is a built artifact; no new runtime acceptance or production promotion is
+claimed for sourcefbaf.
+
+The frozen257 candidate remains unchanged. Its read-only continuation still
+lacks an actual successful receipt after the recorded admission refusals;
+canonical synthetic workflows and feature runtime acceptance have not executed.
+A new hash-pinned feature adapter passed independent static review and28 local
+inert tests, including successful driver ordering and preserved failure/cleanup
+stages. Those tests use invented responses and temporary receipts; they create
+no actual platform, synthetic, feature or restore proof. Genuine continuation
+and canonical synthetic receipts are required before its runtime phase.
+
+PR80 score-field accessibility is a separate unmerged batch. Its initial head
+failed mobile E2E because the gradebook expanded the page horizontally. The
+author owns the correction and exact-head requalification; the frozen fbaf
+artifact excludes that change. Production lineage adoption, writer drain,
+restore, rollback, provider/SMTP, domain and actual assistive-technology gates
+remain open. No production traffic or domain mapping was changed here.
