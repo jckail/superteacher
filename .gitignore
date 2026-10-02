@@ -75,3 +75,7 @@ web/playwright-report/
 
 *.db-*
 *.sqlite*
+
+# Managed synthetic local development environment
+.superteacher-dev/
+.superteacher-dev.lock
