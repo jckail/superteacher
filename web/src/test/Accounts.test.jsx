@@ -44,13 +44,14 @@ describe('VerifyEmail', () => {
   it('reads the fragment once, strips it from the URL, and posts it', async () => {
     fetchMock.mockReturnValue(json(200, { authenticated: true }));
     const replace = vi.fn();
+    const strip = vi.spyOn(window.history, 'replaceState');
     vi.stubGlobal('location', { ...window.location, hash: window.location.hash, pathname: '/auth/verify', replace });
     sessionStorage.setItem(CHAT_STORE, '[]');
     render(<VerifyEmail />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ token: 'abc123abc123abc123' });
     expect(fetchMock.mock.calls[0][0]).toBe('/api/auth/verify');
-    expect(window.location.hash).toBe('');
+    expect(strip).toHaveBeenCalledWith(null, '', '/auth/verify');  // the token is gone from the address bar/history
     expect(sessionStorage.getItem(CHAT_STORE)).toBeNull();  // a previous person's chat never carries over
   });
 

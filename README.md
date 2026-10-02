@@ -11,6 +11,7 @@ A classroom copilot: it answers **"who needs me today, and why?"** — then help
 - **Gradebook** – spreadsheet-style entry per section; averages and risk update live.
 - **Attendance** – one-tap daily roll call, optimistic UI.
 - **Reports** – class statistics per assignment, attendance-by-day, gradebook CSV export (injection-safe), and AI-drafted parent updates you edit before sending.
+- **Accounts (optional)** – `AUTH_MODE=accounts`: passwordless email sign-in, a private synthetic starter classroom per user, server-side revocable sessions, per-user daily AI quotas, account export and delete. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - **Ask AI** – streaming Claude chat with tools (`find_students`, `get_student`, `class_stats`) that queries your real data, so answers are grounded and scale past a prompt-sized roster.
 
 ## Architecture
@@ -49,10 +50,10 @@ Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLO
 Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
 
 ## Security
-Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. Single shared passcode only — no per-teacher accounts or roles yet.
+Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. By default a single shared passcode; opt-in accounts mode adds per-user tenancy (every query and AI path is owner-scoped, cross-tenant tested), but no roles/organisations yet.
 
 ## Not yet
-Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
+Roles/organisations, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
 
 ## Decisions
 Open architecture decisions (persistence, identity, privacy, grading policy, domain cutover): [docs/adr/README.md](docs/adr/README.md)
