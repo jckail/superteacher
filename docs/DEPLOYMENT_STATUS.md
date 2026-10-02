@@ -32,8 +32,15 @@ AI/demo disabled; max one instance, no minimum. Synthetic creation, raw precisio
 transfer/history, readiness, login/logout and copied-cookie revocation passed.
 Additional HTTP checks passed scoped cursor continuations/counts, Unicode/BOM/CRLF
 CSV with raw extra-credit points, and historical account JSON. Private proof and
-credentials remain outside Git. Independent replica recovery is being checked;
-production service traffic and custom domains were not changed.
+credentials remain outside Git. Recovery-only execution
+`superteacher-overhaul-recovery-3e6629c-k4hx7` succeeded at 11:00:15 UTC:
+the exact image restored the new replica into a fresh transient SQLite copy and
+verified integrity/FKs/native head `0003`, transfer/history/notes/attendance and
+both raw extra-credit scores. It overrides the entrypoint and never starts a
+server or replica writer. Subsequent staging receipt readback passed. This proves
+those staged records restored; production restart, final drain and zero-loss RPO
+remain unproven. Fresh service metadata confirms native `00006-cjv` and legacy
+`00018-t58` remain Ready at 100%; production traffic/domains were not changed.
 
 The roster loads 50 rows on demand and preserves filter/sort URLs. Previous/Next
 uses transient header cursors; numbered links restart at the first page with a

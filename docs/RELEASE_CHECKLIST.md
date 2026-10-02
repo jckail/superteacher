@@ -15,7 +15,10 @@ Protected Cloud Build `3bc0704a-fe6a-4264-80b8-e1ef47ec0b8b` succeeded;
 the immutable digest is serving isolated staging revision `00002-jqp` with fresh
 storage, AI/demo disabled and max one instance. Synthetic writes/transfer/history,
 raw precision, cursor scope/counts, CSV/account exports and copied-cookie logout
-passed. Independent replica recovery is pending. Exact image/prefix/source archive
+passed. Recovery-only execution `superteacher-overhaul-recovery-3e6629c-k4hx7`
+succeeded at 11:00:15 UTC, checking integrity/FKs/head `0003`, transfer/history
+and raw precision in a fresh restored copy. Staging receipt readback passed;
+production restart/final drain/zero-loss RPO remain unproven. Exact image/prefix/source archive
 evidence is in [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). Production traffic
 and custom-domain mappings remain unchanged; the full overhaul is active.
 

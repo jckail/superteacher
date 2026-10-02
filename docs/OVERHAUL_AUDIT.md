@@ -420,7 +420,9 @@ Protected Cloud Build3bc0704a succeeded. Its immutable source-bound image is
 serving isolated staging00002-jqp on a fresh replica prefix, with AI/demo disabled
 and max one instance. Synthetic writes, transfer/history, precision, paging and
 exports, readiness and copied-cookie revocation passed; independent replica
-recovery is pending. [Deployment status](DEPLOYMENT_STATUS.md) records exact
+recovery execution `superteacher-overhaul-recovery-3e6629c-k4hx7` and staging
+readback passed with integrity/FKs/native head `0003` and preserved synthetic
+history/raw precision. [Deployment status](DEPLOYMENT_STATUS.md) records exact
 identifiers. Production/domain mappings remain unchanged. Shared Graphify refresh
 passed with 164478 nodes, zero duplicate IDs/dangling edges; native source coverage
 is still absent and conclusions use current inspected source.

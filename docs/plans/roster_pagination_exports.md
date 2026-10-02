@@ -260,7 +260,8 @@ Exact source `3e6629c` subsequently passed
 1195 API cases (including real PostgreSQL), 137 web cases, four browser cases,
 83 E2E cases and all release gates. Its immutable image was built and deployed
 to isolated staging revision `00002-jqp`; synthetic HTTP paging, exports,
-precision/history and copied-cookie logout passed. Replica recovery is pending;
+precision/history and copied-cookie logout passed. Independent replica recovery
+and subsequent staging receipt readback passed, preserving history/raw precision;
 see [deployment status](../DEPLOYMENT_STATUS.md) for artifact bindings.
 
 Six read-only probes confirmed a preexisting saved-scope hydration race and
