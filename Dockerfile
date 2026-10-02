@@ -24,6 +24,10 @@ COPY --from=web /web/dist ./web/dist
 RUN useradd --system --uid 10001 --create-home app && mkdir -p /data && chown app /data
 USER app
 ENV PORT=8080 DATABASE_URL=sqlite:////data/superteacher.db STATIC_DIR=web/dist
+# Cloud Run (and most platforms) put a proxy in front of the container. Without this uvicorn ignores X-Forwarded-For,
+# so every user looks like the proxy's address and the login lockout (5 failures) would lock out everyone at once.
+# "*" is right when only the platform's proxy can reach the container; self-hosting? Set your proxy's IP instead.
+ENV FORWARDED_ALLOW_IPS=*
 VOLUME /data
 EXPOSE 8080
 # /api/health is intentionally public so probes work with auth enabled.

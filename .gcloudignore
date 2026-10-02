@@ -1,33 +1,23 @@
-# Ignore git and version control
+# Upload only what the Dockerfile needs. (gcloud uses this file instead of .gitignore.)
 .git
+.github
 .gitignore
-
-# Ignore local development files
-local_test.sh
+.venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets and local state must never ship in the build context
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+.session_secret
+*.db
+*.sqlite3
+data/
 
-# Ignore node modules and build artifacts
-frontend/node_modules/
-frontend/.pnp
-frontend/.pnp.js
-frontend/coverage/
-frontend/.DS_Store
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-
-# Ignore editor directories and files
-.idea/
-.vscode/
-*.swp
-*.swo
+# Heavy or irrelevant for the image build
+web/node_modules/
+web/dist/
+tests/
+docs/
