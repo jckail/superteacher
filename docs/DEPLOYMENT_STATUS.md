@@ -985,3 +985,38 @@ is still absent after admission75. Next gates remain read-only private-platform
 acceptance, bounded synthetic workflows, isolated restore/integrity verification,
 production lineage/adoption, writer drain and compatible rollback, real email
 and domain cutover. The original overhaul goal remains unfinished.
+
+## Sign-in accessibility source batch (2026-10-02)
+
+PR76 exact head `20de4656ac951c67f7da1d8fc00886202f5e7957` passed seven
+CI jobs plus Bugbot in [CI37054044807](https://github.com/jckail/superteacher/actions/runs/37054044807),
+with the author's 28 focused tests, lint/types/LSP and independent review. Root
+read the complete diff and a separate integration review, then merged as
+`45482a709bbce27663f03f3dcec2cc76a3c4de4c`, fast-forwarded and pushed the
+working branch. Each sign-in form exposes pending state and its stable error
+message as a field description; existing auth requests and focus behavior are
+preserved. Real assistive-technology walkthrough remains open under JCK-71.
+
+This is a new source batch. It does not replace the source257 private candidate,
+its immutable image or failed/pending runtime receipts. Combined-main
+[CI37056428667](https://github.com/jckail/superteacher/actions/runs/37056428667)
+was still running at integration; no new image or deployment acceptance is claimed.
+Shared Graphify refresh was skipped because another writer was active; its
+query still returns unrelated corpus paths for these login components. Live
+source and repository-scoped code search supplied the review evidence.
+
+Cleanup reservations are posted to the author: root checkout plus attendance,
+Notes/Reports draft settlement, runtime readability and Student freshness trees
+remain reserved for verification/recovery. Open, active, dirty and unknown-owner
+team trees stay preserved. The author's verified clean unoccupied PR65–70 and
+PR73–75 removals are recorded separately; no root-owned tree was released.
+PR72 repaired head `d61fe5a0d8475eafee574a2676943dffb41a9f69` passed root
+re-review of both original blockers and exact-head seven-job CI. Bugbot completed
+with a low-severity finding: the gated install child bypasses the launcher's
+friendly error handler. Root routed a focused author-lane correction before
+merge; no duplicate edits or actual installation occurred. Actual bootstrap
+install/startup remains unverified.
+
+Canonical incremental index attempt10310 exited75 on shared admission timeout;
+no source refresh is claimed or repeated. The prior source257 index remains
+historical; current login definitions were checked against live source.
