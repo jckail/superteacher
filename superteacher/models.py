@@ -159,7 +159,11 @@ class Student(Base):
     section: Mapped[Section] = relationship(back_populates="students")
     scores: Mapped[list[Score]] = relationship(cascade="all, delete-orphan", back_populates="student")
     attendance: Mapped[list[AttendanceRecord]] = relationship(
-        cascade="all, delete-orphan", back_populates="student", order_by="AttendanceRecord.day"
+        cascade="all, delete-orphan",
+        back_populates="student",
+        # Keep each student's days chronological without a global day-ordered
+        # scan when selectinload fetches attendance for many students.
+        order_by="(AttendanceRecord.student_id, AttendanceRecord.day)",
     )
     notes: Mapped[list[Note]] = relationship(
         cascade="all, delete-orphan", back_populates="student", order_by="Note.created_at.desc()"

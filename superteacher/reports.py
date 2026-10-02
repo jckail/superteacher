@@ -120,12 +120,15 @@ def class_summary(section: Section, students: list[Student], today: date | None 
     today = today or date.today()
     computed = [(s, metrics.compute(s, today)) for s in students]
 
+    # One {assessment_id: points} map per student: looking each score up with a scan made this
+    # O(assessments^2 x students) (774 ms for 120 assessments x 300 students; see docs/PERFORMANCE.md).
+    points_by_student = [{sc.assessment_id: sc.points for sc in s.scores} for s in students]
     stats = []
     for a in sorted(section.assessments, key=lambda a: (a.due_date, a.title)):
         pcts = []
         missing = 0
-        for s in students:
-            pts = next((sc.points for sc in s.scores if sc.assessment_id == a.id), None)
+        for pts_map in points_by_student:
+            pts = pts_map.get(a.id)
             if pts is None:
                 missing += 1
             elif a.max_points:

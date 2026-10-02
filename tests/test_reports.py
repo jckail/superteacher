@@ -124,6 +124,35 @@ def test_summary_attendance_window_and_rate(client):
     assert att[1]["rate"] == 50.0 and att[1]["absent"] == 1
 
 
+def test_bulk_attendance_loading_preserves_each_students_day_order(client, session_factory):
+    from superteacher.queries import load_students
+
+    sec = mk_class(client)
+    students = [mk_student(client, sec, name) for name in ("Ada", "Bob")]
+    today = date.today()
+    days = [today - timedelta(days=d) for d in (0, 2, 1)]
+    for day in days:
+        response = client.put(
+            f"/api/sections/{sec['id']}/attendance",
+            json={
+                "day": day.isoformat(),
+                "marks": [{"student_id": student["id"], "status": "present"} for student in students],
+            },
+        )
+        assert response.status_code == 200, response.text
+
+    with session_factory() as session:
+        loaded = load_students(session, section_id=sec["id"])
+        assert [student.name for student in loaded] == ["Ada", "Bob"]
+        for student in loaded:
+            assert [record.day for record in student.attendance] == sorted(days)
+            assert all(record.student_id == student.id for record in student.attendance)
+
+    for student in students:
+        detail = client.get(f"/api/students/{student['id']}").json()
+        assert [record["day"] for record in detail["attendance"]] == [day.isoformat() for day in sorted(days)]
+
+
 def test_empty_section_summary_and_csv(client):
     sec = mk_class(client)
     s = client.get(f"/api/reports/sections/{sec['id']}/summary").json()
