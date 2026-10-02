@@ -249,7 +249,7 @@ def measure(
         size = fn()
         times.append((time.perf_counter() - t0) * 1000)
         cpus.append((time.process_time() - c0) * 1000)
-        stmts = counter.n
+        stmts = max(stmts, counter.n)
         if after:
             after()
     peak = None
@@ -257,7 +257,9 @@ def measure(
         if before:
             before()
         tracemalloc.start()
+        counter.n = 0
         fn()
+        stmts = max(stmts, counter.n)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         if after:
@@ -289,6 +291,13 @@ def dataset_info(path: str) -> dict:
     }  # fmt: skip
 
 
+def measurement_plan(probe_seconds: float, runs: int, warmup: int, *, fixed_runs: bool = False) -> tuple[int, int]:
+    """CI keeps the requested sample count; exploratory sweeps can adapt."""
+    if fixed_runs or probe_seconds < 3:
+        return runs, warmup
+    return (max(5, runs // 3), warmup) if probe_seconds < 20 else (3, 0)
+
+
 def run_size(
     n: int,
     runs: int,
@@ -300,6 +309,7 @@ def run_size(
     reuse: bool = False,
     mem: bool = True,
     paged: bool = False,
+    fixed_runs: bool = False,
 ) -> dict:
     tmp = tempfile.mkdtemp(prefix="st-bench-")
     path = keep or os.path.join(tmp, f"bench-{n}.db")
@@ -397,7 +407,7 @@ def run_size(
             if kw.get("after"):
                 kw["after"]()
             one = time.perf_counter() - probe
-            r, w = (runs, warmup) if one < 3 else (max(5, runs // 3), warmup) if one < 20 else (3, 0)
+            r, w = measurement_plan(one, runs, warmup, fixed_runs=fixed_runs)
             res = measure(name, fn, counter, r, w, mem=mem, **kw)
             results.append(res)
             print(
@@ -555,6 +565,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sizes", type=int, nargs="+", default=[1000])
     ap.add_argument("--runs", type=int, default=15, help="timed runs per case (>=15 recommended)")
+    ap.add_argument(
+        "--fixed-runs", action="store_true", help="keep all requested runs even for slow cases (CI budgets)"
+    )
     ap.add_argument("--warmup", type=int, default=2)
     ap.add_argument("--json", help="write JSON report here")
     ap.add_argument("--markdown", help="write markdown tables here")
@@ -603,7 +616,16 @@ def main() -> None:
         print(f"== {n} students", flush=True)
         report["sizes"].append(
             run_size(
-                n, a.runs, a.warmup, a.profile, a.keep_db, a.only, reuse=a.reuse_db, mem=not a.no_mem, paged=a.paged
+                n,
+                a.runs,
+                a.warmup,
+                a.profile,
+                a.keep_db,
+                a.only,
+                reuse=a.reuse_db,
+                mem=not a.no_mem,
+                paged=a.paged,
+                fixed_runs=a.fixed_runs,
             )
         )
     if a.json:
