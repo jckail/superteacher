@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from . import auth
+from . import auth, observability
 from . import db as database
 from .config import Settings, get_settings
 from .routers import ai, attendance, gradebook, reports, roster, system
@@ -103,6 +103,8 @@ def create_app(
     app.include_router(auth.router, prefix="/api")
     for r in (system, roster, gradebook, attendance, ai, reports):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.require_auth)])
+
+    observability.install(app)  # request ids, access logs, metrics, /api/ready, /api/metrics
 
     dist = Path(settings.static_dir)
     if (dist / "index.html").is_file():
