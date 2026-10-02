@@ -23,7 +23,7 @@ These statements describe inspected source, not a claim that every current check
 | Runtime safety | Public health in `main.py` now logs database failures privately and returns sanitized HTTP 503. API responses are no-store, unknown API paths return 404 instead of SPA HTML, and injected app database factories apply to REST. | Duplicate shadowed health/version handlers were removed; the public handlers are the sole definitions. |
 | Frontend reliability | Attendance captures section/day in mutation variables; reports bound extra-credit bar width; chat detaches stale socket handlers and bounds stored conversation history. Focus, mobile styles, and reduced-motion CSS exist. | Component regressions cover concurrent writes and private-session boundaries. Chromium browser workflow and WCAG checks are being verified; full screen-reader and production-release coverage remains open. |
 | Migrations | Alembic baseline `0001` and startup upgrade path exist. `tests/test_migrations.py` checks schema shape, metadata drift, repeat startup, and legacy data preservation. | Native chain is 0001 -> 0002 -> 0003. Independently published accounts0002 needs the explicit offline adoption bridge; it is separate from legacy EduTrack conversion. |
-| Delivery | CI defines Python lint/tests, frontend lint/tests/build, Docker build and basic auth/SPA smoke tests. Deployment docs cover passcodes, secrets, migration and backup commands. | Main9de97ce passed all CI gates,976APItests/1knownxfail. Source7166813 is deployed to isolated staging with synthetic writes and independent replica restore verified. Production domain remains legacy. |
+| Delivery | CI defines Python lint/tests, frontend lint/tests/build, Docker build and basic auth/SPA smoke tests. Deployment docs cover passcodes, secrets, migration and backup commands. | Main5113de8 passed all CI gates,996APItests/1knownxfail. Source7166813 is deployed to isolated staging with synthetic writes and independent replica restore verified. Production domain remains legacy. |
 
 ## Public deployment evidence
 
@@ -309,3 +309,18 @@ revision metadata independently confirmed the real projection shape without
 printing environment values. `LEGACY_IMPORT_PLAN.md` records faithful roster
 mapping and historical fields that cannot become dated events. No production
 traffic/domain/schema change was made.
+
+Final release checkpoint:5113de8 pushed to main; CI36978867068 all gates passed,
+996APIpassed/1knownlegacy-passcode-logoutxfail. Shared Graphify refresh completed
+and published164478nodes; native Superteacher coverage remains absent, so source
+inspection is authoritative. Corrected9de helper artifact was independently
+hash-bound to the immutable716runtime and all six support files; recovery-only
+executionhbrzh passed real existing-replica copy adoption at07:42:42UTC. Source0002
+became clone0003; every non-version row and source bytes were preserved, with
+integrity/FK checks. No new serving image, live schema or traffic change occurred.
+This focused operator check neither invokes a build nor bypasses its lock. A
+fresh post-drain snapshot and explicit live adoption remain necessary. Legacy
+roster/history preservation, authority/owner mapping, rollback and public-domain
+cutover remain open. Further original-scope work includes grading policies/terms,
+true API pagination and large exports, dedicated runtime IAM, broader PostgreSQL
+workflows and real-provider AI quality evaluation. Keep the original goal active.

@@ -4,21 +4,23 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
-PR15 merged source7166813 into main8ceb050. Subsequent main9de97ce passed
-[CI36974717368](https://github.com/jckail/superteacher/actions/runs/36974717368):
-all six required jobs plus informational benchmark, **976 API tests, one known
+PR15 merged source7166813 into main8ceb050. Subsequent main5113de8 passed
+[CI36978867068](https://github.com/jckail/superteacher/actions/runs/36978867068):
+all six required jobs plus informational benchmark, **996 API tests, one known
 legacy-passcode logout xfail**. Source7166813 has an immutable built image,
 isolated authenticated/synthetic staging verification and a successful independent
 replica restore. Exact image, revision and limits are in
 [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The latest9de97ce image build
 stopped at shared verification-lock exit75 before any cloud build began.
 
-Still required: successful corrected-helper adoption on a private restored
-production copy, faithful legacy data preservation/import, authoritative dataset,
+Corrected-helper adoption on a private restored production copy also passed in
+recovery-only executionhbrzh, using a checked helper artifact in runtime7166813.
+It did not build/validate a newer serving image or change the live schema.
+Still required: fresh post-drain adoption, faithful legacy data import, authoritative dataset,
 compatible rollback, observed final writer drain and public-domain acceptance.
 See [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md) and the drain protocol below.
 
-## Current evidence
+## Historical iteration evidence (2026-10-01)
 
 | Check | Verified result |
 | --- | --- |
@@ -44,9 +46,9 @@ The current workflow triggers on pushes to `main` and on pull requests. A releas
 
 Root will push the release branch and open a PR to start broad GitHub CI while the native shared verification lock is occupied. After merging newer origin/main source, preserve these release guards and use CI for the final merged candidate. Record the immutable release commit, PR URL, workflow run URL and successful job conclusions below before deploying its image. A run for a different commit does not satisfy this gate.
 
-- Latest verified source: `9de97ceec2f5d0ec6ce7b03e1eda99fa6660826b`
+- Latest verified source: `5113de89c4625e61b8e2ab5ff1aac6378bf116ff`
 - Pull request: [PR15, merged](https://github.com/jckail/superteacher/pull/15)
-- Latest CI: [36974717368, all gates passed](https://github.com/jckail/superteacher/actions/runs/36974717368)
+- Latest CI: [36978867068, all gates passed](https://github.com/jckail/superteacher/actions/runs/36978867068)
 - Staged source7166813 image: `sha256:5d3c85dfb754bf5382ca7f196d86b108d878c2a85ccf2425702d22b0df7bcde6`
 - Latest9de97ce image: blocked before build; not deployed.
 

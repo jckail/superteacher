@@ -7,18 +7,21 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
-Main source `9de97ce` passed every gate in
-[CI36974717368](https://github.com/jckail/superteacher/actions/runs/36974717368),
-including **976 API tests and one known legacy-passcode logout xfail**. The change
+Main source `5113de8` passed every gate in
+[CI36978867068](https://github.com/jckail/superteacher/actions/runs/36978867068),
+including **996 API tests and one known legacy-passcode logout xfail**. It adds
+staging/drain and candidate replica-binding safeguards, with 25 focused mocked
+deployment cases. Earlier source `9de97ce` passed all gates with 976 API tests and
 adds exact pinned Litestream bookkeeping validation to the offline accounts
-adoption helper. It does not change teacher-facing routes or frontend behavior.
+adoption helper. Neither change alters teacher-facing routes or frontend behavior.
 
 The protected image build for this source stopped with exit75 at the shared
 verification lock before any Cloud Build command/archive/image began. Log:
 `/tmp/st-cloud-build-9de97ce.log`. Do not repeatedly queue the unchanged attempt
 or bypass the lock. The deployed staging image below remains source `7166813`.
-The corrected helper still needs an immutable image and a successful rehearsal
-on a private production-restored copy before a live accounts-schema adoption.
+The corrected helper's private production-copy rehearsal now passed as described
+below. A new serving image has not been built. A final post-drain snapshot,
+compatible rollback and explicit live adoption/promotion procedure remain required.
 
 The legacy API archive is preserved locally and in private versioned GCS with
 verified SHA256 roundtrip; see [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md). It is a
@@ -73,8 +76,35 @@ Litestream0.5.17 in both independent expected schemas and preserves every intern
 row. Missing pairs, extra columns/indexes/triggers and DDL drift remain rejected.
 Twenty focused adoption tests passed, including real pinned local replication,
 standalone backup and adoption. Exact-head CI subsequently passed (976 API
-tests); an image and production-copy rehearsal remain required before using
-this fix for promotion.
+tests). A later bounded artifact rehearsal closes the production-copy
+compatibility check without claiming a new serving image. A final cutover still
+requires fresh post-drain adoption and verified serving-image configuration.
+
+### Corrected helper against the real replica copy
+
+Execution `superteacher-overhaul-adoption-8e3a2ff4-hbrzh` succeeded at
+07:42:42 UTC. It overrides the existing immutable source7166813 recovery runtime's
+entrypoint with a checked operator payload. The payload verifies the committed
+source9de97ce helper SHA256
+`f9247a09b83c7b6b611eae30635c9bfb1551478aee447937773d03f00cbf403e`
+and six supporting source/migration hashes before any restore. Relative imports
+use the actual image package; no dependency install or image build occurs.
+
+The task restores the existing service replica into a private transient directory,
+prepares a standalone read-only backup and adopts only a clone. Independent checks
+confirm source0002/output0003, every non-version row preserved, unchanged source
+snapshot bytes, integrity and foreign keys. The structured Cloud Logging result
+was independently read and verified; a local mode0600 proof is retained at
+`/tmp/st-9de-production-copy-proof.json`. Limits: one task, no retries, 180 seconds,
+512Mi memory, 100-second restore deadline and 32Mi restored-file cap.
+
+No server, replication writer, production schema change or promotion ran. The
+source replica was read only; the existing runtime identity still has broader
+IAM rights, so this is a code-mediated restriction, not an IAM-enforced read-only
+principal. Transient clones were removed after verification. The existing service
+can continue writing after this restore; final cutover needs its own fresh
+post-drain snapshot. This targeted operator-artifact check does not validate a
+new serving image or replace the shared build lock.
 
 Public recheck after staging: www.the-super-teacher.com reports `v0.1.0`;
 the existing direct superteacher service reports `dae26a5`, revision00006-cjv at
@@ -137,7 +167,7 @@ names; each currently has enabled version `1`. Other environment values were
 not printed. Cloud SQL project inventory is empty and
 `superteacher-database-url` is absent.
 
-## Durable pilot now exists
+## Historical initial persistence inventory (04:50 UTC)
 
 Fresh `origin/main` is `ce94d5062a77fce2acfa8e698ecc0082ecc311cb`.
 Its accepted `docs/adr/0001-persistence.md` selects the Litestream pilot.
@@ -219,9 +249,10 @@ explicit validated replication branch. Keep demo seeding disabled.
    Production promotion still requires that concrete drain step to be observed. Then direct
    100% to the named candidate revision and run authenticated persistence
    verification. Record revisions explicitly instead of `--to-latest`.
-7. Rollback must account for schema compatibility. Current `ce94d50` has only
-   migration `0001`; native adds `0002`. That old image may refuse a database
-   already stamped `0002`. Prepare a compatible rollback image, or restore
+7. Rollback must account for schema compatibility. The observed existing replica
+   uses independently published accounts `0002`; native head is combined `0003`.
+   Recheck the exact old image's supported chain rather than relying on historical
+   `ce94d50` evidence. Prepare a compatible rollback image, or restore
    into a separate recovery prefix with a recorded policy for writes since
    cutover. Do not overwrite the live replica to roll back an image.
 8. Keep custom domains on `edutrack` until the above is verified. Afterward,
@@ -253,8 +284,9 @@ the current Superteacher export path. Run the pinned Litestream tool with a
 read-authorized identity; never restore over the live file, launch a writer on
 the source replica, print records, or upload them into task notes. Save the
 snapshot outside the repository. The schema-only production-copy diagnostic
-succeeded; actual adoption using the corrected helper still needs its own
-successful rehearsal. Isolated staging restoration is already verified above.
+succeeded and the corrected helper passed the private-copy artifact rehearsal
+above. Final post-drain adoption and production recovery still need their own
+execution evidence. Isolated staging restoration is already verified above.
 
 ## Cost and optional PostgreSQL preview
 
