@@ -3,6 +3,7 @@ import { useAuth } from './auth';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink, Route, Routes, useLocation, useMatch } from 'react-router-dom';
 import { ScopeProvider } from './scope';
+import { useTheme } from './theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/Confirm';
@@ -29,21 +30,6 @@ const NAV = [
 ];
 
 const TITLES: Record<string, string> = { '/': 'Today', '/roster': 'Roster', '/gradebook': 'Gradebook', '/attendance': 'Attendance', '/reports': 'Reports' };
-
-function useTheme(): [boolean, () => void] {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    try {
-      const saved = localStorage.getItem('st-theme');
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch { /* storage can be disabled */ }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem('st-theme', theme); } catch { /* storage can be disabled */ }
-  }, [theme]);
-  return [theme === 'dark', () => setTheme((current) => current === 'dark' ? 'light' : 'dark')];
-}
 
 /** On navigation: update the tab title and move focus to <main> so keyboard/screen-reader users start at the new page. */
 function useRouteAnnouncer(mainRef: RefObject<HTMLElement>) {

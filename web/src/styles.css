@@ -4,7 +4,7 @@
   --good: #0e7050; --good-soft: #dff5ec; --warn: #a15c00; --warn-soft: #fff0d6; --bad: #c0293b; --bad-soft: #fde4e7;
   --radius: 14px; --shadow: 0 1px 2px rgb(27 24 48 / .06), 0 8px 24px rgb(27 24 48 / .05);
   --sidebar: 224px; --chat: 400px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
@@ -84,9 +84,11 @@ th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spac
 th .sort-btn { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; text-transform: inherit; letter-spacing: inherit; font-size: inherit; font-weight: inherit; color: inherit; border-radius: 4px; }
 th .sort-btn:hover { color: var(--text); } th .sort-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
-tbody tr:last-child td { border-bottom: 0; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
 tbody tr.link { cursor: pointer; } tbody tr.link:hover, tbody tr.link:focus-within { background: var(--surface-2); }
-td.name { font-weight: 600; }
+td.name, th.name { font-weight: 600; }
+th[scope="row"].name { font-size: inherit; text-transform: none; letter-spacing: normal; color: var(--text); white-space: normal; overflow-wrap: anywhere; padding: 11px 12px; }
+.table-wrap:focus-visible, .heat-wrap:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
 .bar { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; min-width: 60px; }
 .bar > i { display: block; height: 100%; background: var(--brand); border-radius: 4px; }
 .grade-input { width: 64px; padding: 5px 8px; text-align: right; border-radius: 8px; border: 1px solid transparent; background: var(--surface-2); }

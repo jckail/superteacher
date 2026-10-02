@@ -233,7 +233,7 @@ export default function Roster() {
           <div className="row"><button type="button" className="btn primary" disabled={!ready} onClick={() => setDialog('student')}>+ Add student</button><button type="button" className="btn" disabled={!ready} onClick={() => setDialog('import')}>Import CSV</button></div>
         </EmptyState>
       ) : q.data && (
-        <div className="card table-wrap" style={{ padding: 6 }}>
+        <div className="card table-wrap" role="region" aria-label="Student roster" tabIndex={0} style={{ padding: 6 }}>
           <table>
             <caption className="sr-only">Students. Column headers sort the table.</caption>
             <thead><tr>{COLS.map(([k, l, c = '']) => (
