@@ -31,7 +31,12 @@ def fingerprint():
 
 def ready():
     try:
-        if STATE.is_symlink() or STAMP.is_symlink() or (ROOT / "web/node_modules").is_symlink():
+        if (
+            STATE.is_symlink()
+            or STAMP.is_symlink()
+            or (STATE / "venv").is_symlink()
+            or (ROOT / "web/node_modules").is_symlink()
+        ):
             return False
         return (
             json.loads(STAMP.read_text()) == fingerprint()
@@ -80,12 +85,16 @@ def install():
         raise RuntimeError("Existing node_modules has no bootstrap stamp; preserve it and use manual setup.")
     if (ROOT / "web/node_modules").is_symlink():
         raise RuntimeError("Refusing to replace shared node_modules symlink.")
+    if (STATE / "venv").is_symlink():
+        raise RuntimeError("Refusing to repair a shared virtual environment symlink.")
     STATE.mkdir(mode=0o700, exist_ok=True)
     target = fingerprint()
     # Invalidate even a previous successful stamp before any repair mutations.
     write_stamp({})
     if not PYTHON.exists():
-        subprocess.run(["uv", "venv", "--python", "3.12", str(STATE / "venv")], cwd=ROOT, check=True)
+        subprocess.run(
+            ["uv", "venv", "--python", "3.12", "--allow-existing", str(STATE / "venv")], cwd=ROOT, check=True
+        )
     subprocess.run(
         ["uv", "pip", "sync", "--python", str(PYTHON), "--require-hashes", "requirements.lock"], cwd=ROOT, check=True
     )

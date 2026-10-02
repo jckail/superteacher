@@ -283,3 +283,43 @@ def test_signal_during_server_spawn_still_cleans_owned_child(monkeypatch):
     monkeypatch.setattr(dev, "stop", stop)
     assert dev.serve() == 0
     stop.assert_called_once_with([child])
+
+
+def test_interrupted_venv_is_resumed_without_removing_files(checkout, monkeypatch):
+    venv = dev.STATE / "venv"
+    venv.mkdir(parents=True)
+    marker = venv / "preserve-existing-file"
+    marker.write_text("keep")
+    dev.write_stamp({})
+
+    def fake_install(command, **kwargs):
+        if command[:2] == ["uv", "venv"]:
+            # Model uv's documented refusal of an existing target by default.
+            if "--allow-existing" not in command:
+                raise subprocess.CalledProcessError(2, command)
+            dev.PYTHON.parent.mkdir(parents=True, exist_ok=True)
+            dev.PYTHON.touch()
+        if command == ["npm", "ci"]:
+            vite = checkout / "web/node_modules/.bin/vite"
+            vite.parent.mkdir(parents=True)
+            vite.touch()
+
+    monkeypatch.setattr(dev.subprocess, "run", fake_install)
+    dev.install()
+    assert marker.read_text() == "keep"
+    assert dev.ready()
+
+
+def test_partial_venv_symlink_is_never_repaired(checkout, monkeypatch):
+    dev.STATE.mkdir()
+    dev.write_stamp({})
+    target = checkout / "shared-venv"
+    target.mkdir()
+    (target / "keep").write_text("preserve")
+    (dev.STATE / "venv").symlink_to(target)
+    run = Mock()
+    monkeypatch.setattr(dev.subprocess, "run", run)
+    with pytest.raises(RuntimeError, match="symlink"):
+        dev.install()
+    run.assert_not_called()
+    assert (target / "keep").read_text() == "preserve"
