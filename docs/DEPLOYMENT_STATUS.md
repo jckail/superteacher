@@ -17,7 +17,12 @@ and UI; read-only checks of the converted database show all 30 unknown and zero
 foreign-owner rows. See [LEGACY_IMPORT_PLAN.md](LEGACY_IMPORT_PLAN.md) for hashes
 and limitations. Source `79ee831` preserves the displayed report section when
 opening unknown roster records; 11 focused UI tests and independent re-review
-passed. Final integrated CI and the new serving image remain pending.
+passed. Initial integrated [CI36986440202](https://github.com/jckail/superteacher/actions/runs/36986440202)
+passed lint and both browser suites (4 and 82 cases), but found prompt-boundary
+shape failures and an asynchronous calendar-test assertion. Source `91b3662`
+corrects both: 165 focused security/risk/context tests and four calendar tests
+passed without weakening assertions. Corrected exact-head CI and a new serving
+image remain pending.
 
 Remaining authentication work is saved in
 [passcode_session_revocation.md](plans/passcode_session_revocation.md). Other

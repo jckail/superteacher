@@ -195,8 +195,12 @@ Bundle SHA256: `133213d35e07aa5e9d5658b80b6d213eb2ea92dba0fce5a15cf07e4ba08fc3c9
 Private local bundle:
 `/home/jkail/.local/share/superteacher-backups/legacy-import-rehearsal-wzx1pde3/native-roster-bundle.zip`.
 Private independent proof: `/tmp/st-legacy-import-rehearsal-proof.json`. The
-original archive already has a verified private versioned GCS roundtrip, described
-in LEGACY_CUTOVER.md. The converted bundle has not yet been uploaded.
+original archive has a verified private versioned GCS roundtrip, described
+in LEGACY_CUTOVER.md. The converted bundle also passed a no-overwrite upload
+and byte-hash roundtrip in the same bucket, with public-access prevention,
+uniform bucket-level access, versioning and no public IAM principals verified.
+Bundle URI: `gs://portfolio-383615-superteacher-litestream/legacy-import-bundles/native-roster-8291cae-133213d35e07aa5e.zip`;
+generation `1790931240579136`.
 
 The capture remains non-atomic, historical event evidence remains unavailable,
 and synthetic rehearsal ownership is not a production ownership decision. A
