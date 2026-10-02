@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { CHAT_STORE } from '../api';
 
 const SUGGESTIONS = [
   'Who needs my attention this week?',
@@ -7,7 +8,7 @@ const SUGGESTIONS = [
   'Summarize attendance concerns',
   'Suggest a small-group plan for struggling students',
 ];
-const STORE = 'st-chat';
+const STORE = CHAT_STORE;
 const SAFE_URL = /^(https?:|mailto:)/i;
 
 const loadHistory = () => {
