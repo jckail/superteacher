@@ -132,20 +132,34 @@ explicit runtime version. Existing auth/session/AI secrets should be reused by
 reviewed version, rather than recreated.
 
 ```bash
-gcloud builds submit --project=PROJECT --config=cloudbuild.yaml
-# Stage only: creates no deployment health-check instance and does not promote traffic.
-PROJECT=PROJECT SERVICE=superteacher RUNTIME_SERVICE_ACCOUNT=VERIFIED_ACCOUNT \
-  SCHOOL_TIMEZONE=UTC scripts/deploy_cloud_run.sh FULL_SOURCE_COMMIT
+/home/jkail/.local/bin/agent-heavy-check -- gcloud builds submit --project=PROJECT --config=cloudbuild.yaml
+# Use a fresh isolated prefix after confirming it has no existing writer.
+PROJECT=PROJECT SERVICE=superteacher-overhaul-staging \
+  REPLICA_PREFIX=overhaul-staging/FRESH_RELEASE_ID ISOLATED_CANDIDATE_CONFIRMED=yes \
+  RUNTIME_SERVICE_ACCOUNT=VERIFIED_ACCOUNT SCHOOL_TIMEZONE=UTC \
+  /home/jkail/.local/bin/agent-heavy-check -- scripts/deploy_cloud_run.sh FULL_SOURCE_COMMIT
 ```
 
-The script defaults to stage-only: `--no-traffic --no-deploy-health-check`, minimum
-zero, maximum one, explicit runtime identity, pinned secret versions, and
-`LITESTREAM_REPLICA_URL=gs://PROJECT-superteacher-litestream/SERVICE`. Override
-`REPLICA_PREFIX` only deliberately. A candidate using the live prefix must remain
-uninvoked until the previous writer has drained; opening a tagged URL can start
-another writer. Test a separate staging service with an isolated prefix first.
-Cloud Run's default deployment health check also starts a container despite
-`--no-traffic`, which is why both flags are required.
+The script requires explicit `SERVICE` and `REPLICA_PREFIX`; there is no production
+service or storage-prefix default. Only `SERVICE=superteacher-overhaul-staging`
+with a nonempty `overhaul-staging/...` prefix and
+`ISOLATED_CANDIDATE_CONFIRMED=yes` may stage without drain evidence. That
+acknowledgment attests operator verification of **fresh, nonshared storage with no
+existing writer**, including the isolated service's own revisions. Being separate
+from production is insufficient: reusing an old staging prefix can still fork
+writers. The script validates the name/prefix/acknowledgment; it cannot discover
+every replica user or prove storage freshness. Confirm those facts before invoking
+the helper. Prefixes cannot contain empty or dot segments.
+
+Every other staging operation requires the same observed drain acknowledgment as
+promotion. The helper checks the recorded revision against the single revision
+at 100% traffic before building, then rechecks immediately before deployment; a
+changed revision aborts without deploying. Its `--no-traffic` and
+`--no-deploy-health-check`, minimum zero and maximum one avoid the default
+deployment health-check startup but do not prevent later invocation from starting
+a writer. A tagged URL can launch Litestream restore/replicate before application
+startup checks. Those flags and a revision maximum of one never establish a
+single-writer handoff.
 
 Before promotion, preserve a consistent snapshot, rehearse migrations on a copy,
 stop new writes, close existing WebSockets, and observe the old writer drain and
@@ -154,18 +168,28 @@ across rollout. The script requires the release operator's explicit precondition
 it does not manufacture drain evidence:
 
 ```bash
-PROJECT=PROJECT SERVICE=superteacher \
+PROJECT=PROJECT SERVICE=superteacher REPLICA_PREFIX=superteacher \
+  RUNTIME_SERVICE_ACCOUNT=VERIFIED_ACCOUNT \
   DRAINED_WRITER_CONFIRMED=yes DRAINED_WRITER_REVISION=OBSERVED_OLD_REVISION \
-  scripts/deploy_cloud_run.sh --promote NAMED_CANDIDATE_REVISION
+  /home/jkail/.local/bin/agent-heavy-check -- scripts/deploy_cloud_run.sh FULL_SOURCE_COMMIT
+# Recheck drain evidence before the separate promotion operation.
+PROJECT=PROJECT SERVICE=superteacher REPLICA_PREFIX=superteacher \
+  DRAINED_WRITER_CONFIRMED=yes DRAINED_WRITER_REVISION=OBSERVED_OLD_REVISION \
+  /home/jkail/.local/bin/agent-heavy-check -- scripts/deploy_cloud_run.sh --promote NAMED_CANDIDATE_REVISION
 ```
 
 Promotion checks the recorded previous revision still receives 100% traffic,
-then moves traffic to the named candidate. Verify health, expected version,
+then privately inspects the candidate revision's environment. Exactly one literal
+`LITESTREAM_REPLICA_URL` must equal the explicitly supplied `gs://BUCKET/REPLICA_PREFIX`;
+missing, duplicate, referenced or mismatched values abort before traffic changes.
+Revision environment values are never printed. It then moves traffic to the named
+candidate. Verify health, expected version,
 protected 401 responses, authenticated workflows and persistence immediately.
 It never automatically shifts back after a failed check: drain the candidate
-writer and confirm database schema compatibility before rollback. The current
-old image knows only migration `0001`; a database upgraded to `0002` needs a
-compatible rollback image or a separate recovery replica.
+writer and confirm database schema compatibility before rollback. Verify the
+actual deployed migration head against the rollback image; an older schema image
+may require a separate recovery replica. In WSL, run the whole helper through
+`agent-heavy-check` once, as above; do not nest another wrapper inside it.
 
 ### Durable data on Cloud Run
 

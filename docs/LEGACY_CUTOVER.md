@@ -82,6 +82,14 @@ metadata, per-response hashes, and consistency limits. Its SHA-256 is
 Do not print row contents or upload the archive to memory, repository, or public
 artifacts. Preservation is an API archive, not a verified live-database backup.
 
+The same artifact was uploaded without overwrite to the existing private bucket:
+`gs://portfolio-383615-superteacher-litestream/legacy-api-archives/legacy-api-20261002T061522.617300Z-dbeb3a3b.json`,
+generation `1790923378677162`. An independent downloaded-byte SHA256 matched the
+local hash above. Bucket inspection confirmed enforced public-access prevention,
+uniform bucket-level access and object versioning, with no public principals.
+This supplies durable private archive preservation; it does not make the capture
+atomic or establish that all legacy instances held the same data.
+
 HTTP snapshots are neither transactional nor guaranteed to come from the same
 container. Legacy instance-local storage and scaling permit divergent copies;
 freezing writes and identifying the authoritative instance/dataset are separate

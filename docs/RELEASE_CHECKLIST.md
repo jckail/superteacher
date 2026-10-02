@@ -1,6 +1,22 @@
 # Release verification checklist
 
-Audit date: 2026-10-01. Scope: the native checkout at `/home/jkail/projects/superteacher`, excluding `.superdesign`. This file records observed source and root-agent check results; it does not assert that a published candidate or deployment has passed.
+Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/superteacher`, excluding `.superdesign`. Current release evidence is below; older iteration checks remain historical. Production custom-domain cutover has not happened.
+
+## Current release checkpoint
+
+PR15 merged source7166813 into main8ceb050. Subsequent main9de97ce passed
+[CI36974717368](https://github.com/jckail/superteacher/actions/runs/36974717368):
+all six required jobs plus informational benchmark, **976 API tests, one known
+legacy-passcode logout xfail**. Source7166813 has an immutable built image,
+isolated authenticated/synthetic staging verification and a successful independent
+replica restore. Exact image, revision and limits are in
+[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The latest9de97ce image build
+stopped at shared verification-lock exit75 before any cloud build began.
+
+Still required: successful corrected-helper adoption on a private restored
+production copy, faithful legacy data preservation/import, authoritative dataset,
+compatible rollback, observed final writer drain and public-domain acceptance.
+See [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md) and the drain protocol below.
 
 ## Current evidence
 
@@ -28,10 +44,11 @@ The current workflow triggers on pushes to `main` and on pull requests. A releas
 
 Root will push the release branch and open a PR to start broad GitHub CI while the native shared verification lock is occupied. After merging newer origin/main source, preserve these release guards and use CI for the final merged candidate. Record the immutable release commit, PR URL, workflow run URL and successful job conclusions below before deploying its image. A run for a different commit does not satisfy this gate.
 
-- Release commit: pending
-- Pull request: pending
-- CI run: pending
-- Image digest: pending
+- Latest verified source: `9de97ceec2f5d0ec6ce7b03e1eda99fa6660826b`
+- Pull request: [PR15, merged](https://github.com/jckail/superteacher/pull/15)
+- Latest CI: [36974717368, all gates passed](https://github.com/jckail/superteacher/actions/runs/36974717368)
+- Staged source7166813 image: `sha256:5d3c85dfb754bf5382ca7f196d86b108d878c2a85ccf2425702d22b0df7bcde6`
+- Latest9de97ce image: blocked before build; not deployed.
 
 | Required CI job | Actual configured gate | Proof still needed |
 | --- | --- | --- |
@@ -44,12 +61,12 @@ Root will push the release branch and open a PR to start broad GitHub CI while t
 
 ## Gates CI does not establish
 
-- [ ] Obtain an authenticated smoke result for the actual candidate image/deployment: public healthy response, protected API 401 before login, successful login and authenticated overview, served SPA, expected `/api/version`, and logout/session behavior. `deployment_tests.py` provides part of this check but is not invoked by the current Docker job.
+- [x] Source7166813 isolated candidate passed public health/readiness, protected401, actual login, overview/calendar/version/SPA/logout and synthetic write/transfer-history checks. This does not satisfy production custom-domain acceptance or checks for a later image.
 - [ ] If full API/browser workflows against PostgreSQL are required, run or add that acceptance gate. The generic pytest fixtures use in-memory SQLite; the browser harness explicitly uses disposable SQLite. The two PostgreSQL integration tests do not prove the full application workflow on PostgreSQL or a Cloud SQL Unix socket.
-- [ ] Verify the approved persistence branch: PostgreSQL/Cloud SQL when selected, or the accepted Litestream pilot from ADR 0001 with a validated isolated restore path. Verify migration head `0002`, school timezone and secret/replica access. Prove persistence across a candidate revision/restart through an authorized procedure.
+- [x] Accepted Litestream pilot: isolated restore passed integrity/FKs/native head `0003` and exact synthetic transfer/grade receipt checks. Production restart, zero-loss RPO and final production schema adoption remain unproven.
 - [ ] Complete the data-preservation and restore prerequisites in [RELEASE_PLAN.md](RELEASE_PLAN.md) and [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md) before replacing a serving revision. The older inventory has been superseded: a ce94d50 image now uses a Litestream replica. Existence of replica objects alone does not prove recovery or a safe single-writer handoff; recheck current configuration before acting.
 - [ ] Record the intended target explicitly. The observed custom domains map to `edutrack`, while `superteacher` is a separate service. A deployment to `superteacher` alone does not update those domains. Record prior revision/rollback procedure and validate the selected route after cutover.
-- [ ] Review identity/data-retention prerequisites from [RELEASE_PLAN.md](RELEASE_PLAN.md). Current authentication grants a shared dataset through one passcode; CI does not validate a multi-teacher identity policy.
+- [ ] Review identity/data-retention prerequisites from [RELEASE_PLAN.md](RELEASE_PLAN.md). Source includes email accounts, server-revocable sessions and tenant-scoped records with negative authorization tests; deployed staging uses the existing passcode policy. Production email enablement/owner/sender configuration remains separate operator information.
 
 Source references: `.github/workflows/ci.yml`, `Dockerfile`, ignore files, `cloudbuild.yaml`, `web/package.json`, `web/index.html`, `web/tsconfig.json`, `web/vite.config.ts`, `web/playwright.config.ts`, `scripts/e2e_server.py`, `tests/conftest.py`, `tests/test_postgres.py`, `tests/test_course_creation.py`, `superteacher/calendar.py`, `superteacher/schemas.py`, `superteacher/routers/roster.py`, `web/src/pages/Roster.tsx`, and the deployment/calendar/backup documents linked above.
 

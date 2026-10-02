@@ -1,10 +1,30 @@
 # Deployment status and execution handoff
 
-Observed 2026-10-02 04:50 UTC (2026-10-01 Pacific). Deployment is authorized by
-the user; this pass prepared the release through read-only cloud metadata and
-public health/version/schema inspection. It did not deploy, retrieve secret
-payloads or database contents, send email, or change traffic/resources. The root
-agent owns release execution and verification.
+Updated 2026-10-02. Deployment is authorized. Root owns release execution and
+verification. The native overhaul is merged and isolated staging is deployed;
+production service traffic and custom-domain mappings remain unchanged. Private
+backup artifacts stay outside Git and hosted project memory.
+
+## Current checkpoint and next action
+
+Main source `9de97ce` passed every gate in
+[CI36974717368](https://github.com/jckail/superteacher/actions/runs/36974717368),
+including **976 API tests and one known legacy-passcode logout xfail**. The change
+adds exact pinned Litestream bookkeeping validation to the offline accounts
+adoption helper. It does not change teacher-facing routes or frontend behavior.
+
+The protected image build for this source stopped with exit75 at the shared
+verification lock before any Cloud Build command/archive/image began. Log:
+`/tmp/st-cloud-build-9de97ce.log`. Do not repeatedly queue the unchanged attempt
+or bypass the lock. The deployed staging image below remains source `7166813`.
+The corrected helper still needs an immutable image and a successful rehearsal
+on a private production-restored copy before a live accounts-schema adoption.
+
+The legacy API archive is preserved locally and in private versioned GCS with
+verified SHA256 roundtrip; see [LEGACY_CUTOVER.md](LEGACY_CUTOVER.md). It is a
+non-atomic API archive, not a consistent database backup. Preserve the existing
+legacy data during the overhaul. Faithful import, dataset authority, compatible
+rollback, final writer drain and domain cutover remain open.
 
 ## Verified native staging release
 
@@ -52,8 +72,9 @@ The bridge now reconstructs and validates the exact two-table DDL from pinned
 Litestream0.5.17 in both independent expected schemas and preserves every internal
 row. Missing pairs, extra columns/indexes/triggers and DDL drift remain rejected.
 Twenty focused adoption tests passed, including real pinned local replication,
-standalone backup and adoption. Fresh exact-head CI/image and production-copy
-rehearsal remain required before using this fix for promotion.
+standalone backup and adoption. Exact-head CI subsequently passed (976 API
+tests); an image and production-copy rehearsal remain required before using
+this fix for promotion.
 
 Public recheck after staging: www.the-super-teacher.com reports `v0.1.0`;
 the existing direct superteacher service reports `dae26a5`, revision00006-cjv at
@@ -76,11 +97,10 @@ startup refuses that ambiguous history. Validate a consistent backup/clone with
 an explicit schema adoption bridge before promoting against the existing prefix.
 An isolated empty-prefix candidate can validate the new chain independently.
 
-The protected native Cloud Build attempt exited 75 waiting for the shared heavy
-lock, before any cloud command, archive, build or deployment began. No integrated
-image has been deployed. Exact-commit CI and an isolated candidate with synthetic
-CRUD and restore verification remain required. Avoid overlapping the independent
-persist deployment session or changing its processes.
+An earlier protected build attempt also stopped at the shared heavy lock; the
+later source7166813 image and isolated deployment succeeded as recorded above.
+The latest source9de97ce image attempt is blocked at that lock. Avoid overlapping
+the independent persist deployment session or changing its processes.
 
 ## Historical targets (04:50 UTC)
 
@@ -152,7 +172,7 @@ explicit validated replication branch. Keep demo seeding disabled.
 
    ```bash
    task_release_sha=$(git rev-parse HEAD)
-   gcloud builds submit --project=portfolio-383615 \
+   /home/jkail/.local/bin/agent-heavy-check -- gcloud builds submit --project=portfolio-383615 \
      --tag="gcr.io/portfolio-383615/superteacher:${task_release_sha}" .
    ```
 
@@ -178,15 +198,18 @@ explicit validated replication branch. Keep demo seeding disabled.
    timestamp, schema version, row counts and integrity outcomes without student
    contents. Rehearse the new migration on that copy. Preserve the original
    replica and restore point throughout the recovery window.
-5. The merged `scripts/deploy_cloud_run.sh` now stages by default and requires
-   explicit operator drain evidence for its separate `--promote` command. The
-   incoming script claimed `--no-traffic` starts no instance; that is false
-   with the default deployment health check: local CLI help says the
-   check schedules an instance. The app also writes startup migrations.
-   For the production replica, stage with BOTH `--no-traffic` and
-   `--no-deploy-health-check`, minimum zero, no tagged URL requests, and no
-   production health probes until promotion. Use the independently verified
-   staging service for pre-promotion checks.
+5. `scripts/deploy_cloud_run.sh` requires an explicit service and replica prefix.
+   Undrained staging is restricted to the named isolated candidate service,
+   isolated prefix and operator isolation acknowledgment. Every shared-prefix
+   stage and every promotion requires observed writer-drain evidence. The
+   helper checks the recorded serving revision before building and again before
+   deploying a shared-prefix candidate. Deployment flags do not suppress
+   Litestream restore/replication when a candidate is later invoked. Confirm
+   that no other revision writes the selected prefix, including old staging
+   revisions. Promotion privately verifies the candidate has exactly one literal
+   replica URL matching the supplied bucket/prefix before changing traffic.
+   Use the independently verified isolated service for checks. Isolation and
+   final drain remain observed operator evidence, not facts this helper proves.
 6. Establish a maintenance/quiesce interval that stops new writes and closes
    existing chat sessions; verify the old writer has drained and final replica
    sync completed before starting the new writer. Traffic movement alone does
@@ -213,12 +236,13 @@ explains revision overlap during deployment.
 
 ## Legacy export and remaining evidence
 
-Legacy public OpenAPI metadata lists `/api/db/classes`, class sections/students,
+The initial read-only inspection found that legacy public OpenAPI metadata lists `/api/db/classes`, class sections/students,
 `/api/db/students/{student_id}` and student grades. It exposes no backup/export
 route. A reviewed export must traverse those read endpoints into private
 storage, preserve IDs/schema/grades, and check consistency while writes are
 quiesced; alternatively capture its actual underlying storage using its own
-supported administrative path. No private endpoint was called here. Historical
+supported administrative path. A later authorized API archive is now retained
+privately, with limits and durable-copy evidence in `LEGACY_CUTOVER.md`. Historical
 ADR log observations suggest sample-data initialization, but they do not prove
 the current service has no records worth preserving. Do not delete/restart it
 based solely on that assertion. Its old image availability must also be checked
@@ -228,8 +252,9 @@ Litestream restore of the live prefix into a restricted **new local file** is
 the current Superteacher export path. Run the pinned Litestream tool with a
 read-authorized identity; never restore over the live file, launch a writer on
 the source replica, print records, or upload them into task notes. Save the
-snapshot outside the repository. Its restore rehearsal and release evidence
-remain to be executed by the verification owner.
+snapshot outside the repository. The schema-only production-copy diagnostic
+succeeded; actual adoption using the corrected helper still needs its own
+successful rehearsal. Isolated staging restoration is already verified above.
 
 ## Cost and optional PostgreSQL preview
 
