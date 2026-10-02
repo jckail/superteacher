@@ -25,6 +25,7 @@ export default function AccountMenu() {
   }, [open]);
 
   const exportData = async () => {
+    root.current?.querySelector('button')?.focus();
     setOpen(false);
     try { await downloadFile('/account/export', 'super-teacher-export.json'); toast.success('Export downloaded'); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Export failed'); }
