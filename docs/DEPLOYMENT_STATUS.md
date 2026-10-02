@@ -15,7 +15,17 @@ formats guard reads and writes, and conditional SQL prevents stale refresh races
 A real database/fake-provider test proves active-chat cancellation and capacity
 release. Legacy v1 cookies require one new sign-in after deployment. No migration,
 real provider call, production configuration or serving image change occurred.
-Final exact-head CI and a new image are pending. See
+Exact-head [CI36989700391](https://github.com/jckail/superteacher/actions/runs/36989700391)
+passed every required gate and the informational benchmark at `881a2af`: 1113
+API tests with no remaining logout xfail, 119 web tests, 4 browser tests, 82 E2E
+tests, strict types/lint, frontend build and Docker build/auth smoke. The protected
+new-source image build stopped with shared-lock exit75 before Cloud Build began;
+log `/tmp/st-release-881a2af-build.log`. Do not retry unchanged or bypass the lock.
+The Git archive context hash is
+`600f37451344560c3419e1674c50f6ced98f1fb0c350b3d14eae9a839f0483b2`.
+At 09:31:52 UTC, fresh metadata confirmed native `superteacher-00006-cjv`,
+staging `00001-7kx`, and legacy `edutrack-00018-t58` still Ready at 100% of
+each service. No new serving image or deployment occurred. See
 [passcode_session_revocation.md](plans/passcode_session_revocation.md).
 
 Offline legacy roster conversion is implemented at `8291cae`, with 54 focused
@@ -49,10 +59,12 @@ showed native `superteacher-00006-cjv`, staging `00001-7kx`, and legacy
 `edutrack-00018-t58` each still Ready at 100% of its respective service.
 No deployment or traffic mutation occurred.
 
-The implemented authentication change still needs broad CI and deployment. Other
+The implemented authentication change still needs a new serving image and
+deployment. Other
 original-scope work remains: [historical archival access](plans/legacy_archive_access.md),
 grading policies/terms,
-API pagination/large exports, dedicated least-privilege runtime identity, broader
+[API pagination/large exports](plans/roster_pagination_exports.md), dedicated
+least-privilege runtime identity, broader
 PostgreSQL workflows and real-provider AI evaluation. The full overhaul is active.
 
 Main source `5113de8` passed every gate in

@@ -4,6 +4,18 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+Source `881a2af` passed all gates in
+[CI36989700391](https://github.com/jckail/superteacher/actions/runs/36989700391):
+1113 API tests with the copied-cookie logout regression passing, 119 web tests,
+4 browser tests, 82 E2E tests, strict types/lint, frontend build and Docker
+build/auth smoke. Server-revocable passcode sessions are independently reviewed;
+no migration is needed, and v1 cookies require one new sign-in after release.
+The new-source protected image build stopped at shared-lock exit75 before Cloud
+Build began; log /tmp/st-release-881a2af-build.log. No new serving image or
+production/staging deployment occurred; do not retry unchanged or bypass the lock.
+
+Earlier integrated release evidence follows:
+
 Source `c2812f4` passed all gates in
 [CI36987004974](https://github.com/jckail/superteacher/actions/runs/36987004974):
 1081 API tests and one known passcode-logout xfail, 119 web tests, 4 browser tests,
@@ -14,7 +26,7 @@ events). All converted students truthfully derive unknown risk. The source and
 converted bundle have verified private GCS hash roundtrips. A new serving image
 build stopped at shared-lock exit75 before Cloud Build; staging remains7166813,
 production services and domain mappings were not changed. Do not retry the
-unchanged build or bypass the lock. Full overhaul remains active; auth revocation,
+unchanged build or bypass the lock. Full overhaul remains active; auth release,
 archive access, final dataset/owner decisions and production cutover are open.
 
 Earlier integrated release evidence follows:

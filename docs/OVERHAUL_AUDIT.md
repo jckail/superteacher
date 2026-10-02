@@ -359,3 +359,39 @@ recoverable rollback, final writer drain and domain acceptance remain open,
 alongside grading policies/terms, pagination/exports, dedicated runtime identity,
 broader PostgreSQL and real-provider AI evaluation. The original full overhaul
 goal stays active and has not been reduced to these completed milestones.
+
+## Verified continuation checkpoint: passcode server revocation
+
+Reviewed source `583cfc0` is pushed in `881a2af`;
+[CI36989700391](https://github.com/jckail/superteacher/actions/runs/36989700391)
+passed every release gate: 1113 API tests, 119 web tests, 4 browser tests, 82 E2E
+tests, types/lint, frontend build and Docker auth smoke. The former copied-cookie
+logout xfail now passes. Strict v2 signed cookies need a matching live owner-owned
+full-cookie-hash row; accounts opaque-cookie guards apply to reads and revocation
+writes. Atomic passcode rotation preserves earlier sessions after DB insertion or
+commit failure. Conditional monotonic SQL avoids three reproduced independent-
+connection refresh/logout/expiry races.
+
+153 focused cases and fresh independent spec/quality review passed. Real database
+logout with real chat and a fake provider proves stream/client cleanup and capacity
+release on the original portal. Polling/reset do not refresh idle lifetime;
+expiry, disabling and logout close sockets with 1008. No migrations, settings or
+real provider calls were added. Accounts login keeps its prior transaction policy;
+passcode login purges only owner rows past database absolute expiry, preserving
+adopted-owner accounts idle policy. V1 cookies need one new sign-in on release.
+
+The protected `881a2af` build stopped with exit75 before Cloud Build; log
+`/tmp/st-release-881a2af-build.log`. No new image, deployment or traffic mutation
+occurred. Fresh service metadata at 09:31:52 UTC confirmed the native, staging
+and legacy serving revisions remain Ready at 100% of their respective services.
+Final shared Graphify refresh passed (164478 nodes); native coverage is still
+absent, so source conclusions use inspected live code.
+
+The full goal remains active. Pagination/exports are planned in
+`docs/plans/roster_pagination_exports.md`: an additive cursor API first, explicit
+Unicode/order and derived-scan boundaries, then client and export migrations.
+This is planning evidence, not an implemented performance result. Historical
+access remains planned separately from auth release. Preservation and ownership of both native and legacy
+datasets, final freeze, compatible rollback, writer drain, domain acceptance,
+grading terms, dedicated runtime identity, broader PostgreSQL workflows and
+real-provider AI evaluation remain open.
