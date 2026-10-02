@@ -42,7 +42,10 @@ a:hover { text-decoration: underline; }
 .sidebar .spacer { flex: 1; }
 .main { min-width: 0; padding: 24px clamp(16px, 3vw, 40px) 80px; }
 .topbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 22px; }
-.topbar .scope { display: flex; gap: 8px; flex-wrap: wrap; }
+.topbar > .row { min-width: 0; max-width: 100%; }
+.topbar .scope { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+/* Native selects size to their longest option unless their flex containers are bounded. */
+.topbar .scope .input.compact { min-width: 0; max-width: 100%; }
 .page-sub { color: var(--muted); margin-top: 4px; }
 
 /* primitives */
