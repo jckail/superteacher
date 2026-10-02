@@ -4,6 +4,13 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+New reviewed source through `c95d9f9` adds roster API/client pagination and
+CSV/account JSON streaming. Root focused verification: 67 pagination/CSV,
+12 account stream, two CORS and 50 frontend/session cases passed. Two new
+PostgreSQL integration cases skipped locally; real CI execution is required.
+Broad exact-head CI and a new image/deployment are pending. The last complete
+release evidence follows; it does not verify the new source.
+
 Source `881a2af` passed all gates in
 [CI36989700391](https://github.com/jckail/superteacher/actions/runs/36989700391):
 1113 API tests with the copied-cookie logout regression passing, 119 web tests,

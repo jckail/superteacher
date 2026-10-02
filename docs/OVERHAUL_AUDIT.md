@@ -10,6 +10,15 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
+Current feature milestone through `c95d9f9`: independently reviewed roster API
+and client pagination, CSV streaming and account JSON streaming. Root verified
+67 pagination/CSV, 12 account-stream, two CORS and 50 frontend/session focused
+cases. Two added PostgreSQL cases require the real CI service and skipped locally.
+Full history scans/CPU, assessment width, single large records and browser blob
+buffering remain distinct from bounded ranking/output/fetch batches. Broad
+exact-head verification and a new serving image remain pending; the deployment
+ledger separates these facts from the last fully verified main release.
+
 These statements describe inspected source, not a claim that every current check passes or that the public host serves this code.
 
 | Area | Current source evidence | Verification boundary |

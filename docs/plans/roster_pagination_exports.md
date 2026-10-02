@@ -229,14 +229,14 @@ if a real existing requirement/path appears, rather than add a PDF feature here.
 
 ## Execution checkpoint (2026-10-02)
 
-The additive backend is implemented locally: 47 new pagination cases and 110
-existing focused cases pass, with independent spec/quality approval. Follow-up
-acceptance is adding varied metric/section ordering and changed-metric live reads.
-CSV streaming is implemented locally: eight streaming cases and earlier 28
-streaming/legacy report cases pass. Independent review reproduced cancellation
-during an active synchronous fetch racing generator closure; the implementation
-is being corrected and will receive scoped re-review before publication. These
-are local focused results, not broad CI or deployed behavior.
+The additive backend is committed as `4ad8c5b`, with independent spec/quality
+approval. Acceptance includes varied metric/section ordering and changed-metric
+live reads; 110 existing focused regression cases also passed.
+CSV streaming is implemented and independently approved after fixes for active
+synchronous iteration, repeated cancellation and a terminal cancelled cleanup
+task. The response joins serialized cleanup before exiting. Root ran the combined
+pagination/CSV acceptance suite: 67 passed, including 56 pagination and 11 CSV
+cases. These are local focused results, not broad CI or deployed behavior.
 
 Client navigation decision: migrate the roster to Previous/Next with a transient
 in-memory cursor stack. Preserve scope/filter/sort URLs; normalize a legacy
@@ -247,6 +247,15 @@ and scope/filter/order changes, abort superseded requests, and retain only the
 active page data rather than every downloaded page. This deliberately changes
 numbered-page deep-link behavior; existing student links and filter URLs remain.
 
-Client implementation, account JSON streaming, other full HTTP representations,
-broader integration and deployment remain outstanding. Pagination alone does not
-finish large-export memory or remove full metric/history scan costs.
+Client migration (`9504fc1`) and account JSON streaming (`464136a`) are now
+implemented and independently approved. Root's post-fix frontend/session focused
+run passed 50 tests; account-stream acceptance passed 12. Integrated review
+identified the CORS cursor header omission; `c95d9f9` corrects it, with two focused
+origin/session regressions passing. It also adds two PostgreSQL cases for real
+server cursors, cross-batch reads and owned historical export data. They skipped
+locally without a test database URL; CI must supply that evidence.
+
+Broad exact-head CI, a new image/deployment, the report picker and other complete
+HTTP representations remain outstanding. No full metric/history CPU or global
+memory bound, snapshot, browser streaming download or latency guarantee is
+claimed by these changes.

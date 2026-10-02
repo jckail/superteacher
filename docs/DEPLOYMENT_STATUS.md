@@ -7,6 +7,27 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source through `c95d9f9` implements roster pagination (`4ad8c5b`), CSV streaming
+(`5890342`), account JSON streaming (`464136a`), and the roster client
+(`9504fc1`), with independent task and integrated source review approval. Root's
+focused verification passed 67 pagination/CSV cases, 12 account-stream cases,
+two CORS cases and 50 frontend/session cases. The last source commit adds the
+cursor header to the explicit CORS allowlist and two PostgreSQL acceptance cases;
+those database cases skipped locally because no test URL is configured and must
+execute in CI. Broad exact-head CI, a new image and deployment remain pending.
+
+The roster loads 50 rows on demand and preserves filter/sort URLs. Previous/Next
+uses transient header cursors; numbered links restart at the first page with a
+notice. Ranking/output bounds do not remove full metric/history scans. CSV
+assessment width and account single-record values still scale allocations;
+browser blob downloads remain buffered. Streams join cleanup before response
+exit, including repeated cancellation. Live reads are not database snapshots.
+See [roster_pagination_exports.md](plans/roster_pagination_exports.md).
+
+Linear/Obsidian integrations are unavailable in this session, and Agent Hub does
+not recognize this repository scope; Git documents and local task ledgers retain
+the verified handoff without inventing an external issue or uploading private data.
+
 Source `583cfc0` implements server-revocable passcode sessions using the existing
 session table, with independent spec/quality review approval and 153 focused
 auth/accounts/WebSocket cases passing. Signed v2 cookies require a live owner
