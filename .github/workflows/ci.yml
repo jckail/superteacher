@@ -83,6 +83,14 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/health)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 401
           curl -fsS localhost:8080/ | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/ready)" = 200
+          curl -fsS -c /tmp/st-ci-cookies -H 'Content-Type: application/json' -H 'X-Requested-With: ci' \
+            --data '{"password":"ci-secret"}' localhost:8080/api/auth/login
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 200
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/calendar)" = 200
+          curl -fsS -b /tmp/st-ci-cookies -c /tmp/st-ci-cookies -H 'X-Requested-With: ci' -X POST localhost:8080/api/auth/logout
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 401
+          rm -f /tmp/st-ci-cookies
           docker logs st
       - name: Refuses to start without a password
         run: |
@@ -134,3 +142,21 @@ jobs:
             e2e/playwright-report/
             e2e/test-results/
           retention-days: 7
+  bench-smoke:
+    # Non-blocking: records scale numbers (no pass/fail thresholds yet) so regressions are visible in the artifact.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: requirements-dev.txt }
+      - run: pip install -r requirements-dev.txt
+      - run: python scripts/bench.py --sizes 1000 --runs 15 --json bench-1k.json --markdown bench-1k.md
+      - run: cat bench-1k.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-1k
+          path: |
+            bench-1k.json
+            bench-1k.md

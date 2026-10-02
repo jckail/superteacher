@@ -40,7 +40,7 @@ Root will push the release branch and open a PR to start broad GitHub CI while t
 | `web` | Node 22, clean npm install, ESLint, full Vitest with two workers and production build. Build includes strict TypeScript. | Successful conclusion for release commit. |
 | `browser` | Builds UI and runs Chromium workflows against FastAPI with a temporary migrated SQLite database, test passcode and no live AI credentials; one worker. | Successful conclusion for release commit; review retained failure artifacts if failed. |
 | `e2e` | Incoming main Playwright/axe workflow suite with empty and seeded synthetic databases, one worker and retained failure artifacts; builds the migrated UI. | Successful conclusion for release commit. |
-| `docker` | Waits for all five other jobs, builds image, checks unauthenticated API 401 and SPA root, polls public health, explicitly requires final health HTTP 200, and checks startup refusal without a password. | Successful conclusion for release commit; final readiness assertion added during this audit. |
+| `docker` | Waits for all five other jobs, builds image, checks unauthenticated API 401 and SPA root, polls public health, explicitly requires final health HTTP 200, verifies readiness/login/authenticated overview/calendar/logout, and checks startup refusal without a password. | Successful conclusion for release commit; final readiness assertion added during this audit. |
 
 ## Gates CI does not establish
 
@@ -65,3 +65,5 @@ This is a proposed execution gate for the root deployment owner; the research ag
 5. Only after the writer gate passes, restore/promote the approved candidate while preserving manual scaling=0, then re-enable exactly one permitted runtime after routing references only the intended revision. Validate version, authentication and persistence. Rollback must follow the same drain gate before another revision restores/writes the live prefix; never revive an older database snapshot without reviewing post-cutover writes.
 
 For Monitoring API reads, use the `projects/portfolio-383615/timeSeries` endpoint with the filter above, a time window spanning the disable operation, and `view=FULL`. Inspect raw timestamps/state labels; no aggregation may discard idle instances. Fetch access tokens only into process memory and never print them. The preview standalone Cloud Run instance-list API is a different workload and does not enumerate service containers.
+
+Scale integration adds an informational `bench-smoke` artifact job (1,000 synthetic students,15runs). It does not substitute for correctness gates or prove production capacity. Root added authenticated Docker readiness/login/calendar/logout smoke after the first PR15 run. Initial exact-commit CI36967196648 results and diagnosed failures are recorded in OVERHAUL_AUDIT.md; final passing evidence remains pending for the replacement commit.

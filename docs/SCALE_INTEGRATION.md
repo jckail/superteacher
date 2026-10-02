@@ -2,7 +2,10 @@
 
 Read-only audit on 2026-10-01 (America/Los_Angeles). Native source baseline:
 `0344284` (`Merge security and durable persistence into TypeScript overhaul`).
-No scale feature was merged and no benchmark, provider call, build or test suite was run for this audit.
+The initial audit was read-only. Origin/main subsequently advanced to `6214af9` with PR 11
+merged externally; the current integration combines that revision with native bounded readers.
+Attendance ordering and the report lookup map are now integrated, with native-compatible tests.
+No benchmark, provider call or build was run for this audit/integration.
 Graphify has no usable native Superteacher coverage; findings were checked against live source and GitHub diffs.
 
 ## Reviewed revisions and verification evidence
@@ -98,11 +101,21 @@ all large-report workloads fit.
 
 ## Proposed verification order
 
-After PR 15 CI settles, forward-port only attendance ordering and the report lookup optimization,
+For the integrated PR 11 changes, verify attendance ordering and the report lookup optimization,
 with their adapted regressions. Run focused report chronology/scaling and transfer-history tests,
 then scoped query-plan checks on the integrated schema. Reuse existing native query-scale,
 AI-tool-scale, school-calendar and capacity tests for unchanged contracts. Run one coordinated
 full verification through `agent-heavy-check` after implementation settles. Benchmark separately
 on disposable synthetic data only if the verification owner has resources; record revision,
 calendar, dataset, query counts and peak memory. The audit provides an integration plan,
-not a passing result for unimplemented changes.
+not a production-scale benchmark of the integrated changes.
+
+## Integration validation
+
+After origin/main PR 11 integration, adapted focused report/query/transfer tests passed:
+**39 passed in 4.02s**, including 1,000-student lookup checks at 20 and 60 assessments,
+missing/future grades, transferred history, school-date cutoff and chronological attendance.
+The original plural report-scaling file retains the incoming 40-student/120-assessment
+iteration and brute-force checks; the new singular file adds the larger synthetic and
+calendar/transfer/ordering contracts. Log: `/tmp/superteacher-scale-integration-focused.log`.
+These are local focused results; a new exact-commit CI run remains required.
