@@ -5,6 +5,12 @@ verification. The native overhaul is merged and isolated staging is deployed;
 this release operator has not changed production traffic or custom-domain mappings. Private
 backup artifacts stay outside Git and hosted project memory.
 
+Latest verified source is `0bc37e5` (all seven combined CI jobs passed).
+The latest successful immutable build is source2989; the existing private
+candidate is frozen at source257 with runtime acceptance still pending.
+See [the latest integration checkpoint](#performance-budgets-integrated-2026-10-02)
+and [candidate verification](#prepared-synthetic-candidate-verifier-2026-10-02).
+
 ## Attendance report freshness follow-up (2026-10-02)
 
 Published source `257a657e2ce4c069e4c41eeb7aa60f752ebcdea6` refreshes exactly
@@ -1087,3 +1093,40 @@ changed-capacity read-only candidate admission. This is separate from the earlie
 admission75; any new refusal will be preserved without unchanged retries. Session92861 exited75 before the helper started; root verified the continuation
 intent/success/failure outputs remain absent and saved a separate private blocker.
 No cloud call or unchanged retry followed. Continuation success remains absent.
+
+
+## Performance budgets integrated (2026-10-02)
+
+The PR77 sampling finding above is resolved in exact repaired head
+`52720f2e076ed2928ad5f82083efc3a188a986ff`. CI's explicit `--fixed-runs`
+retains all15 requested timed samples despite slow probes; exploratory sweeps
+keep their adaptive behavior. Minimum samples and budget thresholds remain
+unchanged. Independent final SPEC/QUALITY review passed, root's98 focused tests
+passed in0.19s, and all seven jobs plus Bugbot succeeded in
+[CI37061706446](https://github.com/jckail/superteacher/actions/runs/37061706446).
+Root merged with the exact-head lease as
+`0bc37e532e560a04556521aaadad09955dcdfce1` and pushed the working branch.
+
+Combined-main [CI37062326832](https://github.com/jckail/superteacher/actions/runs/37062326832)
+completed all seven jobs successfully:1570 API tests in189.13s and259 Docker
+tests in33.05s, plus web/browser/E2E/lint and the newly blocking benchmark.
+Root captured authentic private metadata/full logs; CI-state SHA256 is
+`489edbac511d0ba39562f20637611eee81b6ce8c1ce335e5182ba080cfc7af58`.
+Root independently verified the calibration report's bytes/hash and limit
+formulas and replayed the actual repaired-head report:15 cases, at least15
+samples per case, every metric passing. Its SHA256 is
+`290d139625ab7cd0d3cd23fe81d6adfe4275e56a3d7b808d72729d0ba6590462`.
+See [performance guidance](PERFORMANCE.md) for scope and tolerances. These are
+synthetic-workload budgets; they do not establish production latency, memory,
+concurrency or safe overview-cache invalidation. API `no-store` remains intact.
+
+No new build or runtime acceptance is claimed for source0bc. The successful2989
+image and frozen257 private candidate retain their exact identities. PR77's clean
+merged author tree is released from root's verification reservation after combined
+CI; other recovery/active/dirty/unknown-owner reservations remain preserved.
+Current independent follow-ups are PR78 bounded operator account-list pagination
+under JCK-59 and JCK-78 Reports assessment analysis. Each requires its own final
+review and exact CI before integration. A separate proof-required frozen257
+feature verifier is being prepared; actual continuation/synthetic receipts remain
+absent after admission75, and no private feature runtime phase is authorized by
+source preparation alone.
