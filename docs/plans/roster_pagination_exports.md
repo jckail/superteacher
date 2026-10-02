@@ -272,18 +272,27 @@ the pinned staging artifact. The reviewed report picker is merged as `9dc832d`:
 selection/request/clipboard race guards and optional section preflight before
 quota/AI. Root's 85 focused frontend and 32 report backend cases passed. Its
 exact CI passed 1266 API, 183 web and four browser cases, but E2E stopped on an
-ambiguous legacy Student locator (32 passed, 50 did not run). The locator is being
-corrected without weakening assertions; Docker/build/deploy remain pending.
+ambiguous legacy Student locator (32 passed, 50 did not run). Source `4f7ba66` corrected that locator without weakening assertions and added
+distinct-ID/duplicate-name coverage. Exact CI, immutable build, staging smoke,
+independent replica restore and receipt readback passed.
 
-The next performance slice should replace the class-summary endpoint's full ORM
-history and score-matrix hydration with owner-qualified column reads and bounded
-student batches, preserving the existing pure summary as an equality reference.
-Use native metrics, exact assessment statistics and daily attendance counters.
+Source `07974de` replaces class-summary full ORM history/score-matrix hydration
+with owner-qualified column reads and bounded student/history batches, preserving
+the pure summary as an equality reference. Native metrics, exact assessment
+statistics, daily counters, ordering, future work and lifetime attendance parity
+passed focused regressions and real PostgreSQL nested-cursor acceptance. Exact CI
+passed 1294 API/no skips or xfails, 194 web, four browser and 83 E2E cases. Its
+immutable image serves isolated staging `00005-klh`; summary/cutoff, paging and
+export HTTP checks passed. Independent read-only replica restore and subsequent
+staging receipt readback passed, including integrity/FKs/head `0003` and raw
+history precision; consult the deployment ledger for exact artifact bindings.
+
 Exact medians/scalar aggregates and the complete attention response still grow
 with student count; one student's attendance history and assessment width remain
-unbounded. Review ordering, future-work and attendance semantics before source
-changes. Separate later contracts cover Overview's top-eight retention, student
-grade history, Gradebook/Attendance matrices and their mutation responses.
+unbounded. Overview's top-eight retention is the next read-only team plan; student
+grade history, Gradebook/Attendance matrices and their mutation responses require
+separate later contracts. Gradebook now labels its server cutoff and revalidates
+on forward school days; it still returns a full matrix.
 No full metric/history CPU or global
 memory bound, snapshot, browser streaming download or latency guarantee is
 claimed by these changes.

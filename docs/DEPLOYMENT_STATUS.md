@@ -7,6 +7,51 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `07974de1753012da8a91d7d315bf2598925f0e8b` is pushed to main and the
+working branch. Exact-source
+[CI37007214732](https://github.com/jckail/superteacher/actions/runs/37007214732)
+passed all gates: 1294 API tests without skips/xfails (including the new real
+PostgreSQL nested-cursor summary case), 194 web tests, four browser tests and
+83 E2E tests, lint/types/build, restricted-directory Docker/auth smoke and the
+informational benchmark. Independent backend/client reviews passed.
+
+This release adds owner-qualified class-summary column reads with bounded
+student/history batches, preserving native metrics and exact statistics. Scalar
+aggregates, exact medians, assessment width, long individual histories and the
+complete attention response still grow; no total CPU/RSS/latency bound or database
+snapshot is claimed. Gradebook captures and displays its server `as_of`, refreshes
+on validated forward school-day changes and defers to pending score writes.
+Template wording now says “earlier work” without inventing an academic term.
+Stored grading policies, terms and dated enrollment are still future work.
+
+Protected Cloud Build `1762afb6-60b9-4f5b-94f1-f06016f2c600` succeeded at
+12:42:28 UTC from an immutable Git archive (SHA256
+`778afd78ff710c8911b1841ba413ea7a2188e39a22f81698a0b8ba521d6b54bd`).
+Image: `gcr.io/portfolio-383615/superteacher@sha256:8f39a734a448ded639687501960bce4a38b20c3d86da8c016ae009909400cd2c`.
+Ready staging revision `superteacher-overhaul-staging-00005-klh` serves it at 100%,
+with full-SHA VERSION and a verified fresh replica prefix
+`overhaul-staging/07974de1753012da8a91d7d315bf2598925f0e8b-08e06248b6cb`.
+AI/demo disabled; max one instance, no minimum. Synthetic HTTP checks passed
+creation/transfer/history, summary statistics/cutoff, Gradebook cutoff/raw precision,
+scoped header continuations/counts, Unicode/BOM/CRLF CSV, historical account JSON,
+section preflight, login/logout and copied-cookie revocation. Private credentials
+and receipts stay outside Git. Recovery-only execution
+`superteacher-overhaul-recovery-07974de-xq7gr` succeeded at 12:56:40 UTC.
+The exact image/prefix restored into fresh transient SQLite and verified integrity,
+foreign keys, native head `0003`, transfer history, notes, attendance and both
+raw extra-credit values. It overrides the entrypoint and never starts a server or
+replica writer. Both structured restore proofs and subsequent staging receipt
+readback passed. This proves the staged fixtures restored, while final production
+drain and zero-loss RPO remain unproven. Fresh metadata confirms native `00006-cjv`
+and legacy `00018-t58` remain Ready at 100%; production traffic/domains are unchanged.
+
+Next: independently review the same-minor Python runtime update and Overview
+attention retention as separate next slices. Full terms/policies/enrollment,
+real-data owner/recipient authority, least-privilege runtime IAM, AI evaluation
+and final production cutover remain open. The original overhaul goal is active.
+
+### Previous verified release
+
 Source `4f7ba66bb320c4453dbe39afc9ce8246a4dc208c` is pushed to main and the
 working branch. Exact-source
 [CI37003990788](https://github.com/jckail/superteacher/actions/runs/37003990788)
@@ -22,7 +67,7 @@ Protected Cloud Build `258adca0-b0b4-43de-8a32-39e992bcad80` succeeded at
 12:05:08 UTC from an immutable Git archive (SHA256
 `9a42ccf28829c6ad31c8dfbe215227aaff21ee2d39fd78ffb365a8c61c3e7659`).
 Image: `gcr.io/portfolio-383615/superteacher@sha256:0b1cf21c796876f6aa492f5956913b78ebd61d401c044d4eb23648bb0283c301`.
-Ready staging revision `superteacher-overhaul-staging-00004-hlb` serves it at 100%,
+Staging revision `superteacher-overhaul-staging-00004-hlb` previously served it at 100%,
 with full-SHA VERSION and a verified fresh replica prefix
 `overhaul-staging/4f7ba66bb320c4453dbe39afc9ce8246a4dc208c-c7513fa2af8a`.
 AI/demo disabled; max one instance, no minimum. Synthetic creation, transfer,
@@ -40,10 +85,8 @@ RPO remain unproven.
 Fresh metadata confirms native `00006-cjv` and legacy `00018-t58` remain Ready at
 100%, with no production traffic/domain change.
 
-The next class-summary optimization is in progress in source, separately from this
-pinned artifact. Gradebook school-day refresh and truthful template wording are
-documented follow-ups. Full terms/policies/enrollment, real-data owner/recipient
-authority, runtime IAM, AI evaluation and final production cutover remain open.
+Class-summary and Gradebook cutoff follow-ups subsequently shipped in `07974de`,
+as recorded above. Broader model and production acceptance remain open.
 
 ### Earlier rejected candidate and preserved successful release
 

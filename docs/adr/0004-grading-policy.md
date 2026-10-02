@@ -161,11 +161,13 @@ period on every grade surface and in AI context. Keep global (owner-level) defau
 
 ## Current follow-ups and unresolved requirements
 
-This remains a proposal, not implemented configurability. The immediate assigned
-fixes are truthful parent-template wording (there is no academic-term model) and
-captured Gradebook `as_of` with school-day rollover revalidation. They preserve
-current formulas, raw scores and student-wide attendance; their independent
-implementation evidence belongs in the release ledger.
+This remains a proposal, not implemented configurability. Source `07974de`
+implements truthful parent-template wording (there is no academic-term model) and
+captured Gradebook `as_of` with forward school-day rollover revalidation. They
+preserve current formulas, raw scores and student-wide attendance. Independent
+reviews, exact CI and synthetic staging cutoff checks passed; artifact and recovery
+evidence belongs in the release ledger. These fixes do not add grading policies,
+terms, retrospective enrollment dates or an atomic database snapshot.
 
 Before policy/term/enrollment work, specify scope resolution and policy versions,
 zero/all-empty weights, missing-work treatment, rounding, retroactive versus

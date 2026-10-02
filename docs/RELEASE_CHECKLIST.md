@@ -4,7 +4,23 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
-Reviewed source `4f7ba66` is serving isolated staging revision `00004-hlb`.
+Reviewed source `07974de` serves isolated staging revision `00005-klh`.
+[CI37007214732](https://github.com/jckail/superteacher/actions/runs/37007214732)
+passed all gates: 1294 API without skips/xfails, 194 web, four browser and 83 E2E
+cases, including real PostgreSQL summary cursors and restricted-directory Docker
+startup. Protected immutable-image build and synthetic summary/Gradebook-cutoff,
+transfer/history/precision, paging/CSV/account, section-preflight and logout checks
+passed. Recovery-only execution `superteacher-overhaul-recovery-07974de-xq7gr`
+succeeded at 12:56:40 UTC with integrity/FKs/head `0003`, transfer/history and both
+raw scores preserved. Structured proofs and staging receipt readback passed.
+This does not prove final production drain or zero-loss RPO. Exact artifact
+bindings and prior failure evidence are in [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md).
+Production traffic and custom-domain mappings remain unchanged. Further runtime,
+Overview retention, grading model and production acceptance work remains open.
+
+Previous verified release:
+
+Reviewed source `4f7ba66` previously served isolated staging revision `00004-hlb`.
 [CI37003990788](https://github.com/jckail/superteacher/actions/runs/37003990788)
 passed all gates: 1266 API tests without skips/xfails, 184 web, four browser and
 83 E2E cases. Its Docker smoke reproduces restricted release-directory permissions.
@@ -16,8 +32,8 @@ native head `0003`, transfer/history and raw precision passed. Staging receipt
 readback also passed. This is not a final production drain or zero-loss RPO claim.
 Source/artifact/prefix bindings and preserved failure evidence are recorded in
 [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). Production remains unchanged.
-Class-summary optimization and grading-calendar/model follow-ups remain separate
-work; the full overhaul is active.
+Class-summary and Gradebook calendar follow-ups shipped in `07974de`; the full
+grading model and original overhaul remain active.
 
 Earlier successful release:
 
