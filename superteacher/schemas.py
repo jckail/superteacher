@@ -284,6 +284,7 @@ class Overview(BaseModel):
 
 # ── insights ────────────────────────────────────────────────────────────
 class Insight(BaseModel):
+    as_of: date  # calculation cutoff, not record-version or generation time
     headline: str
     strengths: list[str]
     concerns: list[str]
