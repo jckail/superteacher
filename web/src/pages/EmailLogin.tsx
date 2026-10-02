@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api } from '../api';
+import DemoNoticeLink from '../components/DemoNoticeLink';
 import '../login.css';
 
 const COOLDOWN = 60;
@@ -56,6 +57,7 @@ export default function EmailLogin() {
             {busy ? 'Sending…' : wait > 0 ? `Send again in ${wait}s` : 'Send the link again'}
           </button>
           <button type="button" className="btn" disabled={busy} onClick={() => { setSentTo(''); setError(''); }}>Use a different email</button>
+          <DemoNoticeLink />
         </div>
       </main>
     );
@@ -81,6 +83,7 @@ export default function EmailLogin() {
           {error && <div className="error" role="alert">{error}</div>}
           <button className="btn primary" type="submit" disabled={busy || !email.trim()}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
         </form>
+        <DemoNoticeLink />
       </div>
     </main>
   );

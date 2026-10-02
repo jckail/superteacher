@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { api, ApiError } from '../api';
+import DemoNoticeLink from '../components/DemoNoticeLink';
 import '../login.css';
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
@@ -27,7 +28,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       <div className="card login-card">
         <div className="brand"><span className="brand-mark">🦸</span> Super Teacher</div>
         <h1>Sign in</h1>
-        <p className="muted" style={{ margin: 0 }}>Student data is private. Enter the class passcode to continue.</p>
+        <p className="muted" style={{ margin: 0 }}>Enter the shared passcode to continue.</p>
         <form onSubmit={submit}>
           <label>
             Passcode
@@ -37,6 +38,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
           {error && <div className="error" role="alert">{error}</div>}
           <button className="btn primary" type="submit" disabled={busy || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
+        <DemoNoticeLink />
       </div>
     </main>
   );
