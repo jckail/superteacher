@@ -43,9 +43,16 @@ parent-service field, while the actual response contains the exact service-name
 leaf. Three bounded read-only GETs and local verification isolated only that
 guard mismatch; all other configuration guards passed. The original failure and
 cleanup receipts remain preserved (temporary request removed, credentials private,
-phase not completed). No deployment acceptance proof exists yet. A separately
-reviewed read-only continuation is being prepared; do not repeat creation,
-alter IAM, update existing staging or infer platform/application handshake success.
+phase not completed). No original deployment acceptance proof exists. A separate hash-pinned read-only
+continuation passed independent SPEC/QUALITY review and 12 local guard tests in
+0.066s. The corrected test fixture validates the saved active user and compares
+the API creator case-insensitively; the continuation source remains unchanged.
+Protected session29872 exited75 when shared verification admission expired before
+the helper started. Root verified that all three continuation outputs are absent
+and saved a private admission blocker. No cloud call or unchanged retry followed.
+Do not repeat creation, alter IAM, update existing staging or infer private-platform
+handshake acceptance. A new proof-required synthetic adapter is being prepared
+separately; missing continuation evidence must refuse before authentication or writes.
 The [Cloud Run revision reference](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions)
 describes this field as the parent service's name; live response bindings supply
 the observed format. Complete synthetic workflows and isolated restore remain
@@ -933,3 +940,22 @@ the existing `portfolio-383615-terraform-state` bucket/stack owner. No state
 objects were read. Use the isolated preview flow in `CLOUD_SQL_PLAN.md`, including
 the deliberately invalid preview credential, without apply/destroy/plan output.
 Do not provision it merely to deploy the accepted Litestream branch.
+
+## Current coordination and integration holds (2026-10-02)
+
+Direct AgentMon and Linear tools now work for this session. The existing release
+issue is [JCK-51](https://linear.app/jckail/issue/JCK-51/promote-main-to-the-live-service-database-lineage-accounts-0002-vs)
+in Super Teacher; it blocks JCK-52 and is related to JCK-123/JCK-130. Root retains
+release execution and verification ownership. Agent Hub still does not resolve
+this checkout to a configured project-memory scope; curated local checkpoints
+remain the fallback. Registration and heartbeats do not establish execution.
+
+PR72 exact head `db32c1af53e05c20a1e8e1f8b4f489f7f286a41e` has seven-job CI
+and Bugbot success, but source review holds integration. Before starting the
+auth-disabled demo backend, managed SQLite and sidecar paths need explicit alias
+rejection; the internal installation entry must preserve the worktree lock and
+shared verification gate. Findings are recorded on the existing
+[JCK-72](https://linear.app/jckail/issue/JCK-72/developer-experience-one-command-setup-and-dev-container),
+and author ownership is preserved. No bootstrap or production database operation
+was executed by this review. Docs PR73–75 remain under independent integration
+review; the source257 candidate artifact stays frozen.
