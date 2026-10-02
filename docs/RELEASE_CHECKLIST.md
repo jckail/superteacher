@@ -4,6 +4,34 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+Latest pinned candidate `1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven
+exact-source jobs in [CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054):
+1356 API tests in 182.23s, 225 web tests, four browser tests and 84 E2E tests,
+with lint/types/build, Docker/auth smoke and informational benchmark successful.
+Inside the locked Docker image, the focused 259-case runtime compatibility set
+passed in 32.34s. The full native API suite uses CI's ranged test installation;
+The full API suite has not been run in the locked production image.
+
+Root integrated reviewed PR19, the roadmap and the curated five-doc checkpoint
+in merge `52d6433`, then pushed main and the working branch. Its diff from the pinned 1cde
+candidate is documentation only. Source23's CI is historical; the newer 1cde source
+has its own exact verified run above. This does not accept any later unverified code.
+
+New immutable archive SHA256
+`d2b7815c88bc588fe4933ddd9e2a0def0c08bf439dc0a4282991d3b7aa560353`
+contains 303 entries/274 files. Independent helper/source/archive/mode review passed;
+regular files 0644/0755, directories 0755, private 0700 roots, a distinct full-source
+`-b` image tag and exclusive outputs preserve the locked Dockerfile/archive bytes.
+Root's protected build session 7852 exited 75 when its queue wait expired. The
+helper never started: no new intent/proof or cloud build call occurred. No new
+build/digest/deployment/restore acceptance exists. This is a distinct candidate/
+context, not an unchanged retry of source23's exit 75 action. Preserve both queue
+blockers; do not retry the unchanged action or bypass the shared wrapper.
+B5 `00007-9lq` remains the latest accepted Ready at 100% staging release until fresh
+executed build, staging smoke, recovery and readback pass.
+
+Earlier source23 candidate (historical CI/artifact/blocker):
+
 Exact release candidate `23f5ed0ff3ab2c7eddc88a027baaa5729231647c` passed all seven exact-source
 jobs in [CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475): 1350 API, 225 web, four browser,
 84 E2E and 259 actual Docker-runtime compatibility cases, plus lint/types/build,
@@ -25,8 +53,8 @@ execution, so runtime acceptance remains pending. Production promotion/domain
 cutover and broader model/provider acceptance remain open. Preserve failed artifacts
 and never bypass or repeat an unchanged lock-blocked action.
 
-Remote main now includes later PR19/roadmap commits; review/merge and new combined
-exact-source verification remain pending. Source23 CI does not cover those commits.
+PR19/roadmap integration is now reviewed and pinned 1cde exact CI passed. Its new
+runtime build/deployment remains pending; source23's run does not cover newer code.
 
 Latest verified serving staging release (B5):
 
@@ -194,9 +222,9 @@ The current workflow triggers on pushes to `main` and on pull requests. A releas
 
 Root will push the release branch and open a PR to start broad GitHub CI while the native shared verification lock is occupied. After merging newer origin/main source, preserve these release guards and use CI for the final merged candidate. Record the immutable release commit, PR URL, workflow run URL and successful job conclusions below before deploying its image. A run for a different commit does not satisfy this gate.
 
-- Exact CI-verified release candidate: `23f5ed0ff3ab2c7eddc88a027baaa5729231647c`
-- Current CI: [37022756475, all seven jobs passed](https://github.com/jckail/superteacher/actions/runs/37022756475)
-- Latest accepted isolated staging: B5 `00007-9lq` at 100%; source23 corrected artifact remains pending.
+- Exact CI-verified release candidate: `1cde1cc24e64599fc03f6a26aad01736960764e2`
+- Current candidate CI: [37026105054, all seven jobs passed](https://github.com/jckail/superteacher/actions/runs/37026105054)
+- Latest accepted isolated staging: B5 `00007-9lq` at 100%; new 1cde runtime build remains pending.
 
 Historical PR15 checkpoint:
 

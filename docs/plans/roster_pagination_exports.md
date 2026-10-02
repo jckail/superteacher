@@ -330,6 +330,34 @@ staging receipt readback passed. Exact artifact/prefix bindings are in the
 [deployment ledger](../DEPLOYMENT_STATUS.md). Production services/domains are
 unchanged; public Super Teacher mappings remain on `edutrack`.
 
+Latest pinned candidate `1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven
+exact-source jobs in [CI37026105054](https://github.com/jckail/superteacher/actions/runs/37026105054):
+1356 API tests in 182.23s, 225 web tests, four browser tests and 84 E2E tests,
+with lint/types/build, Docker/auth smoke and informational benchmark successful.
+Inside the locked Docker image, the focused 259-case runtime compatibility set
+passed in 32.34s. The full native API suite uses CI's ranged test installation;
+The full API suite has not been run in the locked production image.
+
+Root integrated reviewed PR19, the roadmap and the curated five-doc checkpoint
+in merge `52d6433`, then pushed main and the working branch. Its diff from the pinned 1cde
+candidate is documentation only. Source23's CI is historical; the newer 1cde source
+has its own exact verified run above. This does not accept any later unverified code.
+
+New immutable archive SHA256
+`d2b7815c88bc588fe4933ddd9e2a0def0c08bf439dc0a4282991d3b7aa560353`
+contains 303 entries/274 files. Independent helper/source/archive/mode review passed;
+regular files 0644/0755, directories 0755, private 0700 roots, a distinct full-source
+`-b` image tag and exclusive outputs preserve the locked Dockerfile/archive bytes.
+Root's protected build session 7852 exited 75 when its queue wait expired. The
+helper never started: no new intent/proof or cloud build call occurred. No new
+build/digest/deployment/restore acceptance exists. This is a distinct candidate/
+context, not an unchanged retry of source23's exit 75 action. Preserve both queue
+blockers; do not retry the unchanged action or bypass the shared wrapper.
+B5 `00007-9lq` remains the latest accepted Ready at 100% staging release until fresh
+executed build, staging smoke, recovery and readback pass.
+
+Earlier source23 acceptance and runtime blocker:
+
 Reports Summary freshness subsequently passed independent review and complete
 exact-source [CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475) at `23f5ed0ff3ab2c7eddc88a027baaa5729231647c`:
 1350 API, 225 web, four browser, 84 E2E and 259 Docker-runtime compatibility cases,
