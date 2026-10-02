@@ -225,20 +225,9 @@ PLAN_XFAIL = pytest.mark.xfail(
 )
 
 
-# Planner-version dependent (passes on SQLite 3.53, scans on the CI runner's older SQLite even after ANALYZE):
-# ORDER BY day over `student_id IN (...)` lets the planner walk ix_attendance_day instead of searching by student.
-# A real finding, not noise: fixed by the covering index (student_id, day, status) in docs/PERFORMANCE.md (R5).
-# Non-strict because on newer SQLite it passes.
-PLAN_VERSION_XFAIL = pytest.mark.xfail(
-    strict=False, reason="SQLite-version dependent attendance scan; see PERFORMANCE.md R5"
-)
-
-
 def _plan_marks(n):
     if n in {"ai_context", "ai_find_students"}:
         return _p(n, PLAN_XFAIL)
-    if n in {"summary", "gradebook_csv"}:
-        return _p(n, PLAN_VERSION_XFAIL)
     return _p(n)
 
 
