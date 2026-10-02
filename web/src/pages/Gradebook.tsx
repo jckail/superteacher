@@ -7,6 +7,7 @@ import { api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
+import SmallGroupBuilder from '../components/SmallGroupBuilder';
 import { useToast } from '../components/Toast';
 import { useSchoolCalendar } from '../schoolCalendar';
 import { EmptyState, ErrorBox, Loading, Modal, gradeColor } from '../components/ui';
@@ -141,7 +142,7 @@ const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x
 export default function Gradebook() {
   const section = useActiveSection();
   const calendar = useSchoolCalendar(!!section);
-  const { isLoading: scopeLoading, ready } = useScope();
+  const { isLoading: scopeLoading, ready, error: scopeError } = useScope();
   const qc = useQueryClient();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
@@ -281,6 +282,12 @@ export default function Gradebook() {
           </table>
         </div>
       ))}
+      {gb && gb.rows.length > 0 && gb.assessments.length > 0 && <SmallGroupBuilder
+        gradebook={gb} sectionId={section.id} schoolDay={schoolDay ?? null}
+        settled={ready && !scopeLoading && !scopeError && !q.isFetching && !q.isPaused && !q.error &&
+          !calendar.isFetching && !calendar.isPaused && !calendar.error && pendingScores === 0 &&
+          !adding && !(editing?.section_id === section.id)}
+      />}
       {adding && calendar.data && <NewAssessment schoolDay={calendar.data.today} sectionId={section.id} onClose={() => setAdding(false)} />}
       {editing && editing.section_id === section.id && <EditAssessment key={editing.id} assessment={editing} onClose={() => setEditing(null)} />}
     </>
