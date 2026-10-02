@@ -10,6 +10,8 @@ from tests.sec_util import H, build, flatten_routes, login, seed_class
 PUBLIC = {
     ("GET", "/api/health"),
     ("GET", "/api/version"),
+    # Readiness probe for the platform: returns only a fixed status body (no details, no data); see observability.py.
+    ("GET", "/api/ready"),
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/logout"),
     ("GET", "/api/auth/me"),
