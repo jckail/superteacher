@@ -68,9 +68,15 @@ class Settings(BaseSettings):
     accounts_link_per_ip_hour: int = 10
     accounts_link_global_hour: int = 300
     # Mail: sendgrid | console (logs a redacted notice) | file (full message into auth_email_outbox_dir; tests/e2e).
-    auth_email_backend: Literal["sendgrid", "console", "file"] = "sendgrid"
+    auth_email_backend: Literal["sendgrid", "smtp", "console", "file"] = "sendgrid"
     auth_email_from: str | None = None
     sendgrid_api_key: str | None = None
+    # AUTH_EMAIL_BACKEND=smtp: any provider with SMTP (Gmail app password, SES, Mailgun, ...). TLS is mandatory.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "ssl"] = "starttls"
+    smtp_username: str | None = None
+    smtp_password: str | None = None
     auth_email_outbox_dir: str | None = None
     # console/file leak sign-in links, so they are refused when K_SERVICE is set (Cloud Run) unless forced.
     auth_email_allow_insecure_backend: bool = False

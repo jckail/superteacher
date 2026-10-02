@@ -43,3 +43,13 @@ def seeded(engine, session_factory, monkeypatch):
     monkeypatch.setattr(get_settings(), "anthropic_api_key", None)
     with _client(engine, session_factory, seed=True) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _fresh_mail_health():
+    """The delivery circuit breaker is process-wide state; no test may inherit another test's failures."""
+    from superteacher import mailer
+
+    mailer.HEALTH.reset()
+    yield
+    mailer.HEALTH.reset()
