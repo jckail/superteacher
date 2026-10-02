@@ -10,6 +10,7 @@ import { ConfirmProvider } from './components/Confirm';
 import { Loading } from './components/ui';
 import AccountMenu from './components/AccountMenu';
 import DemoBanner from './components/DemoBanner';
+import DemoNoticeLink from './components/DemoNoticeLink';
 
 // Route-level code splitting keeps the first paint small; each page loads on demand.
 const Overview = lazy(() => import('./pages/Overview'));
@@ -85,6 +86,7 @@ function Shell() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
+        <DemoNoticeLink />
       </main>
       {chatOpen && <Suspense fallback={<div className="chat"><Loading /></div>}><Chat studentId={studentMatch?.params.id} onClose={() => setChatOpen(false)} /></Suspense>}
     </div>

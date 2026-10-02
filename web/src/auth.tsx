@@ -6,6 +6,7 @@ import { ApiError, api, advanceApiSession, clearSessionPrivacy, UNAUTHORIZED_EVE
 import Login from './pages/Login';
 import EmailLogin from './pages/EmailLogin';
 import VerifyEmail from './pages/VerifyEmail';
+import DemoNotice from './pages/DemoNotice';
 import './login.css';
 
 interface AuthContextValue { authRequired: boolean; mode: AuthMode; email: string | null; logout: () => void; logoutAll: () => void; accountDeleted: () => void }
@@ -50,7 +51,7 @@ export function AuthGate({ children, onLogout }: { children: ReactNode; onLogout
   }, [clearSession]);
 
   useEffect(() => {
-    if (window.location.pathname !== '/auth/verify') void check();
+    if (!['/auth/verify', '/demo-notice'].includes(window.location.pathname)) void check();
     return () => { generation.current += 1; };
   }, [check]);
   useEffect(() => {
@@ -72,6 +73,7 @@ export function AuthGate({ children, onLogout }: { children: ReactNode; onLogout
 
   const logout = useCallback(() => { void signOut('/auth/logout'); }, [signOut]);
   const logoutAll = useCallback(() => { void signOut('/auth/logout-all'); }, [signOut]);
+  if (window.location.pathname === '/demo-notice') return <DemoNotice />;
   if (window.location.pathname === '/auth/verify') return <VerifyEmail />;
   if (state.status === 'signing-out') return <div className="login-wrap" role="status">Signing out…</div>;
   if (state.status === 'loading') return <div className="login-wrap"><div className="skeleton" style={{ width: 240 }} /></div>;
