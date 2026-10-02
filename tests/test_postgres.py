@@ -306,6 +306,44 @@ def test_postgres_roster_pages_and_csv_column_batches(postgres_engine, export_ro
         event.remove(postgres_engine, "after_cursor_execute", capture)
 
 
+def test_postgres_class_summary_nested_cursors_and_native_parity(postgres_engine, export_roster_fixture):
+    from sqlalchemy import event
+
+    from superteacher import reports
+    from superteacher.queries import load_students, owned_section
+    from superteacher.report_summary import build_summary
+
+    factory, cutoff, _ = export_roster_fixture
+    with factory() as db:
+        expected = reports.class_summary(
+            owned_section(db, OWNER_ID, "active"), load_students(db, OWNER_ID, section_id="active"), cutoff
+        ).model_dump(mode="json")
+    cursors = []
+
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if context.execution_options.get("yield_per"):
+            cursors.append(cursor)
+
+    event.listen(postgres_engine, "after_cursor_execute", capture)
+    try:
+        with factory() as db:
+            summary = build_summary(db, OWNER_ID, "active", cutoff)
+            assert summary is not None
+            actual = summary.model_dump(mode="json")
+            assert actual == expected
+            assert actual["students"] == 205
+            assert "FOREIGN" not in summary.model_dump_json()
+            assert len(db.identity_map) == 0
+            assert build_summary(db, OWNER_ID, "foreign", cutoff) is None
+            assert build_summary(db, OWNER_ID, "missing", cutoff) is None
+        # More than 200 students forces child reads while the parent cursor is open.
+        assert cursors and all(getattr(cursor, "name", None) for cursor in cursors)
+        assert all(cursor.closed for cursor in cursors)
+        assert postgres_engine.pool.checkedout() == 0
+    finally:
+        event.remove(postgres_engine, "after_cursor_execute", capture)
+
+
 def test_postgres_account_nested_server_cursors_and_scope(postgres_engine, export_roster_fixture):
     import json
 

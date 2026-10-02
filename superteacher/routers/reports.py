@@ -10,7 +10,8 @@ from ..calendar import school_today
 from ..db import get_db
 from ..gradebook_export import ClosingStreamingResponse, csv_chunks, read_metadata
 from ..models import Section
-from ..queries import load_students, owned_section
+from ..queries import owned_section
+from ..report_summary import build_summary
 from ..schemas import Id
 from .roster import get_student_or_404
 
@@ -52,8 +53,10 @@ def gradebook_csv(section_id: str, request: Request, user: CurrentUser = Depends
 
 @router.get("/reports/sections/{section_id}/summary", response_model=svc.ClassSummary)
 def class_summary(section_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
-    sec = _section_or_404(db, user.id, section_id)
-    return svc.class_summary(sec, load_students(db, user.id, section_id=section_id))
+    summary = build_summary(db, user.id, section_id, school_today())
+    if summary is None:
+        raise HTTPException(404, "Section not found")
+    return summary
 
 
 @router.post("/reports/students/{student_id}/parent-update", response_model=ParentUpdateOut)
