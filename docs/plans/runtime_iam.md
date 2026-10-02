@@ -20,7 +20,18 @@ and synthetic application credentials remain in restricted local files.
 Provisioning succeeded after an initial role-not-found bucket-binding failure.
 The operator stopped, verified the exact custom role, and continued the recorded
 phase without widening permissions. Runtime role propagation was not inferred
-from creation success. The reviewed probe job is now awaiting execution.
+from creation success. Probe execution `st-iam-probe-155f18-nfhd8` completed
+successfully. Its structured proof confirms the expected metadata identity,
+UID 10001 and Python 3.12.15; all five dedicated-bucket operations passed.
+Known existing unrelated object operations and enabled-secret access returned
+HTTP 403, and none of the seven tested administration permissions was granted.
+Actual Litestream replication and recovery acceptance remains pending.
+
+The next protected rehearsal-deployment command exited 75 while waiting for
+the shared verification lock. Its helper never started: no rehearsal service
+or deployment intent was created. Do not retry the unchanged command or bypass
+the lock. Reviewed preparatory helpers and restricted operator state are saved
+for a later authorized continuation after this resource blocker is resolved.
 
 Acceptance requires all of the following:
 
