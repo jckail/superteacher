@@ -9,9 +9,21 @@ import { useToast } from '../components/Toast';
 import { AttendanceHeat, TrendChart } from '../components/charts';
 import { EmptyState, ErrorBox, Loading, Modal, RiskChip, Stat, gradeColor } from '../components/ui';
 
-function Insight({ id }: { id: string }) {
+export function Insight({ id }: { id: string }) {
   const q = useQuery({ queryKey: ['insight', id], queryFn: ({ signal }) => api<InsightData>(`/students/${id}/insight`, { signal }), staleTime: 5 * 60_000 });
   const i = q.data;
+  const calendar = useSchoolCalendar();
+  const client = useQueryClient();
+  const refreshState = useRef({ id, client, pending: false });
+  if (refreshState.current.id !== id || refreshState.current.client !== client) refreshState.current = { id, client, pending: false };
+  const generatedAt = i?.generated_at ? new Date(i.generated_at) : null;
+  const generationTime = generatedAt && Number.isFinite(generatedAt.getTime()) ? generatedAt.toLocaleString() : i?.generated_at;
+  const refresh = () => {
+    const state = refreshState.current;
+    if (q.isFetching || state.pending) return;
+    state.pending = true;
+    void q.refetch({ cancelRefetch: false }).finally(() => { state.pending = false; });
+  };
   return (
     <section className="card insight">
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -19,7 +31,16 @@ function Insight({ id }: { id: string }) {
         {i && <span className="chip neutral">{i.source === 'ai' ? 'AI' : 'Rule-based'}</span>}
       </div>
       {q.isLoading && <Loading />}
-      <ErrorBox error={q.error} onRetry={() => q.refetch()} />
+      <ErrorBox error={q.error} />
+      <button className="btn small" disabled={q.isFetching} onClick={refresh}>Refresh insight</button>
+      <p className="muted">Refreshing may use your AI allowance if new AI advice is needed.</p>
+      {i && <>
+        <p className="muted">{i.as_of ? `Insight calculations through ${i.as_of}` : 'Insight calculation cutoff unavailable.'}</p>
+        {i.source === 'ai' && i.generated_at && <p className="muted">AI generated at <time dateTime={i.generated_at}>{generationTime}</time></p>}
+        <p className="muted">Records may have changed since this insight, including on the same school day.</p>
+        {calendar.error && <p className="muted">School-day freshness unavailable.</p>}
+        {!calendar.error && i.as_of && calendar.data?.today && i.as_of < calendar.data.today && <p role="status">This insight uses calculations from an earlier school day. Refresh explicitly to review newer records.</p>}
+      </>}
       {i && (
         <>
           <strong>{i.headline}</strong>

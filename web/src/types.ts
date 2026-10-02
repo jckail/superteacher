@@ -32,7 +32,7 @@ export interface AttendanceMark { student_id: string; status: AttendanceStatus }
 export interface AttendanceSheetRow { student_id: string; name: string; status: AttendanceStatus | null }
 export interface AttendanceSheet { section: SectionOut; day: string; rows: AttendanceSheetRow[] }
 export interface Overview { as_of: string; students: number; average: number | null; attendance_rate: number | null; homework_rate: number | null; at_risk: number; watch: number; on_track: number; unknown: number; distribution: Record<string, number>; attention: StudentSummary[] }
-export interface Insight { headline: string; strengths: string[]; concerns: string[]; actions: string[]; source: 'ai' | 'rules'; model: string | null; generated_at: string | null }
+export interface Insight { as_of?: string; headline: string; strengths: string[]; concerns: string[]; actions: string[]; source: 'ai' | 'rules'; model: string | null; generated_at: string | null }
 export interface ImportResult { created: number; skipped: string[] }
 export type AuthMode = 'passcode' | 'accounts';
 export interface AuthConfig { auth_mode: AuthMode }

@@ -343,7 +343,9 @@ def rule_insight(s: Student, m: metrics.StudentMetrics) -> schemas.Insight:
         "watch": f"{s.name} is worth keeping an eye on",
         "on_track": f"{s.name} is on track",
     }[m.risk]
-    return schemas.Insight(headline=headline, strengths=strengths, concerns=concerns, actions=actions, source="rules")
+    return schemas.Insight(
+        as_of=m.as_of, headline=headline, strengths=strengths, concerns=concerns, actions=actions, source="rules"
+    )
 
 
 INSIGHT_SYSTEM = """You write brief insight cards about one student for their teacher.
@@ -466,9 +468,12 @@ async def ai_insight(
         try:
             return schemas.Insight(
                 **InsightPayload.model_validate(cached.payload).model_dump(),
+                as_of=m.as_of,
                 source="ai",
                 model=cached.model,
-                generated_at=cached.created_at,
+                generated_at=(
+                    cached.created_at.replace(tzinfo=UTC) if cached.created_at.tzinfo is None else cached.created_at
+                ),
             )
         except (ValidationError, TypeError):
             log.warning("cached insight for %s is malformed; regenerating", s.id)
@@ -515,15 +520,16 @@ async def ai_insight(
         return rule_insight(s, m)
 
     data = payload.model_dump()
+    generated_at = datetime.now(UTC)
     try:
         row = db.scalar(cache_query)
         if row:
             row.fingerprint, row.model, row.payload = fp, model, data
-            row.created_at = datetime.now(UTC)
+            row.created_at = generated_at
         else:
-            db.add(InsightCache(student_id=s.id, fingerprint=fp, model=model, payload=data))
+            db.add(InsightCache(student_id=s.id, fingerprint=fp, model=model, payload=data, created_at=generated_at))
         db.commit()
     except Exception:
         db.rollback()
         log.warning("could not cache insight for %s", s.id)
-    return schemas.Insight(**data, source="ai", model=model, generated_at=datetime.now(UTC))
+    return schemas.Insight(**data, as_of=m.as_of, source="ai", model=model, generated_at=generated_at)
