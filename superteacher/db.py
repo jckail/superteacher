@@ -64,12 +64,26 @@ def run_migrations(eng: Engine) -> None:
 
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic"))
-    with eng.begin() as conn:
-        cfg.attributes["connection"] = conn
-        tables = set(inspect(conn).get_table_names())
-        if "alembic_version" not in tables and tables & set(Base.metadata.tables):
-            command.stamp(cfg, BASELINE_REVISION)
-        command.upgrade(cfg, "head")
+    sqlite = eng.dialect.name == "sqlite"
+    with eng.connect() as conn:
+        if sqlite:
+            # Batch migrations recreate tables; with FKs on, DROP TABLE would cascade-delete child rows.
+            # The pragma is a no-op inside a transaction, so it is switched off before one starts.
+            conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            conn.commit()
+        try:
+            with conn.begin():
+                cfg.attributes["connection"] = conn
+                tables = set(inspect(conn).get_table_names())
+                if "alembic_version" not in tables and tables & set(Base.metadata.tables):
+                    command.stamp(cfg, BASELINE_REVISION)
+                command.upgrade(cfg, "head")
+                if sqlite and conn.exec_driver_sql("PRAGMA foreign_key_check").first():
+                    raise RuntimeError("Migration left foreign key violations; rolled back.")
+        finally:
+            if sqlite:
+                conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+                conn.commit()
 
 
 BASELINE_REVISION = "0001"

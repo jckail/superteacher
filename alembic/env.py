@@ -31,5 +31,8 @@ else:
 
     eng = make_engine(get_settings().database_url)
     with eng.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")  # see alembic/versions/0002_accounts.py
+            connection.commit()
         _run(connection)
         connection.commit()
