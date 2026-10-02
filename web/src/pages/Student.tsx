@@ -146,7 +146,7 @@ function HistorySection({ section }: { section: GradeHistorySection }) {
   const current = Math.min(page, pages - 1);
   return <section aria-label={`${section.course} · ${section.section}`}>
     <h3>{section.course} · {section.section}</h3>
-    <div className="table-wrap"><table>
+    <div className="table-wrap" role="region" aria-label={`Grade history for ${section.course} · ${section.section}`} tabIndex={0}><table>
       <caption className="sr-only">Grades from {section.course} · {section.section}</caption>
       <thead><tr><th>Due</th><th>Assignment</th><th>Type</th><th>Recorded score</th></tr></thead>
       <tbody>{section.scores.slice(current * pageSize, (current + 1) * pageSize).map((score) => <tr key={score.assessment_id}>
@@ -245,7 +245,7 @@ export default function Student() {
           </section>
           <Notes key={s.id} student={s} />
         </div>
-        <section className="card table-wrap">
+        <section className="card table-wrap" aria-label="Student assignments" tabIndex={0}>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
             <h2>Assignments</h2>
             {kinds.length > 1 && (

@@ -232,7 +232,7 @@ export default function Gradebook() {
       ) : gb.assessments.length === 0 ? (
         <EmptyState title="No assignments yet"><p>Create your first assignment, then enter scores for {gb.rows.length} students.</p><div className="row"><button type="button" className="btn primary" disabled={!calendar.data} onClick={() => setAdding(true)}>+ New assignment</button></div></EmptyState>
       ) : (
-        <div className="card table-wrap gb-wrap" ref={wrap}>
+        <div className="card table-wrap gb-wrap" role="region" aria-label="Gradebook scores" tabIndex={0} ref={wrap}>
           <table className="gb">
             <caption className="sr-only">Gradebook for {section.name}. Column headers sort the table.</caption>
             <thead>

@@ -90,7 +90,7 @@ export function AttendanceHeat({ days }: { days: AttendanceOut[] }) {
   const summary = Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(', ');
   return (
     <div>
-      <div className="heat-wrap" role="img" aria-label={`Attendance across ${days.length} recorded days: ${summary}`}>
+      <div className="heat-wrap" tabIndex={0} role="img" aria-label={`Attendance across ${days.length} recorded days: ${summary}`}>
         <div className="heat-days" aria-hidden="true">{DAY_LABELS.map((l, i) => <span key={i}>{l}</span>)}</div>
         <div className="heat" aria-hidden="true">
           {cols.flatMap((c, ci) => c.map((a, ri) => <i key={`${ci}-${ri}`} className={a?.status ?? ''} title={a ? `${a.day}: ${a.status}` : undefined} />))}

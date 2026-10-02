@@ -95,3 +95,39 @@ describe('operations request races', () => {
     client.clear();
   });
 });
+
+
+it('announces a blocked parent-update copy and preserves the editable draft for manual copying', async () => {
+  request.mockImplementation(async (path: string) => {
+    if (path.endsWith('/summary')) return emptySummary;
+    if (path.startsWith('/students/page?')) return { items: [student('ada', 'Ada')], next_cursor: null, as_of: '2026-10-01', total_matches: 1, total_scoped: 1 };
+    if (path.endsWith('/parent-update')) return { subject: 'Progress update', body: 'A synthetic message', source: 'template' };
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const { user, client } = mount('reports');
+  const select = await screen.findByRole('combobox', { name: 'Student' });
+  await screen.findByRole('option', { name: 'Ada' });
+  await user.selectOptions(select, 'ada');
+  await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+  await screen.findByRole('textbox', { name: 'Subject' });
+  const clipboard = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Clipboard blocked'));
+  try {
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('copy them manually');
+    expect(screen.getByRole('textbox', { name: 'Subject' })).toHaveValue('Progress update');
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('A synthetic message');
+    clipboard.mockResolvedValue(undefined);
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(await screen.findByRole('button', { name: 'Copied ✓' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  } finally { clipboard.mockRestore(); client.clear(); }
+});
+
+it('exposes attendance column and student row headers', async () => {
+  request.mockResolvedValue({ section, day: '2026-10-01', rows: [{ student_id: 'ada', name: 'Ada', status: 'present' }] });
+  const { client } = mount('attendance');
+  expect(await screen.findByRole('rowheader', { name: 'Ada' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Student' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Attendance status' })).toBeInTheDocument();
+  client.clear();
+});

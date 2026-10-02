@@ -49,7 +49,7 @@ function AttendanceStrip({ days }: { days: AttendanceDay[] }) {
   const H = 90, COL = 18, W = Math.max(days.length * COL, 120);
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap" role="region" aria-label="Daily attendance chart" tabIndex={0}>
         <svg className="rep-chart" style={{ minWidth: W }} viewBox={`0 0 ${W} ${H + 18}`} role="img"
           aria-label={`Daily attendance rate over the last 30 days: ${days.map((d) => `${shortDay(d.day)} ${d.rate == null ? 'no data' : `${Math.round(d.rate)} percent`}`).join(', ')}`}>
           <line className="axis" x1="0" x2={W} y1={H} y2={H} />
@@ -92,7 +92,7 @@ function Summary({ section }: { section: Section }) {
           {s.assessments.length > 0 && (
             <details style={{ marginTop: 12 }}>
               <summary>Show the numbers</summary>
-              <div className="table-wrap">
+              <div className="table-wrap" role="region" aria-label="Assessment summary table" tabIndex={0}>
                 <table>
                   <thead><tr><th>Assessment</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>Missing</th></tr></thead>
                   <tbody>
@@ -141,6 +141,7 @@ function ParentComposer({ section, generation }: { section: Section; generation:
   const [draft, setDraft] = useState<ParentUpdateOut | null>(null);
   const [generationError, setGenerationError] = useState<Error | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState('');
   const lifecycle = useRef({ mounted: true, revision: 0, request: 0, draftRevision: 0, copyOperation: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined });
   const clearCopied = useCallback(() => {
     const state = lifecycle.current;
@@ -149,6 +150,7 @@ function ParentComposer({ section, generation }: { section: Section; generation:
     clearTimeout(state.timer);
     state.timer = undefined;
     setCopied(false);
+    setCopyError('');
   }, []);
   const reset = useCallback(() => {
     lifecycle.current.revision += 1;
@@ -195,13 +197,16 @@ function ParentComposer({ section, generation }: { section: Section; generation:
     const operation = ++state.copyOperation;
     clearTimeout(state.timer);
     setCopied(false);
+    setCopyError('');
     const current = () => state.mounted && state.draftRevision === revision && state.copyOperation === operation;
     try {
       await navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
       if (!current()) return;
       setCopied(true);
       state.timer = setTimeout(() => { if (current()) setCopied(false); }, 2000);
-    } catch { /* clipboard blocked */ }
+    } catch {
+      if (current()) setCopyError('Copy could not be completed. Select the subject and message above, then copy them manually. Your draft is still here.');
+    }
   };
   const edit = (value: ParentUpdateOut) => { clearCopied(); setDraft(value); };
   const mailto = draft ? `mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` : '#';
@@ -249,6 +254,7 @@ function ParentComposer({ section, generation }: { section: Section; generation:
         <label>Message<textarea className="input" value={draft.body} onChange={(e) => edit({ ...draft, body: e.target.value })} /></label>
         <div className="row"><button className="btn" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button><a className="btn primary" href={mailto}>Open in email</a></div>
         <span className="sr-only" role="status">{copied ? 'Copied to clipboard' : ''}</span>
+        {copyError && <p className="copy-feedback" role="alert">{copyError}</p>}
       </>}
     </section>
   );
