@@ -7,12 +7,16 @@
 
 ## Context
 
-All grading rules are hard-coded in `superteacher/metrics.py` (origin/main, commit bb23101):
+The original proposal referenced commit `bb23101`. The current source audit at
+`4f7ba66` still finds fixed grading rules in `superteacher/metrics.py`:
 
 - Category weights `KIND_WEIGHTS`: test 40%, quiz 20%, homework 25%, project 15%, **renormalised over categories that have at least one graded score**. Category score is points earned over points possible within the category (a total-points average inside each category).
 - Letter thresholds `_LETTERS`: 93 A, 90 A-, 87 B+, 83 B, 80 B-, 77 C+, 73 C, 70 C-, 60 D, else F, with a 4.0 GPA mapping (D has no plus/minus, there is no D+ or D-).
 - Missing work: a score with `points = NULL` is excluded from the average (it does not count as zero) and is counted in `missing` and in the homework-completion rate (completed over homework due). Only assessments with `due_date <= today` count.
-- Extra credit: not supported. A score above max points is allowed by arithmetic, but there is no zero-max "bonus" assessment (`make_point` yields no percentage when `max_points` is 0).
+- Extra credit: finite nonnegative scores above a positive maximum are supported,
+  preserved and counted without a 100% clamp. Percentage overflow is rejected
+  before writes. Zero-max bonus assessments remain invalid; numerator-only bonus
+  policy is a proposed future capability.
 - Attendance: excused days are removed from the denominator; present and tardy count as attended; absent counts against. `attendance_rate = attended / (all - excused)`.
 - Grading periods: none. The average is cumulative over every assessment to date.
 - Risk flags (`_assess_risk`): below 65 average = 3 points, below 72 = 2, trend drop, attendance under 80 or 90, homework completion under 70; at-risk at 3 or more points, watch at 2.
@@ -28,7 +32,7 @@ Teachers' real policies differ: many use homework-light weights, a plain 90/80/7
 | 2 | Category mapping | assessment kind (today an enum) to category; later free-form categories | course |
 | 3 | Letter scale | list of (threshold, letter, GPA points); plus/minus on/off; rounding rule before lookup (none, nearest whole, half up) | global default (school), course override |
 | 4 | Missing-work policy | `exclude` (today), `zero`, `floor` (replace with X%, e.g. 50), `exclude_until_days_late` N | course, section override |
-| 5 | Extra credit | none (today); `bonus_points` assessments (max_points = 0, adds to numerator only); or "scores above max count up to cap C%" | course |
+| 5 | Extra credit | uncapped finite scores above a positive maximum (today); proposed numerator-only bonus assessments or configurable cap | course |
 | 6 | Drop lowest | drop N lowest in category (quiz, homework), only if at least M scores | course category |
 | 7 | Averaging method | `category_weighted` (today) or `total_points` | course |
 | 8 | Attendance counting | excused counts as present or is excluded (today); tardy = attended (today), half-absence, or K tardies = 1 absence | global default, section override |
@@ -144,10 +148,33 @@ period on every grade surface and in AI context. Keep global (owner-level) defau
 
 ## Migration and rollback plan
 
-- Alembic revision `0003_grading_policies` (name tentative; follows ADR 0002's revision if both land): additive table(s) and nullable columns only. No row is written for existing data.
+- Inspect the actual Alembic head before implementation and choose a unique
+  additive successor. `0003_accounts` is already landed; the old tentative
+  `0003_grading_policies` name must not be reused. No default override rows or
+  inferred terms/enrollment dates should be written for existing records.
 - Feature flag `GRADING_POLICIES_ENABLED` hides the editor; the resolver returns the system default when disabled.
 - Golden tests: current outputs for the seeded demo data (deterministic in `seed.py`) must be byte-identical with the flag on and no policies stored.
-- Rollback: disable the flag (computation returns to defaults); the new table can stay. If a policy edit produces unwanted grades, restore from the audit row (before JSON). Dropping the table is safe because no other table references it.
+- Disabling the flag returns computation to defaults, which changes derived
+  grades after real overrides exist. Schema tolerance is not semantic rollback
+  safety. Define and test a compatible policy/audit restore before release;
+  preserve overrides rather than casually dropping their table.
+
+## Current follow-ups and unresolved requirements
+
+This remains a proposal, not implemented configurability. The immediate assigned
+fixes are truthful parent-template wording (there is no academic-term model) and
+captured Gradebook `as_of` with school-day rollover revalidation. They preserve
+current formulas, raw scores and student-wide attendance; their independent
+implementation evidence belongs in the release ledger.
+
+Before policy/term/enrollment work, specify scope resolution and policy versions,
+zero/all-empty weights, missing-work treatment, rounding, retroactive versus
+frozen reports, term overlaps/unassigned dates and attendance windows. Carry the
+same policy/cutoff through ORM and bounded column reads, exports and AI/cache
+fingerprints. Existing rows cannot reveal enrollment start/end dates or historical
+section attribution: any prospective ledger must distinguish recorded time from
+confirmed effective dates and preserve unknown historical provenance. Review
+concurrent transfers, export/delete behavior and restore compatibility separately.
 
 ## Sources
 
