@@ -1,4 +1,4 @@
-import { test, expect } from '../support/fixtures';
+import { test, expect, setTheme } from '../support/fixtures';
 
 const student = {
   id: 'conference-student', name: 'Conference Ada', grade_level: 9,
@@ -39,11 +39,16 @@ for (const width of [1280, 390]) test(`conference summary prints one page and co
   await info.attach(`conference-${width}.pdf`, { body: pdf, contentType: 'application/pdf' });
 });
 
-test('overlong approved note disables print and native print shows a warning without private data', async ({ page }) => {
+test('dark-theme overlong note prints a readable warning without private data and restores screen colors', async ({ page }) => {
+  await setTheme(page, 'light');
   const long = { ...student, notes: [{ ...student.notes[0], body: 'Long private observation. '.repeat(700) }] };
   await page.route('**/api/calendar', route => route.fulfill({ json: { timezone: 'UTC', today: student.as_of } }));
   await page.route(`**/api/students/${student.id}`, route => route.fulfill({ json: long }));
   await page.goto(`/students/${student.id}/conference`);
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('color', 'rgb(239, 237, 250)');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 28)');
   const print = page.getByRole('button', { name: 'Print conference sheet' });
   await expect(print).toBeEnabled();
   const note = page.getByRole('checkbox', { name: long.notes[0].body });
@@ -52,8 +57,29 @@ test('overlong approved note disables print and native print shows a warning wit
   await expect(page.getByRole('status').filter({ hasText: 'exceeds one page' })).toContainText('exceeds one page');
   await page.emulateMedia({ media: 'print' });
   await expect(page.getByRole('article')).toBeHidden();
-  await expect(page.getByText('Refresh the summary and choose content that fits one page before printing.')).toBeVisible();
+  const warning = page.getByText('Refresh the summary and choose content that fits one page before printing.');
+  await expect(warning).toBeVisible();
+  await expect(warning).toHaveCSS('color', 'rgb(17, 17, 17)');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  const contrast = await warning.evaluate(node => {
+    const luminance = (color: string) => {
+      const channels = color.match(/\d+/g)!.slice(0, 3).map(value => {
+        const channel = Number(value) / 255;
+        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+    };
+    const foreground = luminance(getComputedStyle(node).color);
+    const background = luminance(getComputedStyle(document.body).backgroundColor);
+    return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(7);
+  expect(await page.locator('body').innerText()).not.toContain('Long private observation.');
   await page.emulateMedia({ media: 'screen' });
+  await expect(warning).toBeHidden();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('color', 'rgb(239, 237, 250)');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 28)');
   await note.uncheck();
   await expect(print).toBeEnabled();
 });
