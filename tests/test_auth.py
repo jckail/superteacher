@@ -73,10 +73,10 @@ def test_login_logout_cycle(c):
 def test_tampered_or_foreign_cookie_rejected(c):
     c.cookies.set(auth.COOKIE, "garbage")
     assert c.get("/api/overview").status_code == 401
-    other = make()
-    other.app.state.auth.serializer.secret_keys = [b"different"]
-    login(other)
-    c.cookies.set(auth.COOKIE, other.cookies.get(auth.COOKIE))
+    with make() as other:
+        other.app.state.auth.serializer.secret_keys = [b"different"]
+        login(other)
+        c.cookies.set(auth.COOKIE, other.cookies.get(auth.COOKIE))
     assert c.get("/api/overview").status_code == 401
 
 

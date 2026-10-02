@@ -40,7 +40,7 @@ def test_valid_token_is_accepted_baseline(c):
 
 def test_tampered_tokens_rejected(c):
     tok = token_of(c)
-    payload, ts, sig = tok.split(".")
+    payload, ts, sig = tok.rsplit(".", 2)
     flipped = ("A" if sig[0] != "A" else "B") + sig[1:]
     forged_payload = base64.urlsafe_b64encode(b'{"v":2,"admin":true}').decode().rstrip("=")
     cases = {
@@ -145,11 +145,6 @@ def test_logout_clears_the_browser_cookie(c):
     assert c.get("/api/overview").status_code == 401
 
 
-@pytest.mark.xfail(
-    reason="KNOWN LIMITATION F-06: sessions are stateless signed cookies, so a copied cookie stays valid until expiry "
-    "or a passcode change. Remove the xfail if a server-side revocation list is added.",
-    strict=False,
-)
 def test_copied_cookie_is_dead_after_logout(c):
     tok = token_of(c)
     c.post("/api/auth/logout", headers=H)
@@ -164,7 +159,7 @@ def test_generated_session_secret_is_private_and_stable(tmp_path: Path):
     assert f.is_file() and stat.S_IMODE(f.stat().st_mode) == 0o600
     assert len(f.read_text().strip()) >= 32
     b = auth.AuthState(s, tmp_path)
-    assert b.valid(a.issue())  # survives a restart
+    assert b.valid(a.issue())  # signing key survives; route validation also requires the original database row
     assert not auth.AuthState(Settings(auth_password="other", session_secret=None), tmp_path).valid(a.issue())
 
 

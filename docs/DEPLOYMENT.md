@@ -5,18 +5,28 @@ without it.
 
 ## Authentication model
 
-One shared passcode (`AUTH_PASSWORD`) for a single teacher or a small school. There is no user table.
+One shared passcode (`AUTH_PASSWORD`) for a single teacher or a small school. Passcode sessions use the existing implicit owner user and `sessions` table.
 
 * `POST /api/auth/login` checks the passcode in constant time and sets a signed, `HttpOnly`,
-  `SameSite=Lax` cookie (`Secure` automatically on https / `X-Forwarded-Proto: https`).
-  `POST /api/auth/logout` clears it; `GET /api/auth/me` reports the session (401 if none).
+  `SameSite=Lax` v2 cookie with a random nonce (`Secure` automatically on https / trusted proxy scheme).
+  The database stores SHA-256 of the complete signed cookie; both its signature and a live owner session are required.
+  Legacy v1 cookies are rejected: users must sign in once after upgrading.
+  `POST /api/auth/logout` revokes the row and clears the cookie; `GET /api/auth/me` reports the session (401 if none).
 * Every `/api` route and the chat WebSocket require the cookie. Only `/api/health`, `/api/version` and
   `/api/auth/*` are public.
 * CSRF: state-changing requests need an `X-Requested-With` header (the web app sends it) and any `Origin`
   header must be same-host or listed in `CORS_ORIGINS`. The WebSocket handshake gets the same origin check.
 * Brute force: 5 wrong passcodes from one address start an exponential lockout (15s, 30s, ... max 15min,
   HTTP 429 + `Retry-After`); a global limiter backs this up. State is in memory per instance.
-* Changing `AUTH_PASSWORD` invalidates all existing sessions. Sessions last `SESSION_TTL_HOURS` (12).
+* Changing `AUTH_PASSWORD` or `SESSION_SECRET` invalidates all passcode sessions. Signature lifetime, database absolute
+  expiry and cookie Max-Age use `SESSION_TTL_HOURS` (12). Idle expiry reuses `ACCOUNTS_SESSION_IDLE_HOURS`, capped by that
+  absolute lifetime; the accounts-mode 720-hour absolute lifetime does not apply to passcode sessions.
+* Successful login rotates only the presented owner session in one transaction. `POST /api/auth/logout` revokes that
+  session before clearing its cookie, so a saved copy stops working; independent browser sessions remain valid.
+  Database failures fail closed. Restarts preserve sessions only with the same secret, passcode and durable database;
+  replay into a different database is rejected.
+* Chat sockets recheck the database every second and on user messages. Revocation or expiry closes them with code 1008
+  and cancels provider work. Polls and reset frames do not extend idle expiry.
 * Responses carry CSP, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`/`frame-ancestors 'none'`.
   `/api/docs` is off unless `ENABLE_DOCS=true`.
 
@@ -73,7 +83,7 @@ message and reset time (`detail.code = "quota_exceeded"`; chat sends an error fr
 | `AUTH_PASSWORD` | none | **Required** in passcode mode unless `AUTH_DISABLED=true`. Use a long random value. |
 | `AUTH_DISABLED` | `false` | `true` runs with no auth (logs a warning). Local development only. |
 | `SESSION_SECRET` | generated | Cookie signing key. If unset, one is generated and stored in `.session_secret` next to the SQLite file (or ephemeral for non-file DBs). Set explicitly for multiple instances. |
-| `SESSION_TTL_HOURS` | `12` | |
+| `SESSION_TTL_HOURS` | `12` | Passcode signature, database absolute lifetime and cookie Max-Age. Also caps passcode idle expiry. |
 | `COOKIE_SECURE` | auto | Force `true`/`false`; auto = Secure on https. |
 | `CORS_ORIGINS` | `["http://localhost:4000"]` | JSON list of extra allowed origins (e.g. the Vite dev server). Same-host needs nothing. |
 | `AUTH_MODE` | `passcode` | `passcode` or `accounts` (see above). |

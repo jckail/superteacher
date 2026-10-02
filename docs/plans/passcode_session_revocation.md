@@ -30,14 +30,21 @@ Store SHA-256 of the **complete signed cookie** in `AuthSession.id_hash`, with
 `user_id=OWNER_ID`. Hashing only its decoded nonce would let a cookie holder
 submit that nonce to accounts authentication after a mode switch. Also require
 accounts cookies to match their generated 43-character URL-safe opaque format;
-signed passcode wrappers contain dots and must be refused. This separates wire
-formats without adding a session-mode column.
+signed passcode wrappers contain dots and must be refused. Apply that validation
+to every accounts-mode session write path too, including revoke/logout and
+sign-in verification rotation; rejecting only authentication lookups still lets
+a replayed wrapper revoke an opposite-mode session. Shared-database cross-mode
+logout and verification must preserve the opposite-mode row. This separates
+wire formats without adding a session-mode column.
 
 Extract a small shared row-lifecycle resolver in `superteacher/accounts.py`:
 trusted precomputed hash, explicit idle duration, optional required owner ID,
 and `touch` flag. It must enforce row existence, absolute/idle expiry, and the
 user's disabled flag. Accounts keep their current raw-secret hashing and policy;
-passcode resolution requires `OWNER_ID` and returns `is_legacy=True`. Accounts
+passcode resolution requires `OWNER_ID` and returns `is_legacy=True`. Use
+conditional row updates/deletes and monotonic `last_seen_at` so a stale read
+cannot undo a newer refresh, delete a refreshed session, or raise an ORM stale
+write during concurrent logout. Check required ownership before any mutation. Accounts
 sessions, including an adopted `OWNER_ID`, remain `is_legacy=False`. Explicit
 auth-disabled development retains its owner bypass without issuing sessions.
 
@@ -63,8 +70,12 @@ passcode idle setting can follow as an explicit configuration change.
    Never delete another account's row from a forged or accounts cookie. Database
    failure must not claim durable revocation or permit signed-only fallback.
 4. Resolve REST, `/auth/me`, and WebSockets through the supplied app's
-   `session_factory`, never the module-global database. Purge expired owner
-   sessions during login without splitting the rotation transaction. Do not
+   `session_factory`, never the module-global database. Purge owner rows whose
+   database absolute expiry has passed during login, within the rotation
+   transaction. Do not apply the passcode idle cap to all owner rows: an adopted
+   owner may also have opaque accounts sessions with a longer configured idle
+   lifetime, and there is no persisted mode discriminator. The resolver may
+   conditionally clean the presented session using its validated mode policy. Do not
    introduce silent session-cap eviction or a passcode logout-all endpoint.
 5. Keep `ws_session_active(..., touch=False)` for polling and `touch=True` for
    real user messages. Revocation/expiry closes sockets with 1008 and cancels
@@ -93,7 +104,9 @@ Remove the copied-cookie logout xfail and add meaningful coverage for:
   An injected rotation insert failure leaves no partially committed revocation.
   DB failures set no new login cookie and never unlock signed-only access.
 - Logout during a blocked fake AI turn cancels it and releases its admission
-  permit; idle sockets close without another message. Existing cancellation,
+  permit; cover the real database gate and real chat lifecycle with a fake
+  provider, rather than only mocked gate/chat functions. Idle sockets close
+  without another message. Existing cancellation,
   trusted-proxy, and forwarded-header spoof tests remain intact.
 
 Enter app lifespan in `tests/test_auth.py`'s foreign-cookie helper: it currently

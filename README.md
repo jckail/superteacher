@@ -54,10 +54,10 @@ Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLO
 Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `AI_MAX_CONCURRENT_REQUESTS`, `AI_CHAT_TIMEOUT_SECONDS`, `AI_INSIGHT_TIMEOUT_SECONDS`, `AI_PARENT_TIMEOUT_SECONDS`, `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
 
 ## Security
-Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. By default a single shared passcode; opt-in accounts mode adds per-user tenancy (every query and AI path is owner-scoped, cross-tenant tested), but no roles/organisations yet.
+Shared-passcode auth with signed HttpOnly cookies backed by revocable database sessions, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. By default a single shared passcode; opt-in accounts mode adds per-user tenancy (every query and AI path is owner-scoped, cross-tenant tested), but no roles/organisations yet.
 
 ## Not yet
-Roles/organisations, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
+Roles/organisations, shared multi-instance rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
 
 ## Decisions
 Open architecture decisions (persistence, identity, privacy, grading policy, domain cutover): [docs/adr/README.md](docs/adr/README.md)

@@ -18,7 +18,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import case, delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -155,7 +155,7 @@ def reserve_link_request(db: Session) -> None:
         db.execute(update(LoginToken).where(LoginToken.token_hash == "").values(token_hash=LoginToken.token_hash))
 
 
-def ensure_owner(db: Session) -> str:
+def ensure_owner(db: Session, *, commit: bool = True) -> str:
     """The implicit user behind passcode mode (and pre-accounts data). Idempotent."""
     if db.get(User, OWNER_ID) is not None:
         return OWNER_ID
@@ -164,7 +164,8 @@ def ensure_owner(db: Session) -> str:
         .values(id=OWNER_ID, email=OWNER_EMAIL, disabled=False)
         .on_conflict_do_nothing(index_elements=["id"])
     )
-    db.commit()
+    if commit:
+        db.commit()
     return OWNER_ID
 
 
@@ -278,30 +279,65 @@ def create_session(db: Session, settings: Settings, user: User) -> str:
     return raw
 
 
-def resolve_session(db: Session, settings: Settings, raw: str | None, *, touch: bool = True) -> CurrentUser | None:
-    """The user behind a cookie value, enforcing absolute + idle expiry and the disabled flag."""
-    if not raw or len(raw) > 200:
-        return None
-    row = db.get(AuthSession, hash_secret(raw))
-    if row is None:
+def opaque_session(raw: str | None) -> bool:
+    """Accounts cookies have exactly the wire format produced by new_secret()."""
+    return isinstance(raw, str) and re.fullmatch(r"[A-Za-z0-9_-]{43}", raw) is not None
+
+
+def resolve_session_hash(
+    db: Session, id_hash: str, *, idle: timedelta, required_owner: str | None = None, touch: bool = True
+) -> CurrentUser | None:
+    """Resolve a trusted hash; mode-specific callers validate the wire value first."""
+    row = db.get(AuthSession, id_hash)
+    if row is None or (required_owner is not None and row.user_id != required_owner):
         return None
     t = now()
-    idle = timedelta(hours=settings.accounts_session_idle_hours)
+    owner_condition = AuthSession.user_id == row.user_id
     if aware(row.expires_at) <= t or t - aware(row.last_seen_at) > idle:
-        db.delete(row)
-        db.commit()
+        if touch:
+            db.execute(
+                delete(AuthSession).where(
+                    AuthSession.id_hash == id_hash,
+                    owner_condition,
+                    or_(AuthSession.expires_at <= t, AuthSession.last_seen_at < t - idle),
+                ),
+                execution_options={"synchronize_session": False},
+            )
+            db.commit()
         return None
     user = db.get(User, row.user_id)
     if user is None or user.disabled:
         return None
     if touch and t - aware(row.last_seen_at) > TOUCH_EVERY:
-        row.last_seen_at = t
+        # A concurrent logout must not resurrect a row; delayed readers must not regress newer activity.
+        changed = db.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.id_hash == id_hash,
+                owner_condition,
+                AuthSession.expires_at > t,
+                AuthSession.last_seen_at >= t - idle,
+            )
+            .values(last_seen_at=case((AuthSession.last_seen_at < t, t), else_=AuthSession.last_seen_at)),
+            execution_options={"synchronize_session": False},
+        ).rowcount
         db.commit()
-    return CurrentUser(id=user.id, email=user.email)
+        if changed != 1:
+            return None
+    return CurrentUser(id=user.id, email=user.email, is_legacy=required_owner is not None)
+
+
+def resolve_session(db: Session, settings: Settings, raw: str | None, *, touch: bool = True) -> CurrentUser | None:
+    """Accounts wire format + shared absolute/idle/user policy."""
+    if not opaque_session(raw):
+        return None
+    return resolve_session_hash(
+        db, hash_secret(raw), idle=timedelta(hours=settings.accounts_session_idle_hours), touch=touch
+    )
 
 
 def revoke_session(db: Session, raw: str | None) -> None:
-    if raw:
+    if opaque_session(raw):
         db.execute(delete(AuthSession).where(AuthSession.id_hash == hash_secret(raw)))
         db.commit()
 

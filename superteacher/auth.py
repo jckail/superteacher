@@ -4,10 +4,12 @@ Both modes resolve every request to a ``CurrentUser`` through ONE dependency, :f
 to the implicit owner user, so ownership scoping is uniform. Accounts mode (sign-in links, server-side revocable
 sessions) is documented in ``accounts.py`` and docs/adr/0002. The rest of this docstring describes the passcode design.
 
-Design (small, auditable, no user table):
+Design (server-revocable passcode sessions):
 * ``AUTH_PASSWORD`` is the passcode. Login compares in constant time and, on success, sets a signed
   (itsdangerous, HMAC-SHA1 over a key derived from SESSION_SECRET + passcode), HttpOnly, SameSite=Lax
-  cookie. Changing the passcode invalidates every session.
+  v2 cookie with a random nonce. Every request also requires its full-cookie hash in AuthSession for the owner.
+  Changing the passcode invalidates every session; legacy v1 cookies require signing in again.
+  Passcode idle expiry reuses accounts_session_idle_hours, capped by the passcode absolute TTL.
 * ``require_auth`` is a router-level dependency for REST *and* WebSocket routes.
 * CSRF: state-changing requests must carry ``X-Requested-With`` (a custom header cannot be sent
   cross-site without a CORS preflight, which CORS_ORIGINS refuses) and, when the browser sends an
@@ -24,20 +26,22 @@ import logging
 import secrets
 import threading
 import time
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, WebSocketException, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.requests import HTTPConnection
-from itsdangerous import BadSignature, URLSafeTimedSerializer
+from itsdangerous import BadData, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 
 from . import accounts, mailer
 from .accounts import CurrentUser
 from .config import Settings
-from .models import OWNER_EMAIL, OWNER_ID
+from .models import OWNER_EMAIL, OWNER_ID, AuthSession, User
 
 log = logging.getLogger("superteacher.auth")
 
@@ -131,15 +135,24 @@ class AuthState:
 
     # --- sessions ---
     def issue(self) -> str:
-        return self.serializer.dumps({"v": 1})
+        """Sign a unique v2 cookie. Only a matching live DB row grants access."""
+        return self.serializer.dumps({"v": 2, "mode": "passcode", "nonce": accounts.new_secret()})
 
     def valid(self, token: str | None) -> bool:
-        if not token:
+        """Validate the signed wire format only, never route authorization."""
+        if not isinstance(token, str) or not 1 <= len(token) <= 512:
             return False
         try:
-            self.serializer.loads(token, max_age=self.ttl)
-            return True
-        except BadSignature:
+            payload = self.serializer.loads(token, max_age=self.ttl)
+            return (
+                type(payload) is dict
+                and set(payload) == {"v", "mode", "nonce"}
+                and type(payload["v"]) is int
+                and payload["v"] == 2
+                and payload["mode"] == "passcode"
+                and accounts.opaque_session(payload["nonce"])
+            )
+        except BadData:
             return False
 
     def check_password(self, candidate: str) -> bool:
@@ -219,8 +232,17 @@ def _resolve(st: AuthState, factory, cookie: str | None, *, touch: bool = True) 
     if st.accounts:
         with factory() as db:
             return accounts.resolve_session(db, st.settings, cookie, touch=touch)
-    if st.disabled or st.valid(cookie):
+    if st.disabled:
         return _owner(st, factory)
+    if st.valid(cookie):
+        with factory() as db:
+            return accounts.resolve_session_hash(
+                db,
+                accounts.hash_secret(cookie),
+                idle=timedelta(seconds=min(st.ttl, st.settings.accounts_session_idle_hours * 3600)),
+                required_owner=OWNER_ID,
+                touch=touch,
+            )
     return None
 
 
@@ -315,7 +337,33 @@ def login(body: LoginBody, request: Request, response: Response):
     st.record(client, ok)
     if not ok:
         raise HTTPException(401, "Incorrect passcode")
-    _set_cookie(response, request, st, st.issue(), st.ttl)
+    raw = st.issue()
+    with request.app.state.session_factory() as db:
+        accounts.ensure_owner(db, commit=False)
+        owner = db.get(User, OWNER_ID)
+        if owner is None or owner.disabled:
+            raise HTTPException(401, "Not authenticated")
+        presented = request.cookies.get(COOKIE)
+        if st.valid(presented):
+            db.execute(
+                delete(AuthSession).where(
+                    AuthSession.id_hash == accounts.hash_secret(presented), AuthSession.user_id == OWNER_ID
+                )
+            )
+        t = accounts.now()
+        db.execute(delete(AuthSession).where(AuthSession.user_id == OWNER_ID, AuthSession.expires_at <= t))
+        db.add(
+            AuthSession(
+                id_hash=accounts.hash_secret(raw),
+                user_id=OWNER_ID,
+                created_at=t,
+                last_seen_at=t,
+                expires_at=t + timedelta(seconds=st.ttl),
+            )
+        )
+        owner.last_login_at = t
+        db.commit()
+    _set_cookie(response, request, st, raw, st.ttl)
     return {"authenticated": True, "auth_required": True}
 
 
@@ -416,6 +464,15 @@ def logout(request: Request, response: Response):
     if st.accounts:
         with request.app.state.session_factory() as db:
             accounts.revoke_session(db, request.cookies.get(COOKIE))  # F-06: the server forgets the session
+    elif not st.disabled and st.valid(request.cookies.get(COOKIE)):
+        with request.app.state.session_factory() as db:
+            db.execute(
+                delete(AuthSession).where(
+                    AuthSession.id_hash == accounts.hash_secret(request.cookies[COOKIE]),
+                    AuthSession.user_id == OWNER_ID,
+                )
+            )
+            db.commit()
     clear_cookie(response, request, st)
     return {"authenticated": False}
 
