@@ -288,7 +288,7 @@ def managed_run():
         gate = GATE
         # No standalone install CLI: this payload is constructed only while
         # main holds the worktree lock, and admitted by the shared gate below.
-        payload = f"import runpy; runpy.run_path({str(Path(__file__).resolve())!r})['install']()"
+        payload = f"import runpy, sys; sys.exit(runpy.run_path({str(Path(__file__).resolve())!r})['installer_main']())"
         command = [sys.executable, "-c", payload]
         if gate.is_file():
             command.insert(0, "--")
@@ -302,6 +302,16 @@ def managed_run():
     qualify_demo_state()
     preflight()
     return serve()
+
+
+def installer_main():
+    """Keep the gated child's failure contract consistent with the launcher."""
+    try:
+        install()
+        return 0
+    except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"Local setup stopped: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

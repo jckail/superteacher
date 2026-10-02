@@ -417,3 +417,46 @@ def test_removed_internal_install_entry_never_runs_install(checkout, monkeypatch
         assert exc.value.code == 2
     install.assert_not_called()
     assert not dev.STATE.exists()
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_status"),
+    [
+        ("RuntimeError('inert state refusal')", 2),
+        ("OSError('inert filesystem failure')", 2),
+        ("ValueError('inert invalid setup')", 2),
+        ("subprocess.CalledProcessError(3, ['inert-uv'])", 2),
+        (None, 0),
+    ],
+)
+def test_gated_installer_payload_reports_failures_without_traceback(checkout, monkeypatch, failure, expected_status):
+    # Execute the real generated payload against a copied script whose installer
+    # is inert. Never execute uv/npm, the real gate, or an application server.
+    source = Path(dev.__file__).read_text()
+    entry = checkout / "scripts/dev.py"
+    entry.parent.mkdir()
+    body = f"raise {failure}" if failure else "return"
+    entry.write_text(source + f"\n\ndef install():\n    {body}\n")
+    gate = checkout / "fake-gate"
+    gate.touch()
+    monkeypatch.setattr(dev, "__file__", str(entry))
+    monkeypatch.setattr(dev, "GATE", gate)
+    monkeypatch.setattr(dev, "ready", lambda: False)
+    setup = Mock(return_value=75)
+    serve = Mock()
+    monkeypatch.setattr(dev, "run_setup", setup)
+    monkeypatch.setattr(dev, "serve", serve)
+    assert dev.managed_run() == 75
+    command = setup.call_args.args[0]
+    assert command[:2] == [str(gate), "--"]
+    assert setup.call_args.kwargs == {"gated": True}
+    result = subprocess.run(command[2:], capture_output=True, text=True, timeout=5, check=False)
+    assert result.returncode == expected_status
+    if failure:
+        assert result.stderr.startswith("Local setup stopped: ")
+        assert "inert" in result.stderr
+    else:
+        assert not result.stderr
+    assert "Traceback" not in result.stderr
+    serve.assert_not_called()
+    assert not dev.STATE.exists()
