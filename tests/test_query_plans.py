@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker
 from superteacher import ai, ai_tools
 from superteacher import db as database
 from superteacher.main import create_app
+from superteacher.models import OWNER_ID
 
 _spec = importlib.util.spec_from_file_location(
     "st_bench", Path(__file__).resolve().parent.parent / "scripts" / "bench.py"
@@ -104,12 +105,12 @@ def _actions(w: World) -> dict:
 
     def ai_parts():
         with w.factory() as s:
-            ai.build_context_parts(s, stu)
+            ai.build_context_parts(s, OWNER_ID, stu)
 
     def tool(name, args):
         def run():
             with w.factory() as s:
-                ai_tools.execute(s, name, args)
+                ai_tools.execute(s, OWNER_ID, name, args)
 
         return run
 
