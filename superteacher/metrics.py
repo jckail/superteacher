@@ -116,10 +116,14 @@ def compute_from(
     if by_kind:
         weights = {k: KIND_WEIGHTS[k] for k in by_kind}
         total_w = sum(weights.values())
-        m.average = sum(
-            weights[k] / total_w * (sum(s.points for s in v) / sum(s.max_points for s in v) * 100)
-            for k, v in by_kind.items()
-        )
+        contributions = []
+        for kind, scores in by_kind.items():
+            maximum = sum(score.max_points for score in scores)
+            # Divide before adding raw points so finite extra credit cannot
+            # overflow the numerator when several scores approach float limits.
+            category = sum(score.points / maximum * 100 for score in scores)
+            contributions.append(weights[kind] / total_w * category)
+        m.average = sum(contributions)
         m.letter, m.gpa = letter_and_gpa(m.average)
 
     if len(graded) >= 4:

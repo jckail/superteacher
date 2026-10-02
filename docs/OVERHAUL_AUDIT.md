@@ -217,3 +217,26 @@ was fixed by shielding final draining of owned tasks, preserving lease/generator
 cleanup. Four unchanged auth/revocation/calendar cases passed; the two auth cases
 also passed their focused verification rerun. Root lint/format and diff checks
 pass before the merge commit. Full combined CI remains the release gate.
+
+
+CI36970357403 for `948b998`: lint, frontend unit/type/build, native browser,
+incoming E2E and informational benchmark passed. API: 883 passed, 40 failed,
+29 fixture errors, one known xfail. Many native direct ORM/raw SQL fixtures omitted
+new owner records/columns; incoming quota fakes conflicted with API-key admission.
+New routes require explicit cross-tenant attack inventory. Team fixes preserve
+strict production constraints. Root found and fixed aggregate overflow from
+adding multiple finite near-limit raw scores before normalization; the new
+extreme-score read/export regression and focused API validation passed 11 cases.
+Docker remained gated. A new exact-head run is required.
+
+Offline accounts snapshot adoption is implemented with exact legacy schema and
+independent native-chain proof, lossless row hashes, private clone migration,
+integrity/FK checks and atomic no-overwrite publication. Twelve focused tests
+passed. No production snapshot was fetched or replaced; production adoption,
+isolated candidate restoration, writer-drain and domain cutover remain pending.
+
+CI-fix verification: 26 numeric/metric cases passed after the linear-time safe
+aggregation fix; 19 backup cases, nine scale/tenant attack cases, 45 quota/grounding
+cases and 13 tool-scale cases passed. The new candidate script records synthetic
+writes in a private receipt and supports readback after a separate isolated restore.
+Its syntax/contract checks do not establish a deployment; no live run occurred.

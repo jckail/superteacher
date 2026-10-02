@@ -57,8 +57,10 @@ def test_gradebook_flow_and_metrics(client):
     detail = client.get(f"/api/students/{s['id']}").json()
     assert detail["gpa"] == 3.7 and detail["missing"] == 0 and detail["homework_rate"] == 100
 
-    bad = client.put(f"/api/assessments/{aid}/scores", json={"scores": [{"student_id": s["id"], "points": 500}]})
-    assert bad.status_code == 422
+    extra = client.put(f"/api/assessments/{aid}/scores", json={"scores": [{"student_id": s["id"], "points": 500}]})
+    assert extra.status_code == 200
+    assert extra.json()["rows"][0]["points"][aid] == 500
+    assert extra.json()["rows"][0]["average"] == 5000
     other = client.put(f"/api/assessments/{aid}/scores", json={"scores": [{"student_id": "zzz", "points": 1}]})
     assert other.status_code == 422
 

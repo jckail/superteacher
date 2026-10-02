@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from superteacher import db as database
+from superteacher.accounts import normalize_email
 from superteacher.config import Settings
 from superteacher.main import create_app
 
@@ -46,11 +47,7 @@ def build(tmp_path: Path, **kw) -> TestClient:
 
 def outbox(tmp_path: Path) -> list[dict]:
     d = tmp_path / "outbox"
-    return (
-        [json.loads(f.read_text()) for f in sorted(d.glob("*.json"), key=lambda f: f.stat().st_mtime_ns)]
-        if d.exists()
-        else []
-    )
+    return [json.loads(f.read_text()) for f in sorted(d.glob("*.json"))] if d.exists() else []
 
 
 def token_from(msg: dict) -> str:
@@ -69,11 +66,13 @@ def verify(c: TestClient, token: str, **headers):
 
 def sign_in(c: TestClient, tmp_path: Path, email: str) -> dict:
     """Full flow with this client's cookie jar. Returns the verify response body."""
-    before = len(outbox(tmp_path))
+    before = outbox(tmp_path)
     assert request_link(c, email).status_code == 202
     sent = outbox(tmp_path)
-    assert len(sent) == before + 1, "expected exactly one new email"
-    r = verify(c, token_from(sent[-1]))
+    assert len(sent) == len(before) + 1, "expected exactly one new email"
+    new = [msg for msg in sent if msg not in before and msg["to"] == normalize_email(email)]
+    assert len(new) == 1, "expected one new email for the requested address"
+    r = verify(c, token_from(new[0]))
     assert r.status_code == 200, r.text
     return r.json()
 

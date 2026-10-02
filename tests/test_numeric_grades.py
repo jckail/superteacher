@@ -157,3 +157,22 @@ def test_csv_points_and_maximum_round_trip_without_precision_loss(client, maximu
     assert float(header[3].removeprefix("Precise (").removesuffix(" pts)")) == maximum
     assert float(row[3]) == points
     assert reads[f"/api/students/{student['id']}"]["scores"][0]["points"] == points
+
+
+def test_multiple_extreme_finite_extra_credit_scores_keep_aggregates_finite(client):
+    _, section = mk_class(client)
+    student = mk_student(client, section)
+    for title in ["First", "Second"]:
+        response = client.post(
+            f"/api/sections/{section['id']}/assessments",
+            json={"title": title, "max_points": 100},
+        )
+        assert response.status_code == 201
+        assessment = next(a for a in response.json()["assessments"] if a["title"] == title)
+        response = client.put(
+            f"/api/assessments/{assessment['id']}/scores",
+            json={"scores": [{"student_id": student["id"], "points": 1e308}]},
+        )
+        assert response.status_code == 200
+        _finite(response.json())
+    _reads(client, section, student)

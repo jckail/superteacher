@@ -16,7 +16,7 @@ from superteacher.ai_tools import (
     get_student,
 )
 from superteacher.calendar import school_today
-from superteacher.models import Note, Student
+from superteacher.models import OWNER_ID, Note, Student
 from superteacher.queries import load_students
 from tests.test_query_scale import seed_scale
 
@@ -27,7 +27,7 @@ def test_find_is_exact_with_bounded_ranking(engine, sort_by, descending):
     seed_scale(engine)
     args = {"sort_by": sort_by, "descending": descending, "limit": 7, "min_missing": 1}
     with Session(engine) as db:
-        students = load_students(db)
+        students = load_students(db, owner_id=OWNER_ID)
         expected = find_students(students, FindStudentsArgs(**args))
         full = [(s, metrics.compute(s)) for s in students]
         full = [(s, m) for s, m in full if m.missing >= 1]
@@ -46,14 +46,14 @@ def test_find_is_exact_with_bounded_ranking(engine, sort_by, descending):
         ranked = known + [r for r in full if key(r) is None]
         assert [row["id"] for row in expected["students"]] == [s.id for s, _ in ranked[:7]]
     with Session(engine) as db:
-        assert json.loads(execute(db, "find_students", args)) == expected
+        assert json.loads(execute(db, "find_students", args, owner_id=OWNER_ID)) == expected
         assert len([s for s in db.identity_map.values() if isinstance(s, Student)]) <= 7
 
 
 def test_scoped_get_and_stats_equal_existing_semantics(engine):
     seed_scale(engine)
     with Session(engine) as db:
-        students = load_students(db)
+        students = load_students(db, owner_id=OWNER_ID)
         expected_get = get_student(students, GetStudentArgs(student_id="s000003"))
         expected_stats = class_stats(students, ClassStatsArgs(section="Period 2"))
         pool = [metrics.compute(s) for s in students if s.section.name == "Period 2"]
@@ -64,14 +64,14 @@ def test_scoped_get_and_stats_equal_existing_semantics(engine):
         engine, "before_cursor_execute", lambda conn, cursor, sql, params, context, many: queries.append((sql, params))
     )
     with Session(engine) as db:
-        assert execute(db, "get_student", {"student_id": "s000003"}) == expected_get
+        assert execute(db, "get_student", {"student_id": "s000003"}, owner_id=OWNER_ID) == expected_get
         assert len(queries) == 4
         assert queries[1][1] == ("s000003",)
         assert queries[2][1] == ("s000003", school_today().isoformat())
         assert len([s for s in db.identity_map.values() if isinstance(s, Student)]) <= 1
     queries.clear()
     with Session(engine) as db:
-        assert json.loads(execute(db, "class_stats", {"section": "Period 2"})) == expected_stats
+        assert json.loads(execute(db, "class_stats", {"section": "Period 2"}, owner_id=OWNER_ID)) == expected_stats
         assert len(queries) == 3
         assert len(queries[1][1]) == 60
         assert len(queries[2][1]) == 61
@@ -89,11 +89,11 @@ def test_get_limits_notes_and_ambiguous_history(engine):
             ],
         )
     with Session(engine) as db:
-        result = execute(db, "get_student", {"student_id": "s000003"})
+        result = execute(db, "get_student", {"student_id": "s000003"}, owner_id=OWNER_ID)
         assert result.count("<note date=") == 5
         assert "Note 5" not in result
         assert len([s for s in db.identity_map.values() if isinstance(s, Note)]) <= 5
-        ambiguous = json.loads(execute(db, "get_student", {"name": "Student"}))
+        ambiguous = json.loads(execute(db, "get_student", {"name": "Student"}, owner_id=OWNER_ID))
         assert len(ambiguous["candidates"]) == 10
 
 
@@ -105,5 +105,5 @@ def test_tool_unicode_and_literal_wildcards(engine):
         s.section.name = "Ünicode_%"
         db.commit()
         for args in [{"name_contains": "ünal_%"}, {"name_contains": "i"}, {"section": "ünicode_%"}]:
-            expected = find_students(load_students(db), FindStudentsArgs(**args))
-            assert json.loads(execute(db, "find_students", args)) == expected
+            expected = find_students(load_students(db, owner_id=OWNER_ID), FindStudentsArgs(**args))
+            assert json.loads(execute(db, "find_students", args, owner_id=OWNER_ID)) == expected

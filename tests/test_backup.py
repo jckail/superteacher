@@ -10,6 +10,7 @@ from sqlalchemy.engine import URL
 
 from superteacher import backup
 from superteacher.db import Base
+from superteacher.models import OWNER_EMAIL, OWNER_ID
 
 
 def _relational_database(path):
@@ -18,16 +19,26 @@ def _relational_database(path):
     engine.dispose()
     with closing(sqlite3.connect(path)) as connection:
         connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute(
+            "INSERT INTO users (id, email, created_at, disabled) VALUES (?, ?, ?, ?)",
+            (OWNER_ID, OWNER_EMAIL, "2026-10-01 12:00:00", False),
+        )
+        connection.execute(
+            "INSERT INTO courses (id, name, owner_id) VALUES (?, ?, ?)", ("course", "Mathematics", OWNER_ID)
+        )
         connection.executescript("""
-            INSERT INTO courses VALUES ('course', 'Mathematics');
-            INSERT INTO sections VALUES ('section', 'course', 'Period 1');
-            INSERT INTO students VALUES ('student', 'Example Student', 8, 'section');
-            INSERT INTO assessments VALUES ('assessment', 'section', 'Quiz', 'quiz', 100, '2026-10-01');
-            INSERT INTO scores VALUES ('score', 'assessment', 'student', 85);
-            INSERT INTO attendance VALUES ('attendance', 'student', '2026-10-01', 'present');
-            INSERT INTO notes VALUES ('note', 'student', 'Private example note', '2026-10-01 12:00:00');
-            INSERT INTO insights VALUES ('student', 'fingerprint', 'example', '{"summary":"Private"}',
-                                        '2026-10-01 12:00:00');
+            INSERT INTO sections (id, course_id, name) VALUES ('section', 'course', 'Period 1');
+            INSERT INTO students (id, name, grade_level, section_id)
+                VALUES ('student', 'Example Student', 8, 'section');
+            INSERT INTO assessments (id, section_id, title, kind, max_points, due_date)
+                VALUES ('assessment', 'section', 'Quiz', 'quiz', 100, '2026-10-01');
+            INSERT INTO scores (id, assessment_id, student_id, points) VALUES ('score', 'assessment', 'student', 85);
+            INSERT INTO attendance (id, student_id, day, status)
+                VALUES ('attendance', 'student', '2026-10-01', 'present');
+            INSERT INTO notes (id, student_id, body, created_at)
+                VALUES ('note', 'student', 'Private example note', '2026-10-01 12:00:00');
+            INSERT INTO insights (student_id, fingerprint, model, payload, created_at)
+                VALUES ('student', 'fingerprint', 'example', '{"summary":"Private"}', '2026-10-01 12:00:00');
         """)
 
 
@@ -35,7 +46,17 @@ def _rows(path):
     with closing(sqlite3.connect(path)) as connection:
         return {
             table: connection.execute(f'SELECT * FROM "{table}" ORDER BY 1').fetchall()
-            for table in ("courses", "sections", "students", "assessments", "scores", "attendance", "notes", "insights")
+            for table in (
+                "users",
+                "courses",
+                "sections",
+                "students",
+                "assessments",
+                "scores",
+                "attendance",
+                "notes",
+                "insights",
+            )
         }
 
 

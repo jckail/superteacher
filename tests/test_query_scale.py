@@ -7,6 +7,7 @@ from sqlalchemy import event, insert, select
 from sqlalchemy.orm import Session
 
 from superteacher import metrics
+from superteacher.accounts import ensure_owner
 from superteacher.calendar import school_today
 from superteacher.db import Base
 from superteacher.models import Assessment, AttendanceRecord, Course, Score, Section, Student
@@ -16,8 +17,10 @@ from superteacher.queries import iter_summaries, load_students, load_summaries
 def seed_scale(engine, students=240, assignments=12, days=20):
     Base.metadata.create_all(engine)
     today = school_today()
+    with Session(engine) as db:
+        owner_id = ensure_owner(db)
     with engine.begin() as conn:
-        conn.execute(insert(Course), [{"id": "course", "name": "Synthetic Science"}])
+        conn.execute(insert(Course), [{"id": "course", "name": "Synthetic Science", "owner_id": owner_id}])
         conn.execute(
             insert(Section), [{"id": f"sec{i}", "course_id": "course", "name": f"Period {i}"} for i in range(4)]
         )

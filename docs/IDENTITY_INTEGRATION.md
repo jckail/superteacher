@@ -23,8 +23,28 @@ Before promoting the integrated image against that replica, restore a private
 consistent copy, inspect its version/schema and validate an explicit adoption
 mapping that preserves owners, sessions, quotas and domain/history records.
 Retain the original snapshot and verify constraints on the adopted copy.
-This adoption path remains a deployment blocker; changing the version number
-alone does not apply native integrity checks or establish schema compatibility.
+The explicit offline adoption bridge is now implemented and its 12 focused tests
+passed. Production use remains a blocker until an actual consistent backup is
+validated and the adopted copy is restored to an isolated replica. Changing only
+the revision marker remains unsupported.
+
+Prepare a standalone snapshot through the validated backup/recovery procedure;
+never pass the serving application's DB. Retain the original private snapshot:
+
+```bash
+chmod 400 /private/offline-accounts-backup.db
+python -m superteacher.adopt_accounts_snapshot \
+  /private/offline-accounts-backup.db /private/new-adopted.db
+```
+
+The command requires exact published schema and revision, refuses sidecars and
+existing outputs, applies the missing integrity migration to a private clone,
+compares against the independent native migration chain, proves every non-version
+row unchanged, checks integrity/foreign keys and atomically publishes a new 0600
+file without overwrite. Invalid or drifted schemas/data are rejected. It does not
+fetch a live replica, promote traffic or replace the input. Restore the resulting
+copy to a fresh isolated prefix, test authenticated records and recovery, then
+coordinate a verified single-writer drain/cutover separately.
 
 ## Current integration and verification
 

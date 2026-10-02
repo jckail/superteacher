@@ -9,6 +9,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from superteacher import calendar, reports
+from superteacher.accounts import ensure_owner
 from superteacher.db import Base
 from superteacher.models import AssessmentKind, AttendanceRecord, AttendanceStatus, Course, Section, Student
 from superteacher.queries import load_students
@@ -100,7 +101,7 @@ def test_bulk_attendance_is_student_then_day_and_each_student_is_chronological(e
     Base.metadata.create_all(engine)
     days = [DAY, DAY - timedelta(days=2), DAY - timedelta(days=1)]
     with Session(engine) as db:
-        sec = Section(id="active", name="P1", course=Course(id="c", name="Synthetic"))
+        sec = Section(id="active", name="P1", course=Course(id="c", name="Synthetic", owner_id=ensure_owner(db)))
         students = [Student(id=sid, name=sid, grade_level=9, section=sec) for sid in ("a", "b")]
         db.add_all(students)
         db.flush()

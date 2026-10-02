@@ -9,7 +9,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
 from superteacher.db import run_migrations
-from superteacher.models import OWNER_ID
+from superteacher.models import OWNER_EMAIL, OWNER_ID
 
 
 @pytest.fixture
@@ -31,10 +31,20 @@ def postgres_engine():
         admin.dispose()
 
 
+def _seed_owner(conn):
+    # Empty-schema migrations create no accounts; course fixtures need a real
+    # principal before exercising the independent grade constraints.
+    conn.execute(
+        text("INSERT INTO users (id, email, created_at, disabled) VALUES (:id, :email, CURRENT_TIMESTAMP, false)"),
+        {"id": OWNER_ID, "email": OWNER_EMAIL},
+    )
+
+
 def test_postgres_migration_persistence_and_grade_constraints(postgres_engine):
     engine = postgres_engine
     run_migrations(engine)
     with engine.begin() as conn:
+        _seed_owner(conn)
         conn.execute(
             text("INSERT INTO courses (id, name, owner_id) VALUES ('c1', 'Synthetic Math', :owner)"),
             {"owner": OWNER_ID},
@@ -56,6 +66,7 @@ def test_postgres_score_extra_credit_and_invalid_values(postgres_engine):
     engine = postgres_engine
     run_migrations(engine)
     with engine.begin() as conn:
+        _seed_owner(conn)
         conn.execute(
             text("INSERT INTO courses (id, name, owner_id) VALUES ('c1', 'Math', :owner)"), {"owner": OWNER_ID}
         )

@@ -12,9 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from superteacher import ai, ai_tools, calendar, metrics, reports
+from superteacher import accounts, ai, ai_tools, calendar, metrics, reports
 from superteacher.db import Base
 from superteacher.models import (
+    OWNER_ID,
     Assessment,
     AssessmentKind,
     AttendanceRecord,
@@ -36,7 +37,8 @@ def classroom(engine, session_factory, monkeypatch):
     monkeypatch.setattr(calendar, "utc_now", lambda: datetime.combine(AS_OF, datetime.min.time(), UTC))
     Base.metadata.create_all(engine)
     with calendar.school_calendar("UTC"), session_factory() as db:
-        course = Course(id="course", name="Algebra")
+        accounts.ensure_owner(db)
+        course = Course(id="course", name="Algebra", owner_id=OWNER_ID)
         section = Section(id="section", name="Period 1", course=course)
         student = Student(id="ada", name=FIXTURE["student"], grade_level=9, section=section)
         peer = Student(id="peer", name=FIXTURE["peer"], grade_level=9, section=section)
@@ -154,7 +156,7 @@ def test_actual_chat_tool_roundtrip_keeps_data_in_tool_result(classroom, session
         return [
             event
             async for event in ai.run_chat(
-                [{"role": "user", "content": "Show Ada's record"}], roster, focus, session_factory
+                [{"role": "user", "content": "Show Ada's record"}], roster, focus, session_factory, owner_id=OWNER_ID
             )
         ]
 
