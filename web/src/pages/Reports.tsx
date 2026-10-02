@@ -168,10 +168,13 @@ function ParentComposer({ section, generation }: { section: Section; generation:
   const [selected, setSelected] = useState<SelectedStudent | null>(null);
   const [toneSel, setTone] = useState<Tone>('warm');
   const [draft, setDraft] = useState<ParentUpdateOut | null>(null);
+  const [alternative, setAlternative] = useState<ParentUpdateOut | null>(null);
+  const [reviewingAlternative, setReviewingAlternative] = useState(false);
+  const subjectInput = useRef<HTMLInputElement>(null);
   const [generationError, setGenerationError] = useState<Error | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState('');
-  const lifecycle = useRef({ mounted: true, revision: 0, request: 0, draftRevision: 0, copyOperation: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined });
+  const lifecycle = useRef({ mounted: true, revision: 0, request: 0, textEditRevision: 0, draftRevision: 0, copyOperation: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined });
   const clearCopied = useCallback(() => {
     const state = lifecycle.current;
     state.copyOperation += 1;
@@ -186,6 +189,8 @@ function ParentComposer({ section, generation }: { section: Section; generation:
     clearCopied();
     setSelected(null);
     setDraft(null);
+    setAlternative(null);
+    setReviewingAlternative(false);
     setGenerationError(null);
   }, [clearCopied]);
   const students = useRosterPage({ enabled: true, sectionId: section.id, search, risk: '', sort: 'name', direction: 'asc' }, reset);
@@ -201,16 +206,22 @@ function ParentComposer({ section, generation }: { section: Section; generation:
     if (!selected || selected.sectionId !== section.id || generation.pending) return;
     const state = lifecycle.current;
     const revision = state.revision;
+    const textEditRevision = state.textEditRevision;
     const captured = selected;
     const tone = toneSel;
     generation.start(async () => {
       const request = ++state.request;
       setGenerationError(null);
+      setAlternative(null);
+      setReviewingAlternative(false);
       const current = () => state.mounted && state.revision === revision && state.request === request;
       try {
         const body: ParentUpdateIn = { tone, expected_section_id: captured.sectionId };
         const result = await api<ParentUpdateOut>(`/reports/students/${captured.id}/parent-update`, { method: 'POST', body });
-        if (current()) { clearCopied(); setDraft(result); }
+        if (current()) {
+          if (state.textEditRevision === textEditRevision) { clearCopied(); setDraft(result); }
+          else setAlternative(result);
+        }
       } catch (error) {
         if (current()) {
           if (error instanceof ApiError && error.status === 404) reset();
@@ -237,7 +248,7 @@ function ParentComposer({ section, generation }: { section: Section; generation:
       if (current()) setCopyError('Copy could not be completed. Select the subject and message above, then copy them manually. Your draft is still here.');
     }
   };
-  const edit = (value: ParentUpdateOut) => { clearCopied(); setDraft(value); };
+  const edit = (value: ParentUpdateOut) => { lifecycle.current.textEditRevision += 1; clearCopied(); setDraft(value); };
   const mailto = draft ? `mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` : '#';
   return (
     <section className="card rep-composer" aria-labelledby="rep-parent">
@@ -267,7 +278,7 @@ function ParentComposer({ section, generation }: { section: Section; generation:
         <label>Tone
           <select className="input" value={toneSel} onChange={(e) => {
             const value = e.target.value;
-            if (value === 'warm' || value === 'neutral' || value === 'concerned') { lifecycle.current.revision += 1; clearCopied(); setDraft(null); setGenerationError(null); setTone(value); }
+            if (value === 'warm' || value === 'neutral' || value === 'concerned') { lifecycle.current.revision += 1; clearCopied(); setDraft(null); setAlternative(null); setReviewingAlternative(false); setGenerationError(null); setTone(value); }
           }}>{TONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         </label>
       </div>
@@ -279,12 +290,26 @@ function ParentComposer({ section, generation }: { section: Section; generation:
       <ErrorBox error={generationError} />
       <div className="row"><button className="btn primary" disabled={!selected || generation.pending} onClick={generate}>{generation.pending ? 'Drafting…' : draft ? 'Regenerate' : 'Generate draft'}</button></div>
       {draft && <>
-        <label>Subject<input className="input" value={draft.subject} onChange={(e) => edit({ ...draft, subject: e.target.value })} /></label>
+        <label>Subject<input ref={subjectInput} className="input" value={draft.subject} onChange={(e) => edit({ ...draft, subject: e.target.value })} /></label>
         <label>Message<textarea className="input" value={draft.body} onChange={(e) => edit({ ...draft, body: e.target.value })} /></label>
         <div className="row"><button className="btn" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button><a className="btn primary" href={mailto}>Open in email</a></div>
         <span className="sr-only" role="status">{copied ? 'Copied to clipboard' : ''}</span>
         {copyError && <p className="copy-feedback" role="alert">{copyError}</p>}
       </>}
+      {alternative && <section aria-label="New generated draft">
+        <p role="status">A new draft is ready. Your edits were kept.</p>
+        <div className="row">
+          <button className="btn" onClick={() => setReviewingAlternative(!reviewingAlternative)}>{reviewingAlternative ? 'Close review' : 'Review new draft'}</button>
+          <button className="btn" onClick={() => { subjectInput.current?.focus(); setAlternative(null); setReviewingAlternative(false); }}>Discard new draft</button>
+        </div>
+        {reviewingAlternative && <>
+          <p>{alternative.source === 'ai' ? 'New AI draft' : 'New template draft'}</p>
+          <h3>New draft subject</h3><p style={{ whiteSpace: 'pre-wrap' }}>{alternative.subject}</p>
+          <h3>New draft message</h3><p style={{ whiteSpace: 'pre-wrap' }}>{alternative.body}</p>
+          <p>Replacing your edited draft will replace both its subject and message.</p>
+          <button className="btn" onClick={() => { subjectInput.current?.focus(); clearCopied(); setDraft(alternative); setAlternative(null); setReviewingAlternative(false); }}>Replace my edited draft</button>
+        </>}
+      </section>}
     </section>
   );
 }
