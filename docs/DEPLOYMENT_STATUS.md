@@ -1335,3 +1335,36 @@ This candidate uses the older frozen257 source and does not qualify the new
 conference-sheet source. Recovery, lineage adoption, writer drain, rollback,
 provider/email and production promotion remain open. Production traffic and
 domains have not been changed by this release operator.
+
+## Conference print contrast and private feature acceptance (2026-10-02)
+
+[PR85](https://github.com/jckail/superteacher/pull/85) exact head `693299b`
+passed all seven CI jobs, Bugbot and independent source review before merge
+`fa598d8`. Its E2E run passed 91 cases, including the dark-theme print regression:
+the overflow warning remains readable on white paper, private note text stays
+hidden, and returning to screen restores the dark colors. Actual assistive-technology
+acceptance remains open. The merged source still awaits local qualification
+under the updated verification policy. No new hosted CI result or image is
+claimed for the merge, and no new cloud build was started for it.
+
+The protected build attempt for source `135fa0f7f2532173d93c152ecda074eaad452c59`
+(session69224) exited75 at admission, before build submission. No build was
+submitted and no unchanged retry followed. The latest successful immutable build
+remains source5bad image
+`gcr.io/portfolio-383615/superteacher@sha256:8736f8b00b094c96205864f7ee1f01b1f93ce48b1b98d8011f3afa397a9f559c`.
+The failed admission and earlier build evidence remain preserved.
+
+Feature acceptance subsequently completed on the older frozen257 private
+candidate: the accepted private receipt, SHA256 prefix `54ce`, records 50 calls
+in 7.485 seconds. This extends that candidate's accepted continuation and
+canonical synthetic workflow evidence; it does not qualify the newer
+conference-sheet source or promote any image to production.
+
+Recovery preparation comprises the producer (SHA256 prefix `8ebd`), isolated
+restore payload (`0da`) and tests (`e330`). Root's 39 local tests with 69 subtests
+and two independent peer reviews passed. These are preparation checks; the
+actual restore remains unrun.
+Production lineage adoption, writer drain, rollback, provider/email, domain and
+human acceptance gates remain open under the existing
+[JCK-51 release issue](https://linear.app/jckail/issue/JCK-51/promote-main-to-the-live-service-database-lineage-accounts-0002-vs).
+No production promotion or recovery-point guarantee follows from these results.
