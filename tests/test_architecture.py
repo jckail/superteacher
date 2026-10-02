@@ -4,7 +4,10 @@ import ast
 import asyncio
 from pathlib import Path
 
-from superteacher.routers import ai as ai_router
+import pytest
+
+from superteacher import ai_capacity
+from superteacher.config import get_settings
 
 PKG = Path(__file__).resolve().parent.parent / "superteacher"
 
@@ -30,11 +33,19 @@ def test_services_never_import_routers():
     assert {k: v for k, v in offenders.items() if v} == {}
 
 
-def test_turn_limit_is_one_semaphore_per_event_loop():
-    async def twice():
-        return ai_router._turn_limit(), ai_router._turn_limit()
+def test_ai_capacity_is_shared_within_loop_and_independent_across_loops(monkeypatch):
+    monkeypatch.setattr(get_settings(), "ai_max_concurrent_requests", 1)
 
-    a1, a2 = asyncio.run(twice())
-    b1, _ = asyncio.run(twice())
-    assert a1 is a2  # stable within a loop
-    assert a1 is not b1  # never shared across loops
+    async def occupy():
+        lease = ai_capacity.acquire()
+        with pytest.raises(ai_capacity.CapacityError):
+            ai_capacity.acquire()
+        return lease
+
+    first = asyncio.run(occupy())
+    try:
+        # A lease held by the first loop cannot consume another worker/loop's budget.
+        second = asyncio.run(occupy())
+        second.release()
+    finally:
+        first.release()

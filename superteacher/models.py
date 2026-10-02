@@ -15,9 +15,10 @@ import enum
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, Enum, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .calendar import school_today
 from .db import Base
 
 
@@ -71,6 +72,12 @@ class Section(Base):
 
 class Student(Base):
     __tablename__ = "students"
+    __table_args__ = (
+        CheckConstraint(
+            "grade_level BETWEEN 1 AND 12 AND grade_level = CAST(grade_level AS INTEGER)",
+            name="ck_students_grade_level",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     name: Mapped[str] = mapped_column(String(120), index=True)
@@ -89,20 +96,27 @@ class Student(Base):
 
 class Assessment(Base):
     __tablename__ = "assessments"
+    __table_args__ = (
+        CheckConstraint("max_points > 0 AND max_points <= 1000000", name="ck_assessments_max_points"),
+        CheckConstraint("kind IN ('test', 'quiz', 'homework', 'project')", name="ck_assessments_kind"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     section_id: Mapped[str] = mapped_column(ForeignKey("sections.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(120))
     kind: Mapped[AssessmentKind] = mapped_column(Enum(AssessmentKind), default=AssessmentKind.test)
     max_points: Mapped[float] = mapped_column(Float, default=100.0)
-    due_date: Mapped[date] = mapped_column(Date, default=date.today)
+    due_date: Mapped[date] = mapped_column(Date, default=school_today)
     section: Mapped[Section] = relationship(back_populates="assessments")
     scores: Mapped[list[Score]] = relationship(cascade="all, delete-orphan", back_populates="assessment")
 
 
 class Score(Base):
     __tablename__ = "scores"
-    __table_args__ = (UniqueConstraint("assessment_id", "student_id"),)
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "student_id"),
+        CheckConstraint("points >= 0 AND points <= 1.7976931348623157e308", name="ck_scores_points"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     assessment_id: Mapped[str] = mapped_column(ForeignKey("assessments.id", ondelete="CASCADE"), index=True)
@@ -115,7 +129,10 @@ class Score(Base):
 
 class AttendanceRecord(Base):
     __tablename__ = "attendance"
-    __table_args__ = (UniqueConstraint("student_id", "day"),)
+    __table_args__ = (
+        UniqueConstraint("student_id", "day"),
+        CheckConstraint("status IN ('present', 'tardy', 'absent', 'excused')", name="ck_attendance_status"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     student_id: Mapped[str] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)

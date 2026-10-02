@@ -1,3 +1,5 @@
+import math
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -53,6 +55,27 @@ def create_assessment(section_id: str, body: schemas.AssessmentIn, db: Session =
     )
     db.commit()
     return build_gradebook(db, section)
+
+
+@router.patch("/assessments/{assessment_id}", response_model=schemas.Gradebook)
+def update_assessment(assessment_id: str, body: schemas.AssessmentPatch, db: Session = Depends(get_db)):
+    """Edit metadata, preserving raw scores when the maximum changes.
+
+    Gradebook and student metrics use the new maximum immediately; points are never rescaled.
+    """
+    assessment = db.get(Assessment, assessment_id)
+    if not assessment:
+        raise HTTPException(404, "Assessment not found")
+    changes = body.model_dump(exclude_unset=True)
+    if "max_points" in changes:
+        maximum = changes["max_points"]
+        points = db.scalars(select(Score.points).where(Score.assessment_id == assessment.id, Score.points.is_not(None)))
+        if any(not math.isfinite(value / maximum * 100) for value in points):
+            raise HTTPException(422, "This maximum would make an existing score percentage too large to calculate")
+    for key, value in changes.items():
+        setattr(assessment, key, value)
+    db.commit()
+    return build_gradebook(db, _section(db, assessment.section_id))
 
 
 @router.put("/assessments/{assessment_id}/scores", response_model=schemas.Gradebook)

@@ -1,16 +1,18 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from . import auth
 from . import db as database
+from .calendar import SchoolCalendarMiddleware, school_calendar
 from .config import Settings, get_settings
 from .routers import ai, attendance, gradebook, reports, roster, system
 from .seed import seed_demo
@@ -41,6 +43,11 @@ def create_app(
     settings = settings or get_settings()
     session_factory = session_factory or database.SessionLocal
     engine = engine or database.engine
+    if os.environ.get("K_SERVICE") and engine.dialect.name == "sqlite":
+        raise RuntimeError(
+            "Cloud Run requires a durable server database. Configure DATABASE_URL for PostgreSQL; "
+            "container-local SQLite is not supported on Cloud Run."
+        )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -48,7 +55,7 @@ def create_app(
 
         database.run_migrations(engine)  # additive only — existing data is never dropped
         if settings.seed_demo_data if seed is None else seed:
-            with session_factory() as s:
+            with session_factory() as s, school_calendar(settings.school_timezone):
                 seed_demo(s)
         yield
 
@@ -68,6 +75,14 @@ def create_app(
     )
     app.state.session_factory = session_factory
     app.state.auth = auth_state
+    app.add_middleware(SchoolCalendarMiddleware, timezone=settings.school_timezone)
+
+    def app_db():
+        with session_factory() as session:
+            yield session
+
+    # REST requests and websocket snapshots must use the database supplied to this app.
+    app.dependency_overrides[database.get_db] = app_db
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -86,7 +101,6 @@ def create_app(
         return response
 
     # Public: health/version (for probes) and auth. Everything else, including the chat WebSocket, requires a session.
-    # (Registered first, so they shadow the identical routes inside routers/system.py, which are auth-protected.)
     @app.get("/api/health", tags=["system"])
     def health(db: Session = Depends(database.get_db)):
         try:
@@ -94,7 +108,7 @@ def create_app(
             return {"status": "healthy", "database": "ok", "ai": bool(settings.anthropic_api_key)}
         except Exception:
             logging.getLogger(__name__).exception("health check failed")
-            return {"status": "unhealthy", "database": "error", "ai": False}
+            return JSONResponse({"status": "unhealthy", "database": "error", "ai": False}, status_code=503)
 
     @app.get("/api/version", tags=["system"])
     def version():
@@ -111,6 +125,8 @@ def create_app(
 
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str):
+            if path == "api" or path.startswith("api/"):
+                raise HTTPException(404, "Not found")
             f = (dist / path).resolve()
             if path and f.is_file() and dist.resolve() in f.parents:
                 return FileResponse(f)

@@ -3,7 +3,6 @@ import contextlib
 import json
 import logging
 import time
-import weakref
 from collections import deque
 from collections.abc import Callable
 
@@ -11,6 +10,8 @@ from fastapi import APIRouter, Depends, WebSocket
 from sqlalchemy.orm import Session
 
 from .. import ai, schemas
+from ..calendar import school_calendar, school_timezone
+from ..config import get_settings
 from ..db import get_db
 from .roster import get_student_or_404
 
@@ -20,18 +21,7 @@ log = logging.getLogger(__name__)
 MAX_HISTORY = 20  # messages kept per connection
 MAX_MESSAGE_CHARS = 4000  # one user message
 MAX_FRAME_CHARS = 64_000  # raw websocket text frame; larger closes the socket (1009)
-MAX_CONCURRENT_TURNS = 8  # model calls in flight across all connections
-_turn_limits: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = weakref.WeakKeyDictionary()
-
-
-def _turn_limit() -> asyncio.Semaphore:
-    """The turn limiter for the running loop. A semaphore binds to the loop that first contends on it, so a
-    module-level one breaks as soon as a second loop (tests, multiple workers' reloads) uses it."""
-    loop = asyncio.get_running_loop()
-    limit = _turn_limits.get(loop)
-    if limit is None:
-        limit = _turn_limits[loop] = asyncio.Semaphore(MAX_CONCURRENT_TURNS)
-    return limit
+MAX_PENDING_FRAMES = 16  # bound per-connection memory when a client floods messages
 
 
 class RateLimiter:
@@ -63,10 +53,21 @@ async def _read(ws: WebSocket, inbox: asyncio.Queue) -> None:
             msg = await ws.receive()
             if msg["type"] == "websocket.disconnect":
                 break
-            await inbox.put(msg.get("text") if msg.get("text") is not None else b"")
+            raw = msg.get("text") if msg.get("text") is not None else msg.get("bytes", b"")
+            if len(raw) > MAX_FRAME_CHARS:
+                await ws.close(code=1009)
+                break
+            try:
+                inbox.put_nowait(raw)
+            except asyncio.QueueFull:
+                await ws.close(code=1008, reason="Too many pending messages")
+                break
     except Exception:
         pass
-    await inbox.put(None)
+    # A disconnect must reach the consumer even when the inbox was saturated.
+    while not inbox.empty():
+        inbox.get_nowait()
+    inbox.put_nowait(None)
 
 
 @router.websocket("/chat/ws")
@@ -81,7 +82,7 @@ async def chat_ws(ws: WebSocket):
     history: list[dict] = []
     factory = ws.app.state.session_factory
     limiter = RateLimiter(ai.setting_int("chat_rate_limit_per_min", 12))
-    inbox: asyncio.Queue = asyncio.Queue()
+    inbox: asyncio.Queue = asyncio.Queue(maxsize=MAX_PENDING_FRAMES)
     reader = asyncio.create_task(_read(ws, inbox))
     send_lock = asyncio.Lock()
 
@@ -96,24 +97,30 @@ async def chat_ws(ws: WebSocket):
             history.pop(0)
         reply: list[str] = []
         try:
-            async with _turn_limit():
+            # Freeze each turn, including threaded tools, while the next turn gets a fresh date.
+            with school_calendar(school_timezone()):
+                async with asyncio.timeout(get_settings().ai_chat_timeout_seconds):
 
-                def snapshot():
-                    with factory() as db:
-                        return ai.build_context_parts(db, student_id)
+                    def snapshot():
+                        with factory() as db:
+                            return ai.build_context_parts(db, student_id)
 
-                roster, focus = await asyncio.to_thread(snapshot)
-                async for ev in ai.run_chat(list(history), roster, focus, factory):
-                    if ev["type"] == "delta":
-                        reply.append(ev["text"])
-                        await send(ev)
-                    elif tool_events:
-                        await send({"type": "tool", "name": ev["name"]})
+                    roster, focus = await asyncio.to_thread(snapshot)
+                    async with contextlib.aclosing(ai.run_chat(list(history), roster, focus, factory)) as events:
+                        async for ev in events:
+                            if ev["type"] == "delta":
+                                reply.append(ev["text"])
+                                await send(ev)
+                            elif tool_events:
+                                await send({"type": "tool", "name": ev["name"]})
             history.append({"role": "assistant", "content": "".join(reply)})
             await send({"type": "done"})
         except asyncio.CancelledError:
             _drop_unanswered(history)
             raise
+        except TimeoutError:
+            _drop_unanswered(history)
+            await send({"type": "error", "message": ai.friendly_error(TimeoutError())})
         except ai.ChatError as e:
             _drop_unanswered(history)
             await send({"type": "error", "message": str(e)})

@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .calendar import school_today
 from .models import (
     Assessment,
     AssessmentKind,
@@ -92,7 +93,7 @@ def seed_demo(db: Session, today: date | None = None, seed: int = 7) -> None:
     if db.scalar(select(Course.id).limit(1)):
         return  # never touch real data
     rng = random.Random(seed)
-    today = today or date.today()
+    today = today or school_today()
     names = [f"{first} {last}" for first in FIRST for last in LAST]
     rng.shuffle(names)
     name_iter = iter(names)

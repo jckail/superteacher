@@ -32,7 +32,11 @@ One shared passcode (`AUTH_PASSWORD`) for a single teacher or a small school. Th
 | `CORS_ORIGINS` | `["http://localhost:4000"]` | JSON list of extra allowed origins (e.g. the Vite dev server). Same-host needs nothing. |
 | `ENABLE_DOCS` | `false` | Serve Swagger at `/api/docs` (protected only by being unlinked; keep off in prod). |
 | `DATABASE_URL` | `sqlite:///./data/superteacher.db` (image: `sqlite:////data/superteacher.db`) | |
+| `SCHOOL_TIMEZONE` | `UTC` | IANA zone for school-day defaults and academic cutoffs; see [School calendar](SCHOOL_CALENDAR.md). Cloud Build accepts `_SCHOOL_TIMEZONE`. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL` | | AI features; optional. |
+| `AI_MAX_CONCURRENT_REQUESTS` | `8` | Shared fail-fast provider budget per server worker across chat, insights and drafts. |
+| `AI_CHAT_TIMEOUT_SECONDS` | `90` | Total chat deadline, including tool rounds. |
+| `AI_INSIGHT_TIMEOUT_SECONDS`, `AI_PARENT_TIMEOUT_SECONDS` | `45` | Total generation deadlines; cleanup has a separate 5-second cap. |
 | `SEED_DEMO_DATA` | `true` | Set `false` in production. |
 | `STATIC_DIR` | `web/dist` | |
 | `PORT`, `VERSION` | `8080`, `dev` | |
@@ -50,7 +54,7 @@ python deployment_tests.py http://localhost:8080   # export AUTH_PASSWORD first
 ```
 
 Terminate TLS in front (Caddy, nginx, a load balancer) so the cookie is `Secure`; forward
-`X-Forwarded-Proto`. The image runs as a non-root user (uid 10001), pins its base images, and its
+`X-Forwarded-Proto`. Set `FORWARDED_ALLOW_IPS` to your trusted proxy addresses so Uvicorn uses the forwarded client IP and scheme. Cloud Run configuration sets `*` because connections reach the container through its platform proxy; directly reachable local containers retain Uvicorn's restricted default. The image runs as a non-root user (uid 10001), pins its base images, and its
 healthcheck uses the public `/api/health`.
 
 ## Cloud Run
@@ -60,20 +64,41 @@ printf '%s' "$(openssl rand -base64 24)" | gcloud secrets create superteacher-au
 printf '%s' "$(openssl rand -base64 48)" | gcloud secrets create superteacher-session-secret --data-file=-
 printf '%s' "$ANTHROPIC_API_KEY"         | gcloud secrets create anthropic-api-key --data-file=-
 # grant the service account roles/secretmanager.secretAccessor, then:
-gcloud builds submit --config cloudbuild.yaml
+gcloud builds submit --config cloudbuild.yaml \
+  --project=PROJECT \
+  --substitutions=_CLOUD_SQL_INSTANCE=PROJECT:REGION:INSTANCE,_SERVICE_NAME=superteacher
 ```
 
-`cloudbuild.yaml` mounts those secrets as env vars. `--allow-unauthenticated` only means Cloud Run does not
+`_SERVICE_NAME` defaults to `superteacher`; choose the intended service explicitly for a reviewed live cutover. See [the observed deployment targets and cutover prerequisites](RELEASE_PLAN.md).
+
+`cloudbuild.yaml` uses the immutable build ID as the image tag and `/api/version` value and mounts those secrets as env vars. `--allow-unauthenticated` only means Cloud Run does not
 add its own login; the app enforces `AUTH_PASSWORD`. Alternatively drop that flag and use IAP.
-**SQLite on Cloud Run:** the container filesystem is ephemeral. Mount a persistent volume at `/data`
-(Cloud Storage FUSE or a Filestore/NFS volume) or use Litestream (below); keep `--max-instances 1`
-because SQLite supports a single writer.
+Cloud Run deployments require PostgreSQL. The app refuses container-local SQLite when Cloud Run's
+`K_SERVICE` environment marker is present. Local Docker deployments continue to support SQLite on a volume.
+
+Before submitting a build, provision a Cloud SQL PostgreSQL database and database user. Store a
+SQLAlchemy Psycopg URL in the `superteacher-database-url` Secret Manager secret:
+
+```text
+postgresql+psycopg://USER:URL_ENCODED_PASSWORD@/DATABASE?host=/cloudsql/PROJECT:REGION:INSTANCE
+```
+
+Provide the actual instance connection name in `_CLOUD_SQL_INSTANCE`. The service account needs
+Cloud SQL Client access and permission to read the database URL secret. `cloudbuild.yaml` attaches the
+instance and injects `DATABASE_URL`; it does not provision resources or migrate existing SQLite data.
+Choose a migration window, back up existing records, and verify imported data before switching traffic.
+See [Google's Cloud Run connection guide](https://docs.cloud.google.com/sql/docs/postgres/connect-run)
+and [SQLAlchemy's Psycopg dialect](https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#module-sqlalchemy.dialects.postgresql.psycopg).
+
+CI runs integration checks against an isolated PostgreSQL 17 service. Locally, set
+`ST_TEST_POSTGRES_URL` to an isolated test server and run `python -m pytest tests/test_postgres.py`.
+These tests create a unique schema and remove only that schema after each test.
 
 ## Database migrations (Alembic)
 
 On startup file-based databases run `alembic upgrade head` (in-memory test DBs use `create_all`).
 Startup only ever adds/changes schema through migrations and never drops data. A database created
-before Alembic (tables, no `alembic_version`) is stamped at the baseline `0001` and then upgraded.
+before Alembic is validated against the frozen `0001` schema before stamping and upgrading. Revision `0002` adds database checks for grade levels, score ranges and enum values; invalid existing rows cause an explicit failure before schema changes. Back up first and correct invalid data deliberately.
 
 Creating a revision after editing `superteacher/models.py`:
 
@@ -87,6 +112,8 @@ python -m pytest tests/test_migrations.py   # fails if models and migrations dri
 Back up the DB before deploying a release that includes a migration.
 
 ## Backups
+
+See [the tested SQLite backup and recovery command](BACKUP_RECOVERY.md) for online snapshots and restore rehearsals into a new file.
 
 * SQLite lives in the `/data` volume. Snapshot the volume, or take a consistent copy with
   `sqlite3 /data/superteacher.db ".backup /backup/superteacher-$(date +%F).db"` (safe while running).

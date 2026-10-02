@@ -12,8 +12,11 @@ import asyncio
 import json
 import logging
 import os
+from bisect import insort
 from collections import Counter
 from collections.abc import AsyncIterator
+from contextlib import aclosing
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -22,11 +25,12 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
-from . import ai_tools, metrics, schemas
+from . import ai_capacity, ai_tools, metrics, schemas
 from .ai_tools import clean, section_label, student_block, student_line
+from .calendar import school_today
 from .config import get_settings
 from .models import InsightCache, Student
-from .queries import load_students
+from .queries import iter_summaries, load_students
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +80,7 @@ def friendly_error(exc: BaseException) -> str:
         return "The AI service isn't configured correctly on this server. Please contact your administrator."
     if isinstance(exc, anthropic.RateLimitError):
         return "The AI service is receiving too many requests right now. Please try again in a minute."
-    if isinstance(exc, anthropic.APITimeoutError):
+    if isinstance(exc, anthropic.APITimeoutError | TimeoutError):
         return "The AI service took too long to respond. Please try again."
     if isinstance(exc, anthropic.APIConnectionError):
         return "Couldn't reach the AI service. Please try again shortly."
@@ -89,43 +93,56 @@ def friendly_error(exc: BaseException) -> str:
 
 def client() -> AsyncAnthropic | None:
     key = get_settings().anthropic_api_key
-    return AsyncAnthropic(api_key=key, timeout=90.0, max_retries=2) if key else None
+    return AsyncAnthropic(api_key=key, timeout=get_settings().ai_chat_timeout_seconds, max_retries=0) if key else None
 
 
 # ── context ─────────────────────────────────────────────────────────────
 def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str, str]:
     """(roster snapshot, focus block). The roster part is stable across turns, so it carries the cache breakpoint."""
-    cap = setting_int("chat_roster_cap", 60)
-    students = load_students(db)
-    computed = {s.id: metrics.compute(s) for s in students}
-    out = [f"Today is {datetime.now(UTC):%Y-%m-%d}. Roster snapshot ({len(students)} students):", "<roster>"]
-    if len(students) <= cap:
-        out += [student_line(s, computed[s.id]) for s in students]
+    as_of = school_today()
+    cap = max(1, min(setting_int("chat_roster_cap", 60), 200))
+    count = flagged = 0
+    counts: Counter = Counter()
+    by_sec: dict[str, list[float]] = {}
+    first_lines: list[str] = []
+    attention: list[tuple[tuple, str]] = []
+    for s, m in iter_summaries(db, retain_scores=False, today=as_of):
+        count += 1
+        counts[m.risk] += 1
+        section = by_sec.setdefault(section_label(s), [0, 0, 0])
+        section[0] += 1
+        if m.average is not None:
+            section[1] += m.average
+            section[2] += 1
+        line = student_line(s, m)
+        if len(first_lines) < cap:
+            first_lines.append(line)
+        if m.risk != "on_track":
+            flagged += 1
+            insort(attention, ((m.risk != "at_risk", s.name, s.id), line))
+            if len(attention) > cap:
+                attention.pop()
+    out = [f"Today is {as_of:%Y-%m-%d}. Roster snapshot ({count} students):", "<roster>"]
+    if count <= cap:
+        out += first_lines
     else:
-        counts = Counter(m.risk for m in computed.values())
         out.append(
             f"Large roster: showing a summary. Status counts: {dict(counts)}. "
             "Per-section summary, then only the students needing attention (use find_students for anyone else)."
         )
-        by_sec: dict[str, list[metrics.StudentMetrics]] = {}
-        for s in students:
-            by_sec.setdefault(section_label(s), []).append(computed[s.id])
-        for name, ms in sorted(by_sec.items()):
-            avg = metrics.mean_of(m.average for m in ms)
-            out.append(f"- {name}: {len(ms)} students" + ("" if avg is None else f", avg {avg:.0f}%"))
-        need = sorted(
-            (s for s in students if computed[s.id].risk != "on_track"),
-            key=lambda s: (computed[s.id].risk != "at_risk", s.name),
-        )
-        out += [student_line(s, computed[s.id]) for s in need[:cap]]
-        if len(need) > cap:
-            out.append(f"... and {len(need) - cap} more students flagged; use find_students.")
+        for name, (total, summed, graded) in sorted(by_sec.items()):
+            avg = summed / graded if graded else None
+            out.append(f"- {name}: {int(total)} students" + ("" if avg is None else f", avg {avg:.0f}%"))
+        out += [line for _, line in attention]
+        if flagged > cap:
+            out.append(f"... and {flagged - cap} more students flagged; use find_students.")
     out.append("</roster>")
     focus = ""
-    if student_id and (f := next((s for s in students if s.id == student_id), None)):
+    if student_id and (students := load_students(db, student_id=student_id)):
+        f = students[0]
         focus = (
-            f"The teacher is currently viewing {clean(f.name, 80)}. Full record:\n<student_record>\n"
-            f"{student_block(f, computed[f.id])}\n</student_record>"
+            f"The teacher is currently viewing {clean(f.name, 80)}. Summary and up to 30 recent work records:\n"
+            f"<student_record>\n{student_block(f, metrics.compute(f, as_of), max_scores=30)}\n</student_record>"
         )
     return "\n".join(out), focus
 
@@ -163,15 +180,41 @@ async def run_chat(
 
     Raises ChatError (safe message) on upstream failure. Cancelling the consumer closes the upstream stream.
     """
-    ai = client()
-    if ai is None:
-        yield {
-            "type": "delta",
-            "text": (
-                "AI is not configured on this server (set `ANTHROPIC_API_KEY`). The rest of the app works without it."
-            ),
-        }
-        return
+    try:
+        lease = ai_capacity.acquire()
+    except ai_capacity.CapacityError as exc:
+        raise ChatError(str(exc)) from None
+    ai = None
+    try:
+        async with asyncio.timeout(get_settings().ai_chat_timeout_seconds):
+            ai = client()
+            if ai is None:
+                yield {
+                    "type": "delta",
+                    "text": (
+                        "AI is not configured on this server (set `ANTHROPIC_API_KEY`). "
+                        "The rest of the app works without it."
+                    ),
+                }
+                return
+            async with aclosing(
+                _run_chat_client(ai, history, roster, focus, session_factory, max_iterations)
+            ) as events:
+                async for event in events:
+                    yield event
+    except TimeoutError:
+        raise ChatError(friendly_error(TimeoutError())) from None
+    finally:
+        try:
+            if ai is not None:
+                await ai_capacity.close_client(ai)
+        finally:
+            lease.release()
+
+
+async def _run_chat_client(
+    ai: AsyncAnthropic, history: list[dict], roster: str, focus: str, session_factory, max_iterations: int | None
+) -> AsyncIterator[dict]:
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
     system = system_blocks(roster, focus)
     tools = ai_tools.TOOLS if session_factory is not None else []
@@ -312,14 +355,38 @@ def parse_insight(text: str) -> InsightPayload:
 
 _TRANSIENT = (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.InternalServerError)
 INSIGHT_ATTEMPTS = 3
-_inflight: dict[tuple[str, str], asyncio.Task] = {}
+
+
+@dataclass
+class _InsightJob:
+    task: asyncio.Task
+    waiters: int = 0
+
+
+_inflight: dict[tuple[object, ...], _InsightJob] = {}
 
 
 async def _sleep(seconds: float) -> None:  # indirection so tests can skip real waiting
     await asyncio.sleep(seconds)
 
 
-async def _generate(ai: AsyncAnthropic, model: str, prompt: str) -> InsightPayload | None:
+async def _generate(model: str, prompt: str, lease: ai_capacity.Lease) -> InsightPayload | None:
+    ai = None
+    try:
+        async with asyncio.timeout(get_settings().ai_insight_timeout_seconds):
+            ai = client()
+            if ai is None:
+                return None
+            return await _generate_payload(ai, model, prompt)
+    finally:
+        try:
+            if ai is not None:
+                await ai_capacity.close_client(ai)
+        finally:
+            lease.release()
+
+
+async def _generate_payload(ai: AsyncAnthropic, model: str, prompt: str) -> InsightPayload | None:
     for attempt in range(INSIGHT_ATTEMPTS):
         try:
             resp = await ai.messages.create(
@@ -343,8 +410,9 @@ async def _generate(ai: AsyncAnthropic, model: str, prompt: str) -> InsightPaylo
 async def ai_insight(db: Session, s: Student) -> schemas.Insight:
     m = metrics.compute(s)
     fp = metrics.fingerprint(s, m)
+    model = get_settings().anthropic_insight_model
     cached = db.get(InsightCache, s.id)
-    if cached and cached.fingerprint == fp:
+    if cached and cached.fingerprint == fp and cached.model == model:
         try:
             return schemas.Insight(
                 **InsightPayload.model_validate(cached.payload).model_dump(),
@@ -355,24 +423,36 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
         except (ValidationError, TypeError):
             log.warning("cached insight for %s is malformed; regenerating", s.id)
 
-    ai = client()
-    if ai is None:
-        return rule_insight(s, m)
-    model = get_settings().anthropic_insight_model
     prompt = "<student_record>\n" + student_block(s, m) + "\n</student_record>"
 
-    # One model call per (student, data version): concurrent requests await the same task.
-    key = (s.id, fp)
-    task = _inflight.get(key)
-    if task is None:
-        task = asyncio.create_task(_generate(ai, model, prompt))
-        _inflight[key] = task
-        task.add_done_callback(lambda _t, k=key: _inflight.pop(k, None))
+    # Keep deduplication within the same loop/database/model, including during tests and reloads.
+    key = (asyncio.get_running_loop(), db.get_bind(), model, s.id, fp)
+    job = _inflight.get(key)
+    if job is None:
+        try:
+            lease = ai_capacity.acquire()
+        except ai_capacity.CapacityError:
+            return rule_insight(s, m)
+        try:
+            job = _InsightJob(asyncio.create_task(_generate(model, prompt, lease)))
+            job.task.add_done_callback(lambda _task: lease.release())
+            _inflight[key] = job
+        except BaseException:
+            lease.release()
+            raise
+    job.waiters += 1
     try:
-        payload = await asyncio.shield(task)
+        payload = await asyncio.shield(job.task)
     except Exception:
-        log.exception("insight generation failed; falling back to rules")
+        log.warning("insight generation failed; falling back to rules")
         return rule_insight(s, m)
+    finally:
+        job.waiters -= 1
+        if job.waiters == 0:
+            _inflight.pop(key, None)
+            if not job.task.done():
+                job.task.cancel()
+            await asyncio.gather(job.task, return_exceptions=True)
     if payload is None:
         return rule_insight(s, m)
 

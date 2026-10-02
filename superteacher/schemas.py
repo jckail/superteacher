@@ -5,9 +5,15 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
+from .calendar import school_today
 from .models import AssessmentKind, AttendanceStatus
 
 Risk = str  # on_track | watch | at_risk
+
+
+class CalendarOut(BaseModel):
+    timezone: str
+    today: date
 
 
 # Trimmed, non-blank text: "   " is rejected (422) instead of being stored as an empty name.
@@ -47,6 +53,7 @@ class CourseOut(ORM):
 
 class CourseIn(BaseModel):
     name: _text(120)
+    initial_section_name: _text(60) | None = None
 
 
 class SectionIn(BaseModel):
@@ -103,6 +110,20 @@ class ScoreOut(BaseModel):
     pct: float | None
 
 
+class GradeHistorySection(BaseModel):
+    section_id: str
+    section: str
+    course_id: str
+    course: str
+    scores: list[ScoreOut]
+
+
+class GradeHistory(BaseModel):
+    student_id: str
+    active_section_id: str
+    sections: list[GradeHistorySection]
+
+
 class AttendanceOut(ORM):
     day: date
     status: AttendanceStatus
@@ -119,6 +140,7 @@ class NoteIn(BaseModel):
 
 
 class StudentDetail(StudentSummary):
+    as_of: date
     scores: list[ScoreOut]
     attendance: list[AttendanceOut]
     absences: int
@@ -131,7 +153,21 @@ class AssessmentIn(BaseModel):
     title: _text(120)
     kind: AssessmentKind = AssessmentKind.test
     max_points: Num = Field(default=100, gt=0, le=1_000_000, allow_inf_nan=False)
-    due_date: date = Field(default_factory=date.today)
+    due_date: date = Field(default_factory=school_today)
+
+
+class AssessmentPatch(BaseModel):
+    title: _text(120) | None = None
+    kind: AssessmentKind | None = None
+    max_points: Num | None = Field(default=None, gt=0, le=1_000_000, allow_inf_nan=False)
+    due_date: date | None = None
+
+    @model_validator(mode="after")
+    def _no_explicit_null(self):
+        for key in self.model_fields_set:
+            if getattr(self, key) is None:
+                raise ValueError(f"{key} cannot be null")
+        return self
 
 
 class AssessmentOut(ORM):
@@ -173,7 +209,7 @@ class AttendanceMark(BaseModel):
 
 
 class AttendanceIn(BaseModel):
-    day: date = Field(default_factory=date.today)
+    day: date = Field(default_factory=school_today)
     marks: list[AttendanceMark] = Field(max_length=MAX_BATCH)
 
 

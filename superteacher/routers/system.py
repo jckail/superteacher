@@ -1,33 +1,18 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import metrics, schemas
-from ..config import get_settings
+from ..calendar import school_timezone, school_today
 from ..db import get_db
-from ..queries import load_summaries
+from ..queries import iter_summaries
 from .roster import summarize
 
 router = APIRouter(tags=["system"])
 
 
-@router.get("/health")
-def health(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        return {"status": "healthy", "database": "ok", "ai": bool(get_settings().anthropic_api_key)}
-    except Exception as e:
-        return {"status": "unhealthy", "database": str(e), "ai": False}
-
-
-@router.get("/version")
-def version():
-    return {"version": get_settings().version}
-
-
 @router.get("/overview", response_model=schemas.Overview)
 def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
-    computed = load_summaries(db, course_id=course_id, section_id=section_id)
+    computed = list(iter_summaries(db, retain_scores=False, course_id=course_id, section_id=section_id))
 
     bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
     for _, m in computed:
@@ -48,3 +33,8 @@ def overview(course_id: str | None = None, section_id: str | None = None, db: Se
         distribution=bands,
         attention=[summarize(s, m) for s, m in flagged[:8]],
     )
+
+
+@router.get("/calendar", response_model=schemas.CalendarOut)
+def calendar():
+    return {"timezone": school_timezone(), "today": school_today()}

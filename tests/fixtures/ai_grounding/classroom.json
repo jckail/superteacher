@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-10-01",
+  "student": "Ada Rivera",
+  "peer": "PEER_ONLY Morgan",
+  "private_note": "PRIVATE_ONLY confidential conference detail",
+  "scores": [
+    {"id": "exam", "title": "Unit exam", "kind": "test", "due": "2026-09-15", "max": 100, "points": 80},
+    {"id": "quiz", "title": "Practice quiz", "kind": "quiz", "due": "2026-09-16", "max": 20, "points": 10},
+    {"id": "homework", "title": "Completed homework", "kind": "homework", "due": "2026-09-17", "max": 10, "points": 10},
+    {"id": "missing", "title": "Overdue homework", "kind": "homework", "due": "2026-09-18", "max": 10, "points": null},
+    {"id": "future", "title": "Future homework", "kind": "homework", "due": "2026-10-08", "max": 10, "points": null},
+    {"id": "early", "title": "Early submitted project", "kind": "project", "due": "2026-10-09", "max": 100, "points": 100}
+  ],
+  "attendance": [
+    {"day": "2026-09-21", "status": "present"},
+    {"day": "2026-09-22", "status": "tardy"},
+    {"day": "2026-09-23", "status": "absent"},
+    {"day": "2026-09-24", "status": "excused"}
+  ],
+  "expected": {"average": 78.82352941176471, "attendance": 66.66666666666667, "homework": 50.0, "missing": 1, "letter": "C+"}
+}

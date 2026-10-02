@@ -2,31 +2,25 @@ import js from '@eslint/js';
 import globals from 'globals';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import tseslint from 'typescript-eslint';
 
-export default [
-  { ignores: ['dist', 'node_modules'] },
+export default tseslint.config(
+  { ignores: ['dist', 'node_modules', 'playwright-report', 'test-results'] },
   js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: { react, 'react-hooks': reactHooks },
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: { ...globals.browser },
-      parserOptions: { ecmaFeatures: { jsx: true } },
-    },
+    languageOptions: { globals: { ...globals.browser }, parserOptions: { ecmaFeatures: { jsx: true } } },
     settings: { react: { version: 'detect' } },
     rules: {
       ...react.configs.recommended.rules,
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
-      'react/prop-types': 'off', // plain JS project; no prop-types
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'react/prop-types': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
-  {
-    // Node-side config and test files.
-    files: ['*.config.js', 'src/test/**'],
-    languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.vitest } },
-  },
-];
+  { files: ['*.config.{js,ts}', 'src/test/**', 'e2e/**'], languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.vitest } } },
+);

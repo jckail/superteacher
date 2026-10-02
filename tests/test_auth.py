@@ -101,6 +101,44 @@ def test_cross_origin_rejected(c):
     assert c.get("/api/overview", headers={"Origin": "http://testserver"}).status_code == 200
 
 
+@pytest.mark.parametrize(
+    "origin",
+    ["https://testserver", "ftp://testserver", "http://user@testserver", "http://testserver/path", "null"],
+)
+def test_origin_requires_exact_scheme_and_valid_browser_origin(c, origin):
+    login(c)
+    assert c.get("/api/overview", headers={"Origin": origin}).status_code == 403
+
+
+def test_lockout_expires_after_inactivity(c, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
+    st = c.app.state.auth
+    for _ in range(auth.GLOBAL_MAX_ATTEMPTS):
+        st.record("attacker", False)
+    assert st.retry_after("another-client") > 0
+    now[0] += auth.FAILURE_RESET_SECONDS
+    assert st.retry_after("attacker") == 0
+    assert st.retry_after("another-client") == 0
+    st.record("attacker", False)
+    assert st._fails["attacker"][0] == 1
+
+
+def test_throttle_caps_exponential_and_memory(c, monkeypatch):
+    monkeypatch.setattr(auth.time, "monotonic", lambda: 100.0)
+    st = c.app.state.auth
+    st._fails["attacker"] = (100_000, 100.0)
+    assert st.retry_after("attacker") <= auth.LOCK_MAX_SECONDS + 1
+    for i in range(10_100):
+        st.record(str(i), False)
+    assert len(st._fails) <= 10_000
+    assert "*" in st._fails
+
+
+def test_login_payload_bounded(c):
+    assert login(c, "x" * 1025).status_code == 422
+
+
 def test_lockout_after_repeated_failures(c):
     for _ in range(auth.MAX_FREE_ATTEMPTS):
         assert login(c, "nope").status_code == 401

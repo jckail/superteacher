@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
+
+from superteacher.calendar import school_today
 
 
 def mk_class(client):
@@ -40,7 +42,7 @@ def test_student_crud_and_ids_never_collide(client):
 def test_gradebook_flow_and_metrics(client):
     _, sec = mk_class(client)
     s = mk_student(client, sec)
-    past = (date.today() - timedelta(days=3)).isoformat()
+    past = (school_today() - timedelta(days=3)).isoformat()
     gb = client.post(
         f"/api/sections/{sec['id']}/assessments",
         json={"title": "HW1", "kind": "homework", "max_points": 10, "due_date": past},
@@ -64,7 +66,7 @@ def test_gradebook_flow_and_metrics(client):
 def test_attendance_roundtrip_and_rate(client):
     _, sec = mk_class(client)
     s = mk_student(client, sec)
-    today = date.today()
+    today = school_today()
     for i, status in enumerate(["present", "absent", "tardy", "excused"]):
         day = (today - timedelta(days=i)).isoformat()
         r = client.put(
