@@ -11,6 +11,6 @@ steps:
     args: ['run', 'deploy', 'superteacher', '--image', 'gcr.io/$PROJECT_ID/superteacher', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated',
            '--max-instances', '1', '--min-instances', '0', '--cpu-boost',
            '--set-secrets', 'AUTH_PASSWORD=superteacher-auth-password:latest,SESSION_SECRET=superteacher-session-secret:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest',
-           '--set-env-vars', 'SEED_DEMO_DATA=false,LITESTREAM_REPLICA_URL=gcs://$PROJECT_ID-superteacher-litestream/superteacher']
+           '--set-env-vars', 'SEED_DEMO_DATA=false,LITESTREAM_REPLICA_URL=gs://$PROJECT_ID-superteacher-litestream/superteacher']
 images:
   - 'gcr.io/$PROJECT_ID/superteacher'

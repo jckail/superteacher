@@ -27,7 +27,7 @@ echo ">> deploy (no traffic)"
 gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --platform managed --image "$IMAGE" \
   --no-traffic --allow-unauthenticated --max-instances 1 --min-instances 0 --memory 512Mi --cpu-boost \
   --set-secrets 'AUTH_PASSWORD=superteacher-auth-password:latest,SESSION_SECRET=superteacher-session-secret:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest' \
-  --set-env-vars "SEED_DEMO_DATA=false,VERSION=${TAG},LITESTREAM_REPLICA_URL=gcs://${BUCKET}/${SERVICE}"
+  --set-env-vars "SEED_DEMO_DATA=false,VERSION=${TAG},LITESTREAM_REPLICA_URL=gs://${BUCKET}/${SERVICE}"
 
 echo ">> move traffic to the new revision"
 gcloud run services update-traffic "$SERVICE" --project "$PROJECT" --region "$REGION" --to-latest

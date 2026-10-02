@@ -72,7 +72,7 @@ add its own login; the app enforces `AUTH_PASSWORD`. Alternatively drop that fla
 The container filesystem is ephemeral, so the image runs the app under [Litestream](https://litestream.io): it streams
 every SQLite change to a Cloud Storage bucket (about 1 s behind), and a new instance restores the database from
 that bucket before the app starts. Turn it on by setting `LITESTREAM_REPLICA_URL` (for example
-`gcs://BUCKET/superteacher`); without it the app runs as before and data is **not** durable on Cloud Run.
+`gs://BUCKET/superteacher`); without it the app runs as before and data is **not** durable on Cloud Run.
 
 One-time setup (already done for project `portfolio-383615`):
 
@@ -126,7 +126,7 @@ Back up the DB before deploying a release that includes a migration.
 * SQLite lives in the `/data` volume. Snapshot the volume, or take a consistent copy with
   `sqlite3 /data/superteacher.db ".backup /backup/superteacher-$(date +%F).db"` (safe while running).
 * [Litestream](https://litestream.io) can continuously replicate the DB to GCS/S3
-  (`litestream replicate /data/superteacher.db gcs://bucket/superteacher`) and restore on a fresh
+  (`litestream replicate /data/superteacher.db gs://bucket/superteacher`) and restore on a fresh
   container (`litestream restore`); run it as the container entrypoint wrapper or a sidecar.
 * Also back up `/data/.session_secret` only if you rely on the generated key (otherwise users just log in again).
 

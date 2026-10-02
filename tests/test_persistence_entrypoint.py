@@ -61,7 +61,7 @@ def test_without_a_replica_url_it_just_runs_the_command(fake):
 
 def test_restores_then_replicates_with_the_app_as_exec(fake):
     env, log = fake
-    env |= {"LITESTREAM_REPLICA_URL": "gcs://b/p", "DATABASE_URL": "sqlite:////data/superteacher.db"}
+    env |= {"LITESTREAM_REPLICA_URL": "gs://b/p", "DATABASE_URL": "sqlite:////data/superteacher.db"}
     out = run(["python", "server.py"], env)
     assert out.returncode == 0, out.stderr
     assert calls(log) == [
@@ -73,7 +73,7 @@ def test_restores_then_replicates_with_the_app_as_exec(fake):
 
 def test_restore_failure_fails_closed_and_never_starts_the_app(fake):
     env, log = fake
-    env |= {"LITESTREAM_REPLICA_URL": "gcs://b/p", "DATABASE_URL": "sqlite:////data/x.db", "FAKE_RESTORE_EXIT": "1"}
+    env |= {"LITESTREAM_REPLICA_URL": "gs://b/p", "DATABASE_URL": "sqlite:////data/x.db", "FAKE_RESTORE_EXIT": "1"}
     out = run(["python", "server.py"], env)
     assert out.returncode == 1
     assert "litestream_restore_failed" in out.stdout
@@ -83,10 +83,30 @@ def test_restore_failure_fails_closed_and_never_starts_the_app(fake):
 @pytest.mark.parametrize("url", ["", "sqlite:///relative.db", "sqlite://", "postgresql://u:p@h/db"])
 def test_replication_requires_an_absolute_sqlite_path(fake, url):
     env, log = fake
-    env |= {"LITESTREAM_REPLICA_URL": "gcs://b/p", "DATABASE_URL": url}
+    env |= {"LITESTREAM_REPLICA_URL": "gs://b/p", "DATABASE_URL": url}
     out = run(["true"], env)
     assert out.returncode == 78 and "litestream_config" in out.stdout
     assert calls(log) == []
+
+
+def test_the_wrong_cloud_storage_scheme_is_rejected_with_a_hint(fake):
+    # Production failure of the first deploy: "gcs://" is not a Litestream scheme ("gs://" is).
+    env, log = fake
+    env |= {"LITESTREAM_REPLICA_URL": "gcs://bucket/path", "DATABASE_URL": "sqlite:////data/x.db"}
+    out = run(["true"], env)
+    assert out.returncode == 78 and "gs://" in out.stdout
+    assert calls(log) == []
+
+
+def test_every_replica_url_we_ship_uses_a_scheme_litestream_knows():
+    shipped = [
+        (ROOT / "cloudbuild.yaml").read_text(),
+        (ROOT / "scripts" / "deploy_cloud_run.sh").read_text(),
+        (ROOT / "docs" / "DEPLOYMENT.md").read_text(),
+        CONFIG.read_text(),
+    ]
+    assert not any("gcs://" in text for text in shipped)
+    assert "LITESTREAM_REPLICA_URL=gs://" in shipped[0] and "LITESTREAM_REPLICA_URL=gs://" in shipped[1]
 
 
 # ── real Litestream, file replica ────────────────────────────────────────────────────────────────────────────────
@@ -172,9 +192,28 @@ def test_app_enables_wal_on_file_databases(tmp_path):
 
 def test_arguments_with_spaces_and_quotes_are_requoted_for_litestream_exec(fake):
     env, log = fake
-    env |= {"LITESTREAM_REPLICA_URL": "gcs://b/p", "DATABASE_URL": "sqlite:////data/x.db"}
+    env |= {"LITESTREAM_REPLICA_URL": "gs://b/p", "DATABASE_URL": "sqlite:////data/x.db"}
     run(["python", "-c", "print('it''s here')", "two words", ""], env)
     exec_line = next(line for line in calls(log) if line.startswith("replicate"))
     assert (
         exec_line == "replicate -config /cfg.yml -exec python -c 'print('\\''it'\\'''\\''s here'\\'')' 'two words' ''"
     )
+
+
+@real
+def test_real_litestream_recognises_gs_but_not_gcs_scheme(tmp_path):
+    """Offline: the URL is parsed before any network access, so this pins the scheme name to the real binary."""
+
+    def err(url):
+        proc = subprocess.run(
+            [REAL, "restore", "-dry-run", "-o", str(tmp_path / "o.db"), url],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env={"PATH": os.environ["PATH"], "HOME": str(tmp_path)},
+        )
+        return proc.stdout + proc.stderr
+
+    assert "unknown replica type" in err("gcs://bucket/path")
+    assert "unknown replica type" not in err("gs://bucket/path")
