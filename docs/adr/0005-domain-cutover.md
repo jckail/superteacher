@@ -5,6 +5,23 @@
 - Deciders: Jordan Kail (owner)
 - Hard prerequisites: ADR 0001 (persistence) must be implemented and drilled first. ADR 0002 (identity) is strongly recommended before more than one person uses it. ADR 0003 (privacy) minimum: privacy notice and no real third-party student data until reviewed.
 
+## Historical proposal boundary
+
+This record preserves an earlier read-only inspection and proposed cutover options.
+Its revision names, DNS observations, costs and timing assumptions are historical;
+recheck live state through the release owner. It is not an executable cutover plan.
+Use [legacy preservation](../LEGACY_CUTOVER.md), the
+[operator runbook](../OPERATOR_RUNBOOK.md) and the current
+[deployment ledger](../DEPLOYMENT_STATUS.md) for accepted evidence and remaining gates.
+
+The original inference that only sample data existed did not prove that no real
+records required preservation. The reviewed legacy archive is recorded privately
+in the current cutover record. Preserve it and verify completeness/durable copies
+before retirement; do not delete or restart the old service from this ADR's
+sample-data assumption. Domain routing, writer drain, database compatibility,
+rollback-image availability and post-switch workflow verification remain separate
+release-owner gates. The 14-day retirement period below is a proposal, not approval.
+
 ## Context: how the public site is served today (investigated read-only, 2026-10-02)
 
 All facts below come from `gcloud` read commands (describe, list, logging read), the Cloud Run `domainmappings` REST resource (GET only), `dig`, and plain GETs of public pages. No secret or env var values were read; names only.
@@ -41,7 +58,7 @@ Browser -> DNS (the-super-teacher.com, www) -> Google Front End (ghs.googlehoste
 | Env var names | **none** |
 | Secret references | **none** (no secret-backed env vars, no volumes) |
 | IAM | `allUsers` can invoke (public) |
-| Database | **No Cloud SQL instance exists in the project** (`gcloud sql instances list` empty); no env vars or secrets point at Supabase or anything else. Application logs show `backend.app.models.database: Dropped existing tables / Created database tables / Adding sample data / Sample data added successfully` on start-up. **It rebuilds its tables and re-inserts sample data on every container start** (300+ such starts in the last 30 days, the query limit). It is therefore an in-container, ephemeral SQLite-style database holding only generated sample data. The database engine itself is inferred (SQLAlchemy is used; `/api/api/health` reports a SQLAlchemy 2 `text()` error). |
+| Database | **No Cloud SQL instance exists in the project** (`gcloud sql instances list` empty); no env vars or secrets point at Supabase or anything else. Application logs show `backend.app.models.database: Dropped existing tables / Created database tables / Adding sample data / Sample data added successfully` on start-up. **It rebuilds its tables and re-inserts sample data on every container start** (300+ such starts in the last 30 days, the query limit). The original inspection inferred an in-container, ephemeral SQLite-style database with generated sample data; it did not establish that all current records were disposable. The database engine itself is inferred (SQLAlchemy is used; `/api/api/health` reports a SQLAlchemy 2 `text()` error). |
 | Image availability | The image is **no longer listed** in the project registry: `gcr.io` is now an Artifact Registry repository created 2026-10-01 holding only `superteacher`; `gcloud container images describe gcr.io/portfolio-383615/edutrack:v0.1.0` returns "not found". Layers may still exist in the legacy bucket `artifacts.portfolio-383615.appspot.com` (2,368 objects, not inspected further). The running revision still serves requests, but a rollback or redeploy of the exact old image cannot be assumed. |
 
 What the public site is: a Vite/React single-page app (bundle `/assets/index-Bl2pR-y0.js`, last-modified 2024-11-07) over a FastAPI backend ("EduTrack", `GET /api/version` returns `{"version":"v0.1.0","git_commit":"development"}`). The OpenAPI schema is public (`/openapi.json`, `/docs`) and shows an **unauthenticated** API: `GET /api/db/classes`, `/api/db/classes/{id}/sections`, `/api/db/classes/{id}/students`, `GET|POST /api/db/students`, `POST /api/db/sections`, `POST /api/db/students/{id}/grades`, plus a health route at the odd path `/api/api/health` that currently returns `{"status":"unhealthy","details":{"database":"Database error: Textual SQL expression 'SELECT 1' should be explicitly declared as text('SELECT 1')",...}}`. `GET /api/health` returns 404. Logs show only light traffic: bots probing `xmlrpc.php`, `zv.php`, `robots.txt`, a handful of real page loads.
@@ -53,7 +70,7 @@ What the public site is: a Vite/React single-page app (bundle `/assets/index-Bl2
 ### Surprises worth knowing
 
 1. The public website is **not** Super Teacher; it is the Nov-2024 "EduTrack" demo with fake data and an open write API, still live with a public Swagger UI.
-2. There is no production database anywhere to migrate. Nothing real is lost when the old service is retired.
+2. The original empty-database inference is superseded for operations. Preserve the reviewed legacy archive and verify migration/retention needs before retirement.
 3. The old container image has vanished from the registry, so the old service is effectively not re-deployable.
 4. The DNS zone is not in this GCP project; the cutover does not need DNS record changes for the existing hostnames (see below) but the owner must know where DNS lives for any new hostname.
 5. `the-super-teacher.com` and `www` both map to the old service, with no apex-to-www redirect.
@@ -109,7 +126,7 @@ Lets you switch backends instantly and add Cloud Armor or IAP, but adds a forwar
 
 ## Recommendation
 
-Do not touch the live domain until the go/no-go gate below is green. Then: (1) stand up `app.the-super-teacher.com` on the new service, (2) run the pilot and smoke checks, (3) recreate the `www` mapping on `superteacher`, then the apex with a redirect to `www`, (4) leave `edutrack` scaled to zero for 14 days, then delete it and its mappings' leftovers. No data migration is required; document that the previous site was a sample-data demo.
+Do not touch the live domain until the go/no-go gate below is green. Then: (1) stand up `app.the-super-teacher.com` on the new service, (2) run the pilot and smoke checks, (3) recreate the `www` mapping on `superteacher`, then the apex with a redirect to `www`, (4) leave `edutrack` scaled to zero for 14 days, then delete it and its mappings' leftovers. The original no-migration assumption is superseded; use the current legacy preservation and release records before any retirement.
 
 ## Cutover plan
 
@@ -133,7 +150,7 @@ T-7 days
 
 T-1 day: freeze and validate
 - Announce a freeze: no deploys other than the cutover one. Confirm `edutrack` still returns 200.
-- Optional archive of the old demo for the record: `GET /openapi.json` and `GET /api/db/classes` (sample data only) saved offline. Not required.
+- Legacy archive and durable-copy verification are required by the current cutover record; the old optional/sample-only assumption is superseded.
 - Record the exact current mapping specs (`routeName: edutrack`, `certificateMode: AUTOMATIC`) so they can be recreated.
 - Take a persistence backup/snapshot of the new service's data (empty or pilot data) and confirm it restores.
 - Validate on `app.`: login, create course/section/student, add scores, attendance, notes, CSV export, AI chat (WebSocket over `wss`), parent draft, logout; confirm cookies are `Secure; HttpOnly; SameSite=Lax` and host-only.

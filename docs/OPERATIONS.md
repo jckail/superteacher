@@ -1,5 +1,9 @@
 # Operations
 
+This is the source-level observability reference. Start with the
+[operator runbook](OPERATOR_RUNBOOK.md) for release, writer ownership, rollback
+and recovery. Examples of metrics and alerts do not establish deployed monitoring.
+
 Everything here is implemented in `superteacher/observability.py` (installed by one `observability.install(app)` call
 in `create_app`). The design rule: **logs and metrics never contain student data**. They are built only from the HTTP
 method, the matched route *template*, the status code, timings and a validated request id. No query strings, headers,
@@ -10,7 +14,7 @@ for free-form messages logged elsewhere.
 
 | Endpoint | Auth | Meaning | Failure |
 | --- | --- | --- | --- |
-| `GET /api/health` | public | Process is up and can run `SELECT 1`. Use for liveness / container HEALTHCHECK. | `{"status":"unhealthy"}` (HTTP 200, legacy shape) |
+| `GET /api/health` | public | Process is up and can run `SELECT 1`. Use for liveness / container HEALTHCHECK. | HTTP **503**, `{"status":"unhealthy","database":"error","ai":false}` |
 | `GET /api/ready` | public | Safe to receive traffic: DB reachable **and** Alembic revision equals the code's head. | HTTP **503**, body below |
 
 ```json
@@ -21,8 +25,11 @@ for free-form messages logged elsewhere.
 
 Check values are fixed strings; exception text, hosts, revision ids and paths never appear in the response (the
 exception *type* is logged server-side). `migrations` is `n/a` for in-memory SQLite (tests), which uses `create_all`.
-Do not point a liveness probe at `/api/ready`: a DB blip would restart healthy containers. Use it for startup/readiness
-checks and uptime monitoring.
+Both endpoints check the database: `/api/health` is not a process-only heartbeat.
+`/api/ready` additionally checks migration compatibility, so it is useful for
+startup/readiness and monitoring. Probe policy belongs to the release owner;
+neither endpoint verifies writer exclusivity, restored lineage, email delivery
+or successful workflow acceptance.
 
 ## Request ids
 
@@ -60,8 +67,10 @@ data today. Re-check if you add an integration.)
 
 ## Metrics
 
-`GET /api/metrics`, Prometheus text format 0.0.4. In-process, per instance (Cloud Run scales to several instances;
-aggregate in the scraper and expect counters to reset on restart/new revision).
+`GET /api/metrics`, Prometheus text format 0.0.4. Counters are process-local and reset
+on restart/new revision. The current SQLite/Litestream pilot uses one writer;
+process-local metrics are not authorization to scale it to multiple writers.
+Scraper configuration and monitoring acceptance are separate operator work.
 
 | Metric | Type | Labels |
 | --- | --- | --- |
@@ -99,30 +108,23 @@ With `AUTH_DISABLED=true` (local dev) it is open, like every other route.
 Google Managed Service for Prometheus / an OTel sidecar can scrape with a bearer token; if you cannot add headers,
 use Cloud Logging log-based metrics on the `http_request`/`ai_call` events instead (see below).
 
-## Cloud Run
+## Cloud Run release boundary
 
-Service `superteacher`, region `us-central1` (see `cloudbuild.yaml`). Every deploy creates an immutable revision.
+Verify the actual service, region and serving revision in the release owner's
+[deployment ledger](DEPLOYMENT_STATUS.md). Deployment creates a revision, but a
+revision or passing source CI is not proof of serving traffic or accepted recovery.
 
-```bash
-gcloud run revisions list --service superteacher --region us-central1
-# Roll back instantly (no rebuild): send 100% of traffic to a known-good revision
-gcloud run services update-traffic superteacher --region us-central1 --to-revisions REVISION_NAME=100
-# Canary: 10% to the new revision
-gcloud run services update-traffic superteacher --region us-central1 --to-revisions NEW=10,OLD=90
-# Return to "latest revision gets everything"
-gcloud run services update-traffic superteacher --region us-central1 --to-latest
-```
+The previous instant rollback, percentage canary and `--to-latest` examples are
+superseded for this single-writer SQLite/Litestream pilot. Traffic changes do not
+stop another revision from starting a writer on shared storage. Startup can
+migrate the database; do not assume additive migrations make an older image
+compatible. Select a named reviewed artifact and follow the runbook's writer
+drain, database compatibility, isolated verification and recovery procedure.
 
-Migrations run at startup (`run_migrations`) and are additive. An older image started against a newer database reports
-`migrations: behind` on `/api/ready` (503), so a rollback across a schema change shows up as not-ready: keep the rollback
-window short or roll forward.
-Configure the startup probe on `/api/ready` and liveness on `/api/health`:
-
-```bash
-gcloud run services update superteacher --region us-central1 \
-  --startup-probe httpGet.path=/api/ready,periodSeconds=5,failureThreshold=24 \
-  --liveness-probe httpGet.path=/api/health,periodSeconds=30
-```
+Probe changes also belong to the release owner and can create a new revision.
+Use the endpoint contracts above as input to the reviewed deployment, rather
+than issuing a service update outside the writer handoff. Readiness is a source
+health signal, not the full release acceptance checklist.
 
 ### Cloud Logging queries
 
@@ -155,7 +157,7 @@ Create log-based metrics from the filters above (or use the Prometheus metrics i
 | Latency | p95 `duration_ms` > 2 s over 10 min on non-AI routes | ticket |
 | Login brute force | `POST /api/auth/login` 401 > 20 in 5 min, or any 429 burst | possible guessing; check the throttle |
 | AI degradation | `ai_call` outcome in (`error`,`timeout`,`fallback`) > 30% over 15 min (min 10 calls) | users still get rule-based output; ticket |
-| Not ready after deploy | `/api/ready` 503 on a serving revision | roll back with `update-traffic` |
+| Not ready after deploy | `/api/ready` 503 on a serving revision | Hold promotion; release owner checks database lineage and selects the runbook recovery path. |
 | Instance churn | container restarts > 3 in 15 min (Cloud Run system metric) | OOM / crash loop |
 
 ## Correlating a user-reported failure to a request id
