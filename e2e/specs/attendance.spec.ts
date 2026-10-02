@@ -50,3 +50,23 @@ test('attendance for a section without students points to the roster', async ({ 
   await page.getByRole('link', { name: 'Add students' }).click();
   await expect(page).toHaveURL(/\/roster/);
 });
+
+
+test('long student row headers wrap and keep attendance usable on phones', async ({ page, api }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const name = `Synthetic${'LongName'.repeat(13)}`;
+  const c = await api.classroom({ studentNames: [name] });
+  await useClassroom(page, c);
+  await page.goto('/attendance');
+  const rowHeader = page.getByRole('rowheader', { name, exact: true });
+  await expect(rowHeader).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Attendance status' })).toBeVisible();
+  await expect(rowHeader).toHaveCSS('white-space', 'normal');
+  await expect(rowHeader).toHaveCSS('padding-top', '11px');
+  await expect(rowHeader).toHaveCSS('border-bottom-width', '0px');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const group = page.getByRole('group', { name: `Attendance for ${name}` });
+  const present = group.getByRole('button', { name: 'Present', exact: true });
+  await present.click();
+  await expect(present).toHaveAttribute('aria-pressed', 'true');
+});

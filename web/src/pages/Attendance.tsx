@@ -83,10 +83,11 @@ export default function Attendance() {
           )}
           <table>
             <caption className="sr-only">Attendance for {section.name} on {day}</caption>
+            <thead><tr><th scope="col">Student</th><th scope="col" style={{ textAlign: 'right' }}>Attendance status</th></tr></thead>
             <tbody>
               {sheet.rows.map((r) => (
                 <tr key={r.student_id}>
-                  <td className="name">{r.name}</td>
+                  <th scope="row" className="name">{r.name}</th>
                   <td style={{ textAlign: 'right' }}>
                     <span className="att-btns" role="group" aria-label={`Attendance for ${r.name}`}>
                       {STATUSES.map(([s, l]) => <button type="button" key={s} className={`${s} ${r.status === s ? 'on' : ''}`} aria-pressed={r.status === s} onClick={() => save.mutate({ sectionId: section.id, day, marks: [{ student_id: r.student_id, status: s }] })}>{l}</button>)}

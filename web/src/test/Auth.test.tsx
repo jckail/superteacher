@@ -5,6 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, UNAUTHORIZED_EVENT } from '../api';
 import { AuthGate, clearPrivateSession, useAuth } from '../auth';
 import type { AuthMe } from '../types';
+import { useTheme } from '../theme';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('react-dom/client', async (load) => ({ ...await load<typeof import('react-dom/client')>(), default: { createRoot: () => ({ render: vi.fn() }) } }));
@@ -111,4 +112,32 @@ describe('authentication private data lifecycle', () => {
     await screen.findByRole('heading', { name: 'Sign in' });
     expectPrivateCacheCleared(client);
   });
+});
+
+
+it('keeps one saved theme across sign-in, shell changes, and sign-out', async () => {
+  localStorage.setItem('st-theme', 'dark');
+  let signedIn = false;
+  request.mockImplementation(async (path: string) => {
+    if (path === '/auth/login') { signedIn = true; return {}; }
+    if (path === '/auth/logout') { signedIn = false; return {}; }
+    if (!signedIn) throw new ApiError(401, 'Unauthorized');
+    return { authenticated: true, auth_required: true } satisfies AuthMe;
+  });
+  function ThemeProbe() {
+    const [dark, toggle] = useTheme();
+    return <><PrivatePage /><button onClick={toggle}>{dark ? 'Use light' : 'Use dark'}</button></>;
+  }
+  render(<Root><ThemeProbe /></Root>);
+  const user = userEvent.setup();
+  await screen.findByRole('heading', { name: 'Sign in' });
+  expect(document.documentElement.dataset.theme).toBe('dark');
+  await user.type(screen.getByLabelText('Passcode'), 'passcode');
+  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+  await user.click(await screen.findByRole('button', { name: 'Use light' }));
+  expect(document.documentElement.dataset.theme).toBe('light');
+  await user.click(screen.getByRole('button', { name: 'Sign out' }));
+  await screen.findByRole('heading', { name: 'Sign in' });
+  expect(document.documentElement.dataset.theme).toBe('light');
+  expect(localStorage.getItem('st-theme')).toBe('light');
 });
