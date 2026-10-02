@@ -67,9 +67,42 @@ gcloud builds submit --config cloudbuild.yaml
 
 `cloudbuild.yaml` mounts those secrets as env vars. `--allow-unauthenticated` only means Cloud Run does not
 add its own login; the app enforces `AUTH_PASSWORD`. Alternatively drop that flag and use IAP.
-**SQLite on Cloud Run:** the container filesystem is ephemeral. Mount a persistent volume at `/data`
-(Cloud Storage FUSE or a Filestore/NFS volume) or use Litestream (below); keep `--max-instances 1`
-because SQLite supports a single writer.
+## Durable data on Cloud Run (Litestream → Cloud Storage)
+
+The container filesystem is ephemeral, so the image runs the app under [Litestream](https://litestream.io): it streams
+every SQLite change to a Cloud Storage bucket (about 1 s behind), and a new instance restores the database from
+that bucket before the app starts. Turn it on by setting `LITESTREAM_REPLICA_URL` (for example
+`gcs://BUCKET/superteacher`); without it the app runs as before and data is **not** durable on Cloud Run.
+
+One-time setup (already done for project `portfolio-383615`):
+
+```bash
+B=PROJECT-superteacher-litestream
+gcloud storage buckets create gs://$B --location us-central1 --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update gs://$B --versioning
+echo '{"rule":[{"action":{"type":"Delete"},"condition":{"daysSinceNoncurrentTime":14,"isLive":false}}]}' > lc.json
+gcloud storage buckets update gs://$B --lifecycle-file=lc.json
+gcloud storage buckets add-iam-policy-binding gs://$B --role=roles/storage.objectAdmin \
+  --member=serviceAccount:RUNTIME_SERVICE_ACCOUNT   # bucket-scoped, nothing project-wide
+```
+
+Deploy with `PROJECT=... scripts/deploy_cloud_run.sh` (builds, deploys with no traffic, moves traffic, verifies, rolls
+back on failure). **Do not** use `gcloud run deploy` with traffic and **do not** open the `--no-traffic` candidate URL
+while the old revision is live: two instances writing to one replica fork its history. Keep `--max-instances 1`
+(SQLite is a single-writer database).
+
+Behaviour to know:
+* **Fail closed.** If the restore fails for any reason other than "no replica yet", the container exits instead of
+  starting an empty database. A revision that cannot read the bucket will not go healthy; Cloud Run keeps serving the
+  previous one.
+* **RPO** is about a second while an instance is running, and a SIGTERM (scale-in or deploy) triggers a final sync.
+  A hard crash can lose the last second or two. Restore takes a couple of seconds for a small database.
+* **Cold starts** include the restore (`--cpu-boost` is set to shorten them).
+* **Rollback** is a traffic shift to the previous revision (`gcloud run services update-traffic SERVICE
+  --to-revisions REV=100`); the bucket is untouched by it. Bucket versioning keeps overwritten objects for 14 days.
+* **Migrate to Postgres later** (Cloud SQL) when you need more than one instance: see `docs/adr/0001-persistence.md`.
+* Drill after any change to this path: write a record, force a new revision
+  (`gcloud run services update SERVICE --update-env-vars DRILL=$(date +%s)`), and check the record survived.
 
 ## Database migrations (Alembic)
 

@@ -1,6 +1,6 @@
 # ADR 0001: Production persistence
 
-- Status: Proposed, needs owner decision
+- Status: Accepted (2026-10-02): option (a) Litestream to GCS, `max-instances=1`. Owner chose it for the pilot; Cloud SQL stays the planned next step.
 - Date: 2026-10-02
 - Deciders: Jordan Kail (owner)
 - Blocks: ADR 0005 (domain cutover). Do not point real users at the new service until this is resolved.
