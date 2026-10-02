@@ -266,8 +266,24 @@ see [deployment status](../DEPLOYMENT_STATUS.md) for artifact bindings.
 
 Six read-only probes confirmed a preexisting saved-scope hydration race and
 metadata-error fallback to broader owned rows. A shell-preserving readiness/error/
-missing-selection fix is in progress separately from the pinned staging artifact.
-The report picker and other complete HTTP representations remain outstanding.
+missing-selection fix is merged as `6f86251` and passed exact CI separately from
+the pinned staging artifact. The reviewed report picker is merged as `9dc832d`:
+50-row pages, one ID-based selected snapshot, draft preservation across search,
+selection/request/clipboard race guards and optional section preflight before
+quota/AI. Root's 85 focused frontend and 32 report backend cases passed. Its
+exact CI passed 1266 API, 183 web and four browser cases, but E2E stopped on an
+ambiguous legacy Student locator (32 passed, 50 did not run). The locator is being
+corrected without weakening assertions; Docker/build/deploy remain pending.
+
+The next performance slice should replace the class-summary endpoint's full ORM
+history and score-matrix hydration with owner-qualified column reads and bounded
+student batches, preserving the existing pure summary as an equality reference.
+Use native metrics, exact assessment statistics and daily attendance counters.
+Exact medians/scalar aggregates and the complete attention response still grow
+with student count; one student's attendance history and assessment width remain
+unbounded. Review ordering, future-work and attendance semantics before source
+changes. Separate later contracts cover Overview's top-eight retention, student
+grade history, Gradebook/Attendance matrices and their mutation responses.
 No full metric/history CPU or global
 memory bound, snapshot, browser streaming download or latency guarantee is
 claimed by these changes.
