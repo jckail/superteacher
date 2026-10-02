@@ -16,7 +16,7 @@
 @media print {
   @page conference { size: letter; margin: .5in; }
   .conference-page { page: conference; }
-  body:has(.conference-page) { background: white; overflow: visible !important; }
+  body:has(.conference-page) { background: white; color: #111; overflow: visible !important; }
   body:has(.conference-page) .shell { display: block; min-height: 0; }
   body:has(.conference-page) .shell > :not(.main),
   body:has(.conference-page) .main > :not(.conference-page),
