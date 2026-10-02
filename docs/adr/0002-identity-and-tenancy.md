@@ -5,7 +5,21 @@
 - Deciders: Jordan Kail (owner)
 - Depends on: ADR 0001 (where user rows live). Informs: ADR 0003 (who is accountable for which student record), ADR 0005.
 
-## Context
+## Accepted variant and historical baseline
+
+The accepted passwordless-email variant is described under "What was built" below.
+The original shared-passcode baseline and provider comparisons preserve the
+reasoning behind that decision. They do not describe the current account schema:
+current source has user rows, owner-scoped courses and revocable account sessions.
+Google sign-in and Clerk alternatives were not adopted as written.
+
+Use [current configuration](../DEPLOYMENT.md), [local account administration](../ACCOUNT_ADMIN.md)
+and the [operator runbook](../OPERATOR_RUNBOOK.md) for current interfaces and
+ownership. The release owner's [deployment ledger](../DEPLOYMENT_STATUS.md) qualifies
+serving mode, owner adoption and actual sign-in delivery separately; the accepted
+design and implemented source do not establish those operational outcomes.
+
+## Historical shared-passcode baseline
 
 Current model (`superteacher/auth.py`, `docs/DEPLOYMENT.md`): one shared passcode (`AUTH_PASSWORD`, from Secret Manager secret
 `superteacher-auth-password`) signs an `st_session` cookie (itsdangerous, 12 h TTL, key derived from `SESSION_SECRET` plus the passcode). There
@@ -122,7 +136,7 @@ Engineering effort (estimates, one engineer who knows the codebase): B plus tena
 - Orphaned accounts: define an offboarding path (disable user, reassign or export courses). Ties to deletion obligations in ADR 0003.
 - Passcode retained "just in case" becomes a permanent backdoor. Remove it after the first sign-in is confirmed.
 
-## Decision needed from the owner
+## Historical decision questions (accepted email variant recorded above)
 
 1. Provider: Google sign-in only, Clerk, or other?
 2. Is the first real use "owner plus a few invited teachers" (invite allowlist, no org tier) or "a school" (org tier now)?

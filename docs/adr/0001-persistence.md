@@ -5,7 +5,19 @@
 - Deciders: Jordan Kail (owner)
 - Blocks: ADR 0005 (domain cutover). Do not point real users at the new service until this is resolved.
 
-## Context
+## Accepted decision and historical context
+
+The accepted pilot decision above remains in force. The initial revision details,
+pre-Litestream failure analysis, estimates and option comparisons below preserve
+the investigation that led to it; they are not a current serving-state report.
+Current source includes the Litestream restore/replication path. Use the
+[operator runbook](../OPERATOR_RUNBOOK.md), [deployment ledger](../DEPLOYMENT_STATUS.md)
+and [backup/recovery procedure](../BACKUP_RECOVERY.md) for the release owner's
+artifact, writer-drain and recovery evidence. Implementation does not establish
+that the current serving revision passed those gates. Cloud SQL alternatives
+remain future proposals and require their own updated qualification.
+
+## Historical pre-implementation context
 
 Super Teacher stores grades, attendance and teacher notes for real students. Today the `superteacher` Cloud Run service
 (revision `superteacher-00002-b5n`, `maxScale=1`, 1 vCPU / 512 Mi, request-based CPU, no volumes, no min-instances;
@@ -174,7 +186,7 @@ month for 1 / 10 / 100 teachers, giving roughly $0 / $5 / $30 (estimate, request
 - Any option: backups that are never restore-tested. Both paths need a quarterly restore drill and an alert on replication/backup age.
 - Data is children's education records (ADR 0003): bucket or instance location, encryption (Google-managed by default, CMEK optional), IAM least privilege, no public access (`gcloud storage buckets` uniform access, public access prevention).
 
-## Decision needed from the owner
+## Historical decision questions (accepted pilot choice recorded above)
 
 1. Persistence option: (a) Litestream now with a planned move to (b), or (b) straight away?
 2. Is an RPO of "seconds, minutes worst case" acceptable for the first pilot, or must it be about zero?
