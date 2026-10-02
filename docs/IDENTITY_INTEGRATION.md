@@ -223,3 +223,16 @@ Historical commit `de52835b154bce4a2bec2d9bec73c5a508d05542` failed
 Graphify's shared corpus lacks native Superteacher code coverage; exact Git
 objects and live native sources were inspected directly. This document contains
 curated project facts only; no private material was uploaded to hosted memory.
+
+## Pinned replication metadata compatibility
+
+Production-copy schema diagnosis found the exact published accounts0002 core plus
+Litestream's `_litestream_seq` and `_litestream_lock` tables. The bridge validates
+their exact pinned0.5.17 DDL and complete pair, preserves internal row digests, and
+retains strict rejection of any additional table/index/trigger or shape change.
+Twenty focused adoption tests passed, including real local replication/backup.
+Prepare the standalone snapshot with `superteacher.backup` after Litestream restore
+and before chmod400; restore-created WAL/SHM files are correctly rejected as input.
+The first two production-copy failures and the successful schema-only diagnosis
+are recorded in DEPLOYMENT_STATUS.md. Repeat adoption using the verified new image;
+source/live replicas remain untouched throughout rehearsal.

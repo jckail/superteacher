@@ -46,8 +46,14 @@ starts replication/server or writes the production prefix. The first execution c
 preparing a validated standalone backup, execution `vtgs9` reached exact-schema
 validation and refused the copy because its schema differs from the frozen
 published accounts0002 baseline. No output copy was published and no live schema
-changed. Schema-only diagnosis is required before extending the adoption mapping;
-do not relax the guard or retry unchanged.
+changed. The schema-only diagnostic execution `mnl7l` succeeded: all application/accounts
+schema matched; only `_litestream_lock` and `_litestream_seq` were additional.
+The bridge now reconstructs and validates the exact two-table DDL from pinned
+Litestream0.5.17 in both independent expected schemas and preserves every internal
+row. Missing pairs, extra columns/indexes/triggers and DDL drift remain rejected.
+Twenty focused adoption tests passed, including real pinned local replication,
+standalone backup and adoption. Fresh exact-head CI/image and production-copy
+rehearsal remain required before using this fix for promotion.
 
 Public recheck after staging: www.the-super-teacher.com reports `v0.1.0`;
 the existing direct superteacher service reports `dae26a5`, revision00006-cjv at

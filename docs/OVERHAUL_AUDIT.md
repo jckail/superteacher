@@ -282,3 +282,11 @@ identity/reference and repeated-payload checks passed. It is non-atomic and cann
 prove complete legacyDB preservation. LEGACY_CUTOVER.md records the artifact and
 faithful importer/rollback prerequisites. Preserve records by default; do not infer
 no user data from demo seeding. No production/domain cutover was attempted.
+
+Schema-only diagnosticmnl7l identified only the two pinned Litestream bookkeeping
+tables; application/account schema matchedpublished0002. The bridge now validates
+both exact internal DDLs and preserves their rows, with no prefix-based exemption.
+Twenty focused tests passed including real pinned local replication/backup/adoption.
+Missingpair/column/index/trigger/STRICT drift rejects. Latestmain66ad6bb CI36973071658
+passed all gates:968backendpassed,1knownxfail. New helper-source fix needs its own
+CI/image/rehearsal before deployment; staging7166813 remains verified/unchanged.

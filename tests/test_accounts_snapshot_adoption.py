@@ -1,8 +1,12 @@
 """Offline accounts adoption preserves owners/history and never changes its input."""
 
 import os
+import shlex
+import shutil
 import sqlite3
 import stat
+import subprocess
+import sys
 from contextlib import closing
 
 import pytest
@@ -161,3 +165,87 @@ def test_native_schema_drift_prevents_adoption(published_snapshot, tmp_path, mon
     with pytest.raises(adoption.AdoptionError, match="native migration chain"):
         adoption.adopt_accounts_snapshot(published_snapshot, destination)
     assert not destination.exists()
+
+
+def add_litestream_metadata(source):
+    source.chmod(0o600)
+    with closing(sqlite3.connect(source)) as connection:
+        for ddl in adoption.LITESTREAM_TABLES.values():
+            connection.execute(ddl)
+        connection.execute("INSERT INTO _litestream_seq VALUES (1, 321)")
+        connection.commit()
+    source.chmod(0o400)
+
+
+def test_exact_pinned_litestream_metadata_and_rows_are_preserved(published_snapshot, tmp_path):
+    add_litestream_metadata(published_snapshot)
+    before_bytes, before_rows = published_snapshot.read_bytes(), rows(published_snapshot)
+    destination = tmp_path / "with-litestream.db"
+    adoption.adopt_accounts_snapshot(published_snapshot, destination)
+    assert rows(destination) == before_rows
+    assert rows(destination)["_litestream_seq"] == [(1, 321)]
+    assert published_snapshot.read_bytes() == before_bytes
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "CREATE TABLE _litestream_unexpected (id INTEGER)",
+        "DROP TABLE _litestream_lock",
+        "ALTER TABLE _litestream_seq ADD COLUMN unexpected INTEGER",
+        "CREATE INDEX unexpected_internal_index ON _litestream_seq(seq)",
+        "CREATE TRIGGER unexpected_internal_trigger AFTER INSERT ON _litestream_seq BEGIN SELECT 1; END",
+        "DROP TABLE _litestream_lock; CREATE TABLE _litestream_lock (id INTEGER) STRICT",
+    ],
+)
+def test_litestream_name_does_not_allow_schema_drift(published_snapshot, tmp_path, statement):
+    add_litestream_metadata(published_snapshot)
+    published_snapshot.chmod(0o600)
+    with closing(sqlite3.connect(published_snapshot)) as connection:
+        connection.executescript(statement)
+    published_snapshot.chmod(0o400)
+    before = published_snapshot.read_bytes()
+    destination = tmp_path / "rejected-internal.db"
+    with pytest.raises(adoption.AdoptionError, match="exactly match"):
+        adoption.adopt_accounts_snapshot(published_snapshot, destination)
+    assert not destination.exists()
+    assert published_snapshot.read_bytes() == before
+
+
+def test_real_pinned_litestream_backup_is_adoptable(published_snapshot, tmp_path):
+    binary = os.environ.get("LITESTREAM_BIN") or shutil.which("litestream")
+    if not binary:
+        pytest.skip("Litestream binary is not available; no download is performed")
+    version = subprocess.run([binary, "version"], capture_output=True, text=True, timeout=10, check=True)
+    if version.stdout.strip() != "0.5.17":
+        pytest.skip("This bridge pins the internal schema to Litestream 0.5.17")
+    published_snapshot.chmod(0o600)
+    config = tmp_path / "local-replication.yml"
+    config.write_text(
+        f"dbs:\n  - path: {published_snapshot}\n    replicas:\n      - url: file://{tmp_path / 'local-replica'}\n"
+    )
+    # Synthetic data and a local file replica only; no cloud credentials/network.
+    process = subprocess.run(
+        [
+            binary,
+            "replicate",
+            "-config",
+            str(config),
+            "-exec",
+            shlex.join([sys.executable, "-c", "import time; time.sleep(2.5)"]),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+        env={"PATH": os.environ["PATH"], "HOME": str(tmp_path)},
+    )
+    assert process.returncode == 0, process.stdout + process.stderr
+    snapshot = tmp_path / "offline-standalone.db"
+    adoption.backup_database(published_snapshot, snapshot)
+    snapshot.chmod(0o400)
+    before = rows(snapshot)
+    assert set(adoption.LITESTREAM_TABLES) <= before.keys()
+    destination = tmp_path / "real-litestream-adopted.db"
+    adoption.adopt_accounts_snapshot(snapshot, destination)
+    assert rows(destination) == before

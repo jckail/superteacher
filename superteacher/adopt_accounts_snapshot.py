@@ -31,6 +31,14 @@ class AdoptionError(RuntimeError):
     """Operator-safe failure without record values or SQL exception details."""
 
 
+# Exact internal DDL from the pinned release's DB.init, not a prefix allowlist:
+# https://github.com/benbjohnson/litestream/blob/v0.5.17/db.go
+LITESTREAM_TABLES = {
+    "_litestream_seq": "CREATE TABLE _litestream_seq (id INTEGER PRIMARY KEY, seq INTEGER)",
+    "_litestream_lock": "CREATE TABLE _litestream_lock (id INTEGER)",
+}
+
+
 def _apply(connection, path):
     migration = runpy.run_path(str(path))
     with Operations.context(MigrationContext.configure(connection)):
@@ -59,6 +67,13 @@ def _schema(connection):
             "unique": sorted(tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)),
             "checks": sorted((c["name"], c["sqltext"]) for c in inspector.get_check_constraints(table)),
         }
+        if table in LITESTREAM_TABLES:
+            # Reflection omits table options such as STRICT/WITHOUT ROWID.
+            # Pin the internal definition itself as well as reflected shape.
+            sql = connection.exec_driver_sql(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).scalar_one()
+            tables[table]["internal_ddl"] = re.sub(r"\s+", " ", sql).strip().lower()
     # SQLAlchemy cannot reflect SQLite functional indexes. Compare their exact
     # normalized definitions, along with any unexpected views or triggers.
     objects = sorted(
@@ -93,12 +108,15 @@ def _rows_digest(path):
     return digests
 
 
-def _expected_schemas():
+def _expected_schemas(*, litestream=False):
     engine = create_engine("sqlite://")
     try:
         with engine.begin() as connection:
             _apply(connection, ROOT / "alembic/versions/0001_initial_schema.py")
             _apply(connection, ROOT / "superteacher/legacy_accounts_0002.py")
+            if litestream:
+                for ddl in LITESTREAM_TABLES.values():
+                    connection.exec_driver_sql(ddl)
             connection.exec_driver_sql(
                 "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
                 "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
@@ -115,6 +133,9 @@ def _expected_schemas():
         with native_engine.begin() as connection:
             for filename in ("0001_initial_schema.py", "0002_data_integrity.py", "0003_accounts.py"):
                 _apply(connection, ROOT / "alembic/versions" / filename)
+            if litestream:
+                for ddl in LITESTREAM_TABLES.values():
+                    connection.exec_driver_sql(ddl)
             connection.exec_driver_sql(
                 "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
                 "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
@@ -139,7 +160,6 @@ def adopt_accounts_snapshot(source, destination):
             raise AdoptionError("Destination must be a new file and must not alias the input snapshot.")
         if not destination.parent.is_dir():
             raise AdoptionError("Destination parent directory must already exist.")
-        legacy, combined = _expected_schemas()
         with tempfile.TemporaryDirectory(prefix=".superteacher-adopt-", dir=destination.parent) as directory:
             os.chmod(directory, 0o700)
             clone = Path(directory) / "clone.db"
@@ -148,7 +168,9 @@ def adopt_accounts_snapshot(source, destination):
             engine = create_engine(URL.create("sqlite", database=str(clone)))
             try:
                 with engine.connect() as connection:
-                    if _schema(connection) != legacy:
+                    actual = _schema(connection)
+                    legacy, combined = _expected_schemas(litestream=bool(set(actual[0]) & LITESTREAM_TABLES.keys()))
+                    if actual != legacy:
                         raise AdoptionError("Snapshot schema does not exactly match published accounts 0002.")
                     if connection.exec_driver_sql("SELECT version_num FROM alembic_version").all() != [("0002",)]:
                         raise AdoptionError("Snapshot must contain exactly the published accounts revision 0002.")
