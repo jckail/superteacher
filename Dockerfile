@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # --- web build ---
-FROM node:24.20.0-slim AS web
+FROM node:26.10.0-slim AS web
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
