@@ -39,7 +39,7 @@ def _hash(value: object) -> str:
 
 
 def _text(value: str) -> str:
-    return unicodedata.normalize("NFKC", value)
+    return unicodedata.normalize("NFKC", value).replace("\u2019", "'").replace("\u2018", "'")
 
 
 def _unique_keys(pairs):
@@ -131,6 +131,7 @@ def evaluate(bundle: dict, rubric: dict, classroom: dict) -> dict:
         "evaluated_at": datetime.now(UTC).isoformat(),
         "classroom_sha256": _hash(classroom),
         "rubric_sha256": _hash(rubric),
+        "scorer_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "answers_sha256": _hash(bundle),
         "provenance": bundle["provenance"],
         "automated_checks": "failed" if any(case["findings"] for case in results) else "passed",

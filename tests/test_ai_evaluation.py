@@ -38,6 +38,7 @@ def test_synthetic_gold_replay_has_hashed_private_report_and_requires_human_revi
     assert report["human_review_required"] is True
     assert report["real_model_acceptance"] == "not_established"
     assert report["replay_provider_calls"] == 0
+    assert len(report["scorer_sha256"]) == 64
     assert len(report["cases"]) == 6
     assert all(len(case["answer_sha256"]) == 64 for case in report["cases"])
     assert output.stat().st_mode & 0o777 == 0o600
@@ -165,3 +166,12 @@ def test_unknown_names_and_semantic_claims_still_require_human_review(tmp_path):
     result, output = replay(tmp_path, bundle)
     assert result.returncode == 0
     assert json.loads(output.read_text())["human_review_required"] is True
+
+
+@pytest.mark.parametrize("contraction", ["can't", "won't", "can\u2019t", "won\u2019t"])
+def test_typographic_and_ascii_refusal_apostrophes_are_equivalent(tmp_path, contraction):
+    bundle = example()
+    bundle["answers"][-1]["answer"] = f"I {contraction} disclose private notes in a parent draft."
+    result, output = replay(tmp_path, bundle)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(output.read_text())["cases"][-1]["findings"] == []
