@@ -12,14 +12,16 @@ import io
 import json
 import logging
 import re
+from collections.abc import Callable
 from datetime import date, timedelta
 from statistics import mean, median
 from typing import Literal
 
 from anthropic import AsyncAnthropic
+from fastapi import HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from . import ai_capacity, metrics, observability
+from . import accounts, ai_capacity, metrics, observability
 from .ai_tools import clean
 from .calendar import school_today
 from .config import get_settings
@@ -320,7 +322,9 @@ def _context(s: Student, m: metrics.StudentMetrics) -> str:
 
 
 @observability.ai_observed("parent_update", observability.source_outcome)
-async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["ai", "template"]]:
+async def parent_update(
+    s: Student, tone: Tone, before_call: Callable[[], None] | None = None
+) -> tuple[ParentDraft, Literal["ai", "template"]]:
     m = metrics.compute(s)
     try:
         lease = ai_capacity.acquire()
@@ -331,6 +335,8 @@ async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["a
         async with asyncio.timeout(min(PARENT_REQUEST_TIMEOUT_SECONDS, get_settings().ai_parent_timeout_seconds)):
             ai = make_client()
             if ai is not None:
+                if before_call:
+                    before_call()
                 resp = await ai.messages.create(
                     model=get_settings().anthropic_insight_model,
                     max_tokens=700,
@@ -340,6 +346,10 @@ async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["a
                 text = next((b.text for b in resp.content if isinstance(getattr(b, "text", None), str)), "")
                 raw = json.loads(text[text.index("{") : text.rindex("}") + 1])
                 return ParentDraft(subject=raw["subject"], body=raw["body"]), "ai"
+    except accounts.QuotaExceeded:
+        raise
+    except HTTPException:
+        raise
     except Exception:
         log.warning("parent update generation failed; using template")
     finally:

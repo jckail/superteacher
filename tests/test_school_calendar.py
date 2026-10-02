@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from superteacher import ai, calendar, metrics, queries, reports, schemas
+from superteacher.accounts import ensure_owner
 from superteacher.ai_tools import student_block
 from superteacher.config import Settings
 from superteacher.db import Base
@@ -69,7 +70,10 @@ def test_app_injected_timezone_isolated_for_http_websocket_and_threads(engine, s
 
     def app(zone):
         instance = create_app(
-            session_factory, engine, seed=False, settings=Settings(auth_disabled=True, school_timezone=zone)
+            session_factory,
+            engine,
+            seed=False,
+            settings=Settings(auth_disabled=True, school_timezone=zone, static_dir="/nonexistent-static-dir"),
         )
 
         @instance.get("/thread-date")
@@ -111,7 +115,7 @@ def test_future_work_and_attendance_use_same_date_and_historical_override(engine
     monkeypatch.setattr(calendar, "utc_now", lambda: datetime(2026, 10, 1, 0, 30, tzinfo=UTC))
     Base.metadata.create_all(engine)
     with session_factory() as db:
-        course = Course(name="Algebra")
+        course = Course(name="Algebra", owner_id=ensure_owner(db))
         section = Section(name="Period 1", course=course)
         student = Student(name="Ada", grade_level=9, section=section)
         for title, due, points in (("Past", date(2026, 9, 30), 80), ("Future", date(2026, 10, 1), None)):

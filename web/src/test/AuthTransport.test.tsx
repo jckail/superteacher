@@ -18,6 +18,7 @@ it('keeps the new login when an earlier mutation returns 401, while current expi
     if (url === '/api/current-private') return response(401, { detail: 'Unauthorized' });
     if (url === '/api/auth/logout') return response(204);
     if (url === '/api/auth/login') return response(200);
+    if (url === '/api/auth/config') return response(200, { auth_mode: 'passcode' });
     if (url === '/api/auth/me') return response(200, { authenticated: true, auth_required: true });
     throw new Error(`Unexpected request ${url}`);
   }));

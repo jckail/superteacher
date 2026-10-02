@@ -5,9 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import schemas
+from ..accounts import CurrentUser
+from ..auth import current_user
 from ..calendar import school_today
 from ..db import get_db
 from ..models import AttendanceRecord, Section, Student
+from ..queries import owned_section
 
 router = APIRouter(tags=["attendance"])
 
@@ -30,16 +33,26 @@ def _sheet(db: Session, section: Section, day: date) -> schemas.AttendanceSheet:
 
 
 @router.get("/sections/{section_id}/attendance", response_model=schemas.AttendanceSheet)
-def get_sheet(section_id: str, day: date | None = None, db: Session = Depends(get_db)):
-    section = db.get(Section, section_id)
+def get_sheet(
+    section_id: str,
+    day: date | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    section = owned_section(db, user.id, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
     return _sheet(db, section, day or school_today())
 
 
 @router.put("/sections/{section_id}/attendance", response_model=schemas.AttendanceSheet)
-def put_sheet(section_id: str, body: schemas.AttendanceIn, db: Session = Depends(get_db)):
-    section = db.get(Section, section_id)
+def put_sheet(
+    section_id: str,
+    body: schemas.AttendanceIn,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    section = owned_section(db, user.id, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
     enrolled = set(db.scalars(select(Student.id).where(Student.section_id == section_id)))

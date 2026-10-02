@@ -1,7 +1,7 @@
 from alembic import context
 from superteacher import models  # noqa: F401  (register tables)
 from superteacher.config import get_settings
-from superteacher.db import Base
+from superteacher.db import Base, validate_revision_identity
 
 config = context.config
 target_metadata = Base.metadata
@@ -31,6 +31,7 @@ def _run(connection) -> None:
         compare_type=True,
     )
     try:
+        validate_revision_identity(connection)
         with context.begin_transaction():
             context.run_migrations()
             if (
@@ -62,5 +63,8 @@ else:
 
     eng = make_engine(get_settings().database_url)
     with eng.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")  # see alembic/versions/0003_accounts.py
+            connection.commit()
         _run(connection)
         connection.commit()

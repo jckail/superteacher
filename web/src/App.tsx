@@ -7,6 +7,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/Confirm';
 import { Loading } from './components/ui';
+import AccountMenu from './components/AccountMenu';
+import DemoBanner from './components/DemoBanner';
 
 // Route-level code splitting keeps the first paint small; each page loads on demand.
 const Overview = lazy(() => import('./pages/Overview'));
@@ -63,7 +65,7 @@ function NotFound() {
 function Shell() {
   const [chatOpen, setChatOpen] = useState(false);
   const [dark, toggleTheme] = useTheme();
-  const { authRequired, logout } = useAuth();
+  const { authRequired, logout, mode } = useAuth();
   const studentMatch = useMatch('/students/:id');
   const main = useRef<HTMLElement>(null);
   const pathname = useRouteAnnouncer(main);
@@ -79,10 +81,11 @@ function Shell() {
           <button type="button" className={`nav-btn ${chatOpen ? 'active' : ''}`} aria-expanded={chatOpen} aria-controls="assistant-panel" onClick={() => setChatOpen((o) => !o)}><span aria-hidden>✨</span>Ask AI</button>
         </div>
         <div className="spacer" />
-        {authRequired && <button type="button" className="btn side-extra" onClick={logout}>Sign out</button>}
+        {mode === 'accounts' ? <AccountMenu /> : authRequired && <button type="button" className="btn side-extra" onClick={logout}>Sign out</button>}
         <button type="button" className="btn side-extra" onClick={toggleTheme} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>{dark ? '☀️ Light' : '🌙 Dark'}</button>
       </nav>
       <main className="main" id="main" tabIndex={-1} ref={main}>
+        {mode === 'accounts' && <DemoBanner />}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<Loading />}>
             <Routes>

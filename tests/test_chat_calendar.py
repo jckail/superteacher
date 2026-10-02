@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from superteacher import ai, ai_tools, calendar
 from superteacher.config import Settings
 from superteacher.main import create_app
+from superteacher.models import OWNER_ID
 
 
 def test_turn_crossing_midnight_freezes_tools_and_next_turn_advances(engine, session_factory, monkeypatch):
@@ -16,12 +17,17 @@ def test_turn_crossing_midnight_freezes_tools_and_next_turn_advances(engine, ses
     snapshots = []
 
     # Exercise the real threaded tool dispatch with a deterministic calendar-only lookup.
-    monkeypatch.setattr(ai_tools, "execute", lambda db, name, args: calendar.school_today().isoformat())
+    def execute(db, name, args, *, owner_id):
+        assert owner_id == OWNER_ID
+        return calendar.school_today().isoformat()
 
-    async def run_chat(history, roster, focus, factory):
+    monkeypatch.setattr(ai_tools, "execute", execute)
+
+    async def run_chat(history, roster, focus, factory, *, owner_id):
+        assert owner_id == OWNER_ID
         snapshots.append(roster.split(".", 1)[0])
         instant[0] = datetime(2026, 10, 1, 7, 1, tzinfo=UTC)
-        result = await ai._run_tool(factory, SimpleNamespace(id="calendar", name="class_stats", input={}))
+        result = await ai._run_tool(factory, owner_id, SimpleNamespace(id="calendar", name="class_stats", input={}))
         assert not result.get("is_error")
         yield {"type": "delta", "text": result["content"]}
 

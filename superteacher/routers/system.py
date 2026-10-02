@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from .. import metrics, schemas
+from ..accounts import CurrentUser
+from ..auth import current_user
 from ..calendar import school_timezone, school_today
 from ..db import get_db
 from ..queries import iter_summaries
@@ -11,8 +13,13 @@ router = APIRouter(tags=["system"])
 
 
 @router.get("/overview", response_model=schemas.Overview)
-def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
-    computed = list(iter_summaries(db, retain_scores=False, course_id=course_id, section_id=section_id))
+def overview(
+    course_id: str | None = None,
+    section_id: str | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    computed = list(iter_summaries(db, user.id, retain_scores=False, course_id=course_id, section_id=section_id))
 
     bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
     for _, m in computed:
@@ -36,5 +43,5 @@ def overview(course_id: str | None = None, section_id: str | None = None, db: Se
 
 
 @router.get("/calendar", response_model=schemas.CalendarOut)
-def calendar():
+def calendar(user: CurrentUser = Depends(current_user)):
     return {"timezone": school_timezone(), "today": school_today()}

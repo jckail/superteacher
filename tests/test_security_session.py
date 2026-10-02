@@ -5,6 +5,7 @@ import stat
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 
 from superteacher import auth
@@ -97,10 +98,24 @@ def test_cookie_flags_http(c):
     assert "domain=" not in sc  # host-only cookie, not shared with sibling subdomains
 
 
-def test_cookie_secure_when_https_or_forwarded(c):
-    for headers in ({"X-Forwarded-Proto": "https"}, {"X-Forwarded-Proto": "https, http"}):
-        assert "; secure" in login(c, **headers).headers["set-cookie"].lower()
-    assert "; secure" not in login(c, **{"X-Forwarded-Proto": "http"}).headers["set-cookie"].lower()
+def test_cookie_secure_when_request_is_https(c):
+    with TestClient(c.app, base_url="https://testserver") as secure_client:
+        assert "; secure" in login(secure_client).headers["set-cookie"].lower()
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+def test_cookie_secure_uses_only_trusted_proxy_scheme(c, trusted):
+    with behind_proxy(c, trusted=trusted) as proxied:
+        response = login(proxied, **{"X-Forwarded-Proto": "https"})
+        assert response.status_code == 200
+        assert ("; secure" in response.headers["set-cookie"].lower()) is trusted
+
+
+def test_spoofed_forwarded_proto_does_not_force_secure_cookie(c):
+    for value in ("https", "https, http"):
+        response = login(c, **{"X-Forwarded-Proto": value})
+        assert response.status_code == 200
+        assert "; secure" not in response.headers["set-cookie"].lower()
 
 
 def test_cookie_secure_can_be_forced():

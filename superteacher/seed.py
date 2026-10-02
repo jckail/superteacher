@@ -89,9 +89,28 @@ def school_days(end: date, n: int) -> list[date]:
     return sorted(days)
 
 
-def seed_demo(db: Session, today: date | None = None, seed: int = 7) -> None:
-    if db.scalar(select(Course.id).limit(1)):
-        return  # never touch real data
+STARTER_PLAN = {"Algebra I": ["Period 1"], "Biology": ["Period 4"]}
+
+
+def seed_starter(db: Session, owner_id: str, today: date | None = None) -> None:
+    """A small synthetic classroom for a brand-new account (deterministic, invented names only)."""
+    seed_demo(db, today=today, owner_id=owner_id, plan=STARTER_PLAN, per_section=6)
+
+
+def seed_demo(
+    db: Session,
+    today: date | None = None,
+    seed: int = 7,
+    owner_id: str | None = None,
+    plan: dict[str, list[str]] | None = None,
+    per_section: int = 9,
+) -> None:
+    if owner_id is None:
+        from .accounts import ensure_owner
+
+        owner_id = ensure_owner(db)
+    if db.scalar(select(Course.id).where(Course.owner_id == owner_id).limit(1)):
+        return  # never touch existing data
     rng = random.Random(seed)
     today = today or school_today()
     names = [f"{first} {last}" for first in FIRST for last in LAST]
@@ -99,14 +118,14 @@ def seed_demo(db: Session, today: date | None = None, seed: int = 7) -> None:
     name_iter = iter(names)
     days = school_days(today, 30)
 
-    for course_name, section_names in PLAN.items():
-        course = Course(name=course_name)
+    for course_name, section_names in (plan or PLAN).items():
+        course = Course(name=course_name, owner_id=owner_id)
         db.add(course)
         for sname in section_names:
             section = Section(course=course, name=sname)
             db.add(section)
             students = []
-            for i in range(9):
+            for i in range(per_section):
                 st = Student(name=next(name_iter), grade_level=rng.choice([9, 9, 10, 10, 11]), section=section)
                 # hidden ground truth: base ability, drift over the term, how often they show up / hand in work
                 st._ability = rng.gauss(84, 9)

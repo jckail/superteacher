@@ -58,6 +58,7 @@ from superteacher import db as database  # noqa: E402
 from superteacher.calendar import school_today  # noqa: E402
 from superteacher.config import get_settings  # noqa: E402
 from superteacher.main import create_app  # noqa: E402
+from superteacher.models import OWNER_EMAIL, OWNER_ID  # noqa: E402
 from superteacher.queries import load_summaries  # noqa: E402
 from superteacher.routers import attendance as attendance_router  # noqa: E402
 from superteacher.routers import roster as roster_router  # noqa: E402
@@ -103,7 +104,14 @@ def build_dataset(
         (_id("c", i), COURSES[i % len(COURSES)] + ("" if i < len(COURSES) else f" {i}"))
         for i in range(max(1, sections // SECTIONS_PER_COURSE))
     ]
-    cur.executemany("INSERT INTO courses(id,name) VALUES(?,?)", courses)
+    # Every course has an owner. Passcode/auth-disabled mode (what the benchmark runs) acts as this implicit owner.
+    cur.execute(
+        "INSERT OR IGNORE INTO users(id,email,created_at,disabled) VALUES(?,?,?,0)",
+        (OWNER_ID, OWNER_EMAIL, datetime.now(UTC).isoformat(sep=" ")),
+    )
+    cur.executemany(
+        "INSERT INTO courses(id,name,owner_id) VALUES(?,?,?)", [(cid, name, OWNER_ID) for cid, name in courses]
+    )
     secs, assess, studs, scores, att, notes = [], [], [], [], [], []
     per = students // sections
     aid_n = stid_n = scid_n = atid_n = nid_n = 0
@@ -352,13 +360,13 @@ def run_size(
 
         def ai_parts() -> int:
             with factory() as s:
-                roster, focus = ai.build_context_parts(s, stu)
+                roster, focus = ai.build_context_parts(s, OWNER_ID, stu)
             return len(roster) + len(focus)
 
         def ai_tool(name: str, args: dict) -> Callable[[], int]:
             def f() -> int:
                 with factory() as s:
-                    return len(ai_tools.execute(s, name, args))
+                    return len(ai_tools.execute(s, OWNER_ID, name, args))
 
             return f
 

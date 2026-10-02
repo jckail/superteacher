@@ -14,7 +14,7 @@ import logging
 import os
 from bisect import insort
 from collections import Counter
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,13 +23,14 @@ from typing import Any
 import anthropic
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError, field_validator
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import ai_capacity, ai_tools, metrics, observability, schemas
 from .ai_tools import clean, section_label, student_block, student_line
 from .calendar import school_today
 from .config import get_settings
-from .models import InsightCache, Student
+from .models import OWNER_ID, Course, InsightCache, Section, Student
 from .queries import iter_summaries, load_students
 
 log = logging.getLogger(__name__)
@@ -97,8 +98,14 @@ def client() -> AsyncAnthropic | None:
 
 
 # ── context ─────────────────────────────────────────────────────────────
-def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str, str]:
+def build_context_parts(
+    db: Session, student_id: str | None = None, *owner_focus: str | None, owner_id: str = OWNER_ID
+) -> tuple[str, str]:
     """(roster snapshot, focus block). The roster part is stable across turns, so it carries the cache breakpoint."""
+    if owner_focus:
+        if len(owner_focus) != 1:
+            raise TypeError("Expected owner and optional focused student")
+        owner_id, student_id = student_id, owner_focus[0]
     as_of = school_today()
     cap = max(1, min(setting_int("chat_roster_cap", 60), 200))
     count = flagged = 0
@@ -106,7 +113,7 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
     by_sec: dict[str, list[float]] = {}
     first_lines: list[str] = []
     attention: list[tuple[tuple, str]] = []
-    for s, m in iter_summaries(db, retain_scores=False, today=as_of):
+    for s, m in iter_summaries(db, owner_id=owner_id, retain_scores=False, today=as_of):
         count += 1
         counts[m.risk] += 1
         section = by_sec.setdefault(section_label(s), [0, 0, 0])
@@ -138,7 +145,7 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
             out.append(f"... and {flagged - cap} more students flagged; use find_students.")
     out.append("</roster>")
     focus = ""
-    if student_id and (students := load_students(db, student_id=student_id)):
+    if student_id and (students := load_students(db, owner_id=owner_id, student_id=student_id)):
         f = students[0]
         focus = (
             f"The teacher is currently viewing {clean(f.name, 80)}. Summary and up to 30 recent work records:\n"
@@ -147,8 +154,10 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
     return "\n".join(out), focus
 
 
-def build_context(db: Session, student_id: str | None = None) -> str:
-    roster, focus = build_context_parts(db, student_id)
+def build_context(
+    db: Session, student_id: str | None = None, *owner_focus: str | None, owner_id: str = OWNER_ID
+) -> str:
+    roster, focus = build_context_parts(db, student_id, *owner_focus, owner_id=owner_id)
     return roster + ("\n\n" + focus if focus else "")
 
 
@@ -174,12 +183,19 @@ def _block_param(b: Any) -> dict:
 
 
 async def run_chat(
-    history: list[dict], roster: str, focus: str = "", session_factory=None, max_iterations: int | None = None
+    history: list[dict],
+    roster: str,
+    focus: str = "",
+    session_factory=None,
+    max_iterations: int | None = None,
+    owner_id: str | None = None,
 ) -> AsyncIterator[dict]:
     """Agentic chat turn. Yields {"type":"delta","text"} and {"type":"tool","name"} events.
 
     Raises ChatError (safe message) on upstream failure. Cancelling the consumer closes the upstream stream.
     """
+    if session_factory is not None and owner_id is None:
+        raise ValueError("owner_id is required when tools are enabled")
     try:
         lease = ai_capacity.acquire()
     except ai_capacity.CapacityError as exc:
@@ -199,7 +215,7 @@ async def run_chat(
                     }
                     return
                 async with aclosing(
-                    _run_chat_client(ai, history, roster, focus, session_factory, max_iterations)
+                    _run_chat_client(ai, history, roster, focus, session_factory, max_iterations, owner_id)
                 ) as events:
                     async for event in events:
                         yield event
@@ -214,7 +230,13 @@ async def run_chat(
 
 
 async def _run_chat_client(
-    ai: AsyncAnthropic, history: list[dict], roster: str, focus: str, session_factory, max_iterations: int | None
+    ai: AsyncAnthropic,
+    history: list[dict],
+    roster: str,
+    focus: str,
+    session_factory,
+    max_iterations: int | None,
+    owner_id: str | None,
 ) -> AsyncIterator[dict]:
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
     system = system_blocks(roster, focus)
@@ -255,17 +277,17 @@ async def _run_chat_client(
             if b.type != "tool_use":
                 continue
             yield {"type": "tool", "name": b.name}
-            results.append(await _run_tool(session_factory, b))
+            results.append(await _run_tool(session_factory, owner_id, b))
         if results:
             messages.append({"role": "user", "content": results})  # all results in ONE user message
 
     yield {"type": "delta", "text": "\n\n_(I stopped looking things up after several steps; ask a narrower question.)_"}
 
 
-async def _run_tool(session_factory, block: Any) -> dict:
+async def _run_tool(session_factory, owner_id: str, block: Any) -> dict:
     def work() -> str:
         with session_factory() as db:
-            return ai_tools.execute(db, block.name, block.input)
+            return ai_tools.execute(db, block.name, block.input, owner_id=owner_id)
 
     try:
         content = await asyncio.to_thread(work)
@@ -277,9 +299,11 @@ async def _run_tool(session_factory, block: Any) -> dict:
         return {"type": "tool_result", "tool_use_id": block.id, "content": "The lookup failed.", "is_error": True}
 
 
-async def stream_chat(history: list[dict], context: str, session_factory=None) -> AsyncIterator[str]:
+async def stream_chat(
+    history: list[dict], context: str, session_factory=None, owner_id: str | None = None
+) -> AsyncIterator[str]:
     """Text-only convenience wrapper over run_chat (kept for compatibility)."""
-    async for ev in run_chat(history, context, "", session_factory):
+    async for ev in run_chat(history, context, "", session_factory, owner_id=owner_id):
         if ev["type"] == "delta":
             yield ev["text"]
 
@@ -408,11 +432,24 @@ async def _generate_payload(ai: AsyncAnthropic, model: str, prompt: str) -> Insi
     return None
 
 
-async def ai_insight(db: Session, s: Student) -> schemas.Insight:
+async def ai_insight(
+    db: Session, s: Student, before_generate: Callable[[], None] | None = None, *, owner_id: str | None = None
+) -> schemas.Insight:
+    actual_owner = db.scalar(select(Course.owner_id).join(Section).where(Section.id == s.section_id))
+    if owner_id is not None and actual_owner != owner_id:
+        raise ValueError("Student is not available for this classroom")
+    owner_id = actual_owner
     m = metrics.compute(s)
     fp = metrics.fingerprint(s, m)
     model = get_settings().anthropic_insight_model
-    cached = db.get(InsightCache, s.id)
+    cache_query = (
+        select(InsightCache)
+        .join(Student)
+        .join(Section)
+        .join(Course)
+        .where(InsightCache.student_id == s.id, Course.owner_id == owner_id)
+    )
+    cached = db.scalar(cache_query)
     if cached and cached.fingerprint == fp and cached.model == model:
         try:
             return schemas.Insight(
@@ -427,7 +464,7 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
     prompt = "<student_record>\n" + student_block(s, m) + "\n</student_record>"
 
     # Keep deduplication within the same loop/database/model, including during tests and reloads.
-    key = (asyncio.get_running_loop(), db.get_bind(), model, s.id, fp)
+    key = (asyncio.get_running_loop(), db.get_bind(), owner_id, model, s.id, fp)
     job = _inflight.get(key)
     if job is None:
         try:
@@ -435,6 +472,8 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
         except ai_capacity.CapacityError:
             return rule_insight(s, m)
         try:
+            if before_generate and get_settings().anthropic_api_key:
+                before_generate()
             job = _InsightJob(
                 asyncio.create_task(
                     observability.timed_ai("insight", _generate(model, prompt, lease))
@@ -465,7 +504,7 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
 
     data = payload.model_dump()
     try:
-        row = db.get(InsightCache, s.id)
+        row = db.scalar(cache_query)
         if row:
             row.fingerprint, row.model, row.payload = fp, model, data
             row.created_at = datetime.now(UTC)

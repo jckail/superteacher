@@ -1,6 +1,6 @@
 # ADR 0002: Identity and tenancy (shared passcode vs per-teacher accounts)
 
-- Status: Proposed, needs owner decision
+- Status: Accepted (passwordless-email variant). Implemented on branch `team/accounts`; see "What was built" below.
 - Date: 2026-10-02
 - Deciders: Jordan Kail (owner)
 - Depends on: ADR 0001 (where user rows live). Informs: ADR 0003 (who is accountable for which student record), ADR 0005.
@@ -23,6 +23,29 @@ person, has no audit trail ("who changed this grade"), and a departing teacher k
 
 Platform facts (project `portfolio-383615`, read 2026-10-02): the `superteacher` Cloud Run service allows `allUsers` to invoke (the app is
 the gatekeeper), ingress `all`, `maxScale=1`. No identity provider is configured yet.
+
+## What was built (passwordless-email variant, accepted)
+
+The owner chose a public demo ("anyone who gives an email address") with synthetic data only, so none of options A to D was adopted
+as written: it is a self-managed **passwordless email sign-in** (a reduced option A: no passwords, no TOTP, no recovery flows), with
+server-side revocable sessions instead of the stateless cookie.
+
+- `AUTH_MODE=passcode|accounts` (default `passcode`, unchanged behaviour; the passcode maps to an implicit owner user).
+- Tables: `users`, `sessions` (SHA-256 of a 256-bit id, idle + absolute expiry, revocable), `login_tokens` (hashed, 15 min, single use),
+  `usage_counters`, `ai_budget`; `courses.owner_id` with `UNIQUE(owner_id, lower(name))`; migration `0002` backfills existing rows to the owner user.
+- Links open an SPA page with the token in the URL fragment, which POSTs it (scanner-safe, CSRF + origin checked). Generic `202` replies,
+  per-address/per-email/global rate limits, `ACCOUNTS_MAX_USERS`, optional domain allowlist. SendGrid over httpx; `console`/`file`
+  backends refused in production.
+- Tenancy: one dependency, `auth.current_user`, threaded through every router, `queries.py` (`owner_id` is a required argument), `reports.py`,
+  and every AI path (chat roster snapshot, tools, insight cache, parent drafts, WebSocket). Foreign ids are 404. Tests: `tests/test_accounts_tenancy.py`
+  and a route-inventory test that fails if an authenticated route does not resolve `current_user`.
+- Account endpoints: `GET /api/account/export`, `DELETE /api/account` (typed email), `POST /api/auth/logout-all`.
+- Per-user daily quotas and an optional global AI budget; a synthetic starter classroom on first sign-in.
+
+Differences from the proposal above: no Google/Clerk, no `provider`/`provider_sub`/`name` columns (email is the identity), the owner email for
+adoption is optional config (`ACCOUNTS_OWNER_EMAIL`) rather than a refusal to migrate, `owner_id` is backfilled in the same revision (not a second one),
+the throttle for sign-in links is partly in memory (single instance) and partly in the database. Not built: organisations/roles, Postgres RLS,
+MFA, an operator console to disable users (set `users.disabled=1` in the database; takes effect on the next request).
 
 ## Options
 

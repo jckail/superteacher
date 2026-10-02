@@ -3,7 +3,9 @@
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from superteacher.accounts import ensure_owner
 from superteacher.db import Base, make_engine
 
 
@@ -11,8 +13,13 @@ from superteacher.db import Base, make_engine
 def engine():
     eng = make_engine("sqlite://")
     Base.metadata.create_all(eng)
+    with Session(eng) as db:
+        owner_id = ensure_owner(db)
     with eng.begin() as conn:
-        conn.execute(text("INSERT INTO courses VALUES ('c', 'Math')"))
+        conn.execute(
+            text("INSERT INTO courses (id, name, owner_id) VALUES ('c', 'Math', :owner_id)"),
+            {"owner_id": owner_id},
+        )
         conn.execute(text("INSERT INTO sections VALUES ('sec', 'c', 'A')"))
         conn.execute(text("INSERT INTO students VALUES ('s', 'Student', 8, 'sec')"))
         conn.execute(text("INSERT INTO assessments VALUES ('a', 'sec', 'Test', 'test', 100, '2026-10-01')"))

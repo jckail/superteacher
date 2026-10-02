@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.requests import HTTPConnection
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -62,10 +62,13 @@ _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{6,}"), r"\1 " + _REDACTED),
     (re.compile(rf"""(?i)(["']?\b(?:{_SENSITIVE_KEYS})\b["']?\s*[:=]\s*){_VALUE}"""), r"\1" + _REDACTED),
     (re.compile(r"\bsk-[A-Za-z0-9_-]{8,}"), _REDACTED),
+    (re.compile(r"\bSG\.[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]{8,})?"), _REDACTED),  # SendGrid API keys
+    # accounts: email addresses are personal data and never belong in logs
+    (re.compile(r"[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"), "[REDACTED-EMAIL]"),
     (re.compile(r"\?[^\s\"'#]+"), "?" + _REDACTED),  # any query string
     (re.compile(r"\b[A-Za-z0-9_-]{40,}(?:\.[A-Za-z0-9_-]{6,}){0,3}"), _REDACTED),  # long opaque tokens / signed cookies
 ]
-_SECRET_SETTINGS = ("auth_password", "anthropic_api_key", "session_secret")
+_SECRET_SETTINGS = ("auth_password", "anthropic_api_key", "session_secret", "sendgrid_api_key")
 
 
 def _known_secrets() -> list[str]:
@@ -601,6 +604,9 @@ async def metrics_auth(conn: HTTPConnection) -> None:
         return
     from . import auth
 
+    if auth.settings_of(conn).auth_mode == "accounts":
+        # Process-wide counters are an operator tool: with many accounts, "any signed-in user" is too broad.
+        raise HTTPException(401, "Metrics need the METRICS_TOKEN bearer token")
     await auth.require_auth(conn)
 
 

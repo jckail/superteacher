@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import metrics
-from .models import Note, Student
+from .models import OWNER_ID, Course, Note, Section, Student
 from .queries import iter_summaries, student_candidates, summaries_for
 
 MAX_TOOL_RESULT_CHARS = 12_000
@@ -298,21 +298,29 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
     return out
 
 
-def _get_student(db: Session, args: GetStudentArgs):
+def _get_student(db: Session, args: GetStudentArgs, owner_id: str):
     if not args.student_id and not args.name:
         return {"error": "Provide student_id or name."}
-    hits = student_candidates(db, student_id=args.student_id, name_contains=None if args.student_id else args.name)
+    hits = student_candidates(
+        db, owner_id=owner_id, student_id=args.student_id, name_contains=None if args.student_id else args.name
+    )
     if not hits:
         return {"error": "No matching student."}
     if len(hits) > 1:
         return {
             "error": "Several students match; call again with student_id.",
-            "candidates": [_row(s, m) for s, m in summaries_for(db, hits, retain_scores=False)],
+            "candidates": [_row(s, m) for s, m in summaries_for(db, hits, owner_id=owner_id, retain_scores=False)],
         }
-    s, m = next(summaries_for(db, hits))
+    s, m = next(summaries_for(db, hits, owner_id=owner_id))
     notes = list(
         db.scalars(
-            select(Note).where(Note.student_id == s.id).order_by(Note.created_at.desc(), Note.id.desc()).limit(5)
+            select(Note)
+            .join(Student)
+            .join(Section)
+            .join(Course)
+            .where(Note.student_id == s.id, Course.owner_id == owner_id)
+            .order_by(Note.created_at.desc(), Note.id.desc())
+            .limit(5)
         )
     )
     return "<student_record>\n" + student_block(s, m, max_scores=15, notes=notes) + "\n</student_record>"
@@ -329,8 +337,12 @@ class ToolError(Exception):
     """Raised for bad tool name/arguments; the message is safe to show the model."""
 
 
-def execute(db: Session, name: str, raw_input: object) -> str:
+def execute(db: Session, name: str, raw_input: object, *owner_input: object, owner_id: str = OWNER_ID) -> str:
     """Run one tool and return the string for the tool_result block (always bounded in size)."""
+    if owner_input:
+        if len(owner_input) != 1:
+            raise TypeError("Expected owner, tool name and arguments")
+        owner_id, name, raw_input = name, raw_input, owner_input[0]
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
     model, _ = _HANDLERS[name]
@@ -341,13 +353,18 @@ def execute(db: Session, name: str, raw_input: object) -> str:
             "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
         ) from None
     if name == "get_student":
-        result = _get_student(db, args)
+        result = _get_student(db, args, owner_id)
     elif name == "find_students":
         result = _find_summaries(
-            iter_summaries(db, section=args.section, name_contains=args.name_contains, retain_scores=False), args
+            iter_summaries(
+                db, owner_id=owner_id, section=args.section, name_contains=args.name_contains, retain_scores=False
+            ),
+            args,
         )
     else:
-        result = _class_summaries(iter_summaries(db, section=args.section, retain_scores=False), args)
+        result = _class_summaries(
+            iter_summaries(db, owner_id=owner_id, section=args.section, retain_scores=False), args
+        )
     text = result if isinstance(result, str) else json.dumps(result, separators=(",", ":"), default=str)
     if len(text) > MAX_TOOL_RESULT_CHARS:
         text = text[:MAX_TOOL_RESULT_CHARS] + "\n[truncated]"

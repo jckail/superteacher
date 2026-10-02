@@ -1,5 +1,55 @@
 # Identity integration review and remaining work
 
+## Native migration integration update
+
+During the authorized merge of `dae26a5`, native integrity revision `0002`
+and all grade/enum CHECK constraints were retained. Accounts is now
+`alembic/versions/0003_accounts.py`, revision `0003`, parent `0002`.
+The ownership models preserve native constraints, the frozen `0001` adoption
+check remains, and SQLite foreign-key settings are restored after migrations.
+New regression cases cover `0001 → integrity 0002 → accounts 0003` with preserved
+raw/history rows and constraints, plus startup/CLI rejection of the independent
+accounts `0002`. Execution results belong to the root verification owner.
+
+Read-only live metadata during this merge reported `superteacher-00006-cjv`,
+100% traffic, image `superteacher:dae26a5`. Its environment names did not include
+`AUTH_MODE`, but that source runs accounts migrations even in passcode mode.
+The serving replica may therefore already carry the independently published
+accounts `0002`. No database or secret payload was retrieved to determine its
+actual schema. Startup and Alembic CLI now reject ambiguous `0002` histories
+before DDL instead of interpreting them as native integrity or silently stamping.
+
+Before promoting the integrated image against that replica, restore a private
+consistent copy, inspect its version/schema and validate an explicit adoption
+mapping that preserves owners, sessions, quotas and domain/history records.
+Retain the original snapshot and verify constraints on the adopted copy.
+This adoption path remains a deployment blocker; changing the version number
+alone does not apply native integrity checks or establish schema compatibility.
+
+## Current integration and verification
+
+The native merge now ports email login, token verification, the account menu and
+export/delete flows into TypeScript. Session generations and private query-cache
+replacement remain. Owner filters cover native assessment/note edits, calendar,
+transfers, grade history, bounded summaries, reports and AI tools/cache. Transfers
+retain raw grades; exports include historical assessment metadata. Strict origins
+and trusted-proxy cookie handling remain. Parent drafts exclude confidential notes.
+
+Signup/starter creation and quotas use database transactions. The configured owner
+can adopt at the full signup cap. WebSockets revalidate sessions before turns and
+during generation; watcher polls do not extend idle expiry. Shielded task cleanup fixes repeated ASGI cancellation; four focused auth,
+revocation and calendar cases passed.
+
+Focused evidence: 10 frontend accounts tests; 29 concurrency/lifecycle/export/mailer
+cases; two idle-session cases; 11 selected tenancy/storage/migration cases;
+13 selected auth/token cases; and 10 native AI/calendar/chat cases passed.
+These separate runs do not establish full combined release readiness. Exact-commit
+CI, PostgreSQL and browser lifecycle gates remain required. No real mail was sent
+and no integrated image has been deployed.
+
+The earlier findings below are historical, not current unresolved defects.
+Existing accounts-0002 adoption, release checks and production email remain open.
+
 Read-only review updated 2026-10-02 at 05:05 UTC (2026-10-01 Pacific).
 The native checkout is `/home/jkail/projects/superteacher`, reviewed at
 `034428412cefcc0aaee2a03d6386e1a1d1c30835`. Accounts candidate
@@ -10,7 +60,7 @@ The earlier `de52835` snapshot and missing-browser-flow finding are superseded.
 No foreign worktree was checked out or edited; no candidate tests, builds,
 dependency installs, browser checks, real mail or paid AI calls were run.
 
-## What the current candidate implements
+## Historical candidate review (before native integration)
 
 The product contract is **passwordless email sign-in**. First successful token
 verification creates an account and a synthetic starter classroom; recovery is
@@ -28,7 +78,7 @@ consume tokens. The file mailer now names messages using time plus randomness;
 SendGrid disables tracking and avoids logging recipient/token contents.
 These source observations do not establish production delivery or integration.
 
-## Integration blockers at the reviewed commit
+## Historical findings at the reviewed commit
 
 1. **Migration revision collision and storage regression.** Native
    `alembic/versions/0002_data_integrity.py` and candidate
@@ -86,7 +136,7 @@ These source observations do not establish production delivery or integration.
    is not established. Make these paths transactional/atomic for the intended
    topology, or explicitly constrain the supported topology and test it.
 
-## Ownership integration plan
+## Historical ownership integration plan
 
 Candidate `queries.py` contains `owned_course`, `owned_section`,
 `owned_assessment`, `owned_student` and owner-scoped roster reads. REST routers,

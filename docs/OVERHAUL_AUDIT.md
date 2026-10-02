@@ -183,3 +183,37 @@ CI36967844593 forbf7aca1: **822backendpassed,1xfailed**; lint, webunit/type/buil
 CI36968302956 forda86cee: incoming E2E81passed; lint/web/benchmark passed. Backend821passed/1failed/1xfailed because root missed older `test_chat.py` fallback-key assertion; corrected meaningful teacher notice + noenvironmentsetup assertion,2focusedcasespass. Nativebrowser3passed/1failed because longUUIDcoursename widened native ScopePickerselect onmobile; team bounded flex/selectwidths, retainslongfixture andoverflowassertion. ProtectedCloudBuild session28412 endedexit75 with emptylog—no cloud command/archive/image/deployment began. Do not retry unchanged merely because lock isbusy. `/tmp/st-stage-candidate.py` is prepared,notexecuted; use only an exactCI-verified image andisolated replica prefix. Externalpersist deployment job observed active; do not overlapproductiontrafficownership.
 
 Externalmain advanceddae26a5 with passwordlessaccounts PR12. Nativebranch must integrate it beforemerge/release, preserving TypeScript, numericconstraints, calendar, bounded AI, active-sectionmetrics, parentnoteprivacy andretainedtransferhistory. Identitymigrationrevisioncollision andownership for newlyaddedroutes remain concrete integration requirements; avoid wholesaleacceptance of olderJS/routes. Rootcontinues teamintegration within original activegoal.
+
+
+### Native accounts integration checkpoint
+
+The main merge (`dae26a5`) is resolved with native integrity migration `0002`
+retained and accounts assigned successor `0003`. Startup and Alembic CLI reject
+ambiguous independently published accounts-`0002` databases before DDL. A validated
+backup/clone adoption bridge is being implemented before using the integrated image
+against such a production replica.
+
+The team ported accounts into TypeScript; scoped native edits, transfers, history,
+calendar, reports and AI by owner; preserved raw grades and bounded queries;
+made signup/starter and quota claims transactional; and revalidated sessions
+without extending idle expiry through watcher polls. Root verified 11 selected
+tenancy/storage/migration cases and 13 auth/token cases. Team evidence: 10 frontend
+accounts, 29 account concurrency/lifecycle/export/mailer, two idle-session and
+10 AI/calendar/chat cases passed. WebSocket cleanup is being fixed. Full combined
+CI and isolated candidate deployment remain pending.
+
+Agent Hub was invoked with the actual native repository but still reports no
+selected/configured project. This local ledger is the continuity fallback.
+Graphify refresh completed but the shared corpus still lacks Superteacher coverage;
+current source inspection remains necessary. No unrelated browser tabs/processes
+were changed. The original goal remains active, including deployment, production
+email, academic terms/policy, pagination and real-provider evaluation.
+
+Integration follow-up: all 81 selected numeric/transfer/calendar/tenancy cases are
+covered by passing focused runs. Trusted-proxy cookie tests passed 28 cases with
+one known stateless-passcode logout xfail; explicit-cookie and concurrent per-email
+limit regressions each passed. The real WebSocket context-exit cancellation defect
+was fixed by shielding final draining of owned tasks, preserving lease/generator
+cleanup. Four unchanged auth/revocation/calendar cases passed; the two auth cases
+also passed their focused verification rerun. Root lint/format and diff checks
+pass before the merge commit. Full combined CI remains the release gate.

@@ -6,7 +6,28 @@ public health/version/schema inspection. It did not deploy, retrieve secret
 payloads or database contents, send email, or change traffic/resources. The root
 agent owns release execution and verification.
 
-## Current targets
+## Latest release continuation
+
+Later read-only metadata reported `superteacher-00006-cjv` at 100% traffic,
+image `superteacher:dae26a5`. The observation table below is historical; its
+`ce94d50` digest must not be used as evidence for the current release. Custom
+domain mappings were still to legacy `edutrack` at the last verified inspection.
+Reinspect all service/domain metadata before an authorized traffic change.
+
+The native accounts merge preserves integrity `0002` and adds accounts `0003`.
+The serving image may already have independently published accounts `0002`;
+startup refuses that ambiguous history. Validate a consistent backup/clone with
+an explicit schema adoption bridge before promoting against the existing prefix.
+An isolated empty-prefix candidate can validate the new chain independently.
+
+The protected native Cloud Build attempt exited 75 waiting for the shared heavy
+lock, before any cloud command, archive, build or deployment began. No integrated
+image has been deployed. Exact-commit CI and an isolated candidate with synthetic
+CRUD and restore verification remain required. Avoid overlapping the independent
+persist deployment session or changing its processes.
+
+## Historical targets (04:50 UTC)
+
 
 Explicit project: `portfolio-383615`; region: `us-central1`. The gcloud active
 credential is authenticated; its configuration has no default project. No local

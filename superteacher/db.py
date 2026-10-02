@@ -83,6 +83,7 @@ def run_migrations(eng: Engine) -> None:
             with conn.begin():
                 cfg.attributes["connection"] = conn
                 tables = set(inspect(conn).get_table_names())
+                validate_revision_identity(conn)
                 if "alembic_version" not in tables and tables & set(Base.metadata.tables):
                     _validate_legacy_schema(conn)
                     command.stamp(cfg, BASELINE_REVISION)
@@ -96,6 +97,43 @@ def run_migrations(eng: Engine) -> None:
 
 
 BASELINE_REVISION = "0001"
+
+
+def validate_revision_identity(conn) -> None:
+    """Reject the independently published accounts 0002 before any migration DDL.
+
+    Native 0002 means integrity constraints; accounts 0002 has a different schema.
+    Its adoption requires a verified backup and an explicit separate migration.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(conn)
+    tables = set(inspector.get_table_names())
+    if "alembic_version" not in tables:
+        return
+    revisions = set(conn.execute(text("SELECT version_num FROM alembic_version")).scalars())
+    if "0002" not in revisions:
+        return
+    account_tables = {"users", "sessions", "login_tokens", "usage_counters", "ai_budget"}
+    owner_column = "courses" in tables and any(
+        column["name"] == "owner_id" for column in inspector.get_columns("courses")
+    )
+    required = {
+        "students": {"ck_students_grade_level"},
+        "assessments": {"ck_assessments_max_points", "ck_assessments_kind"},
+        "scores": {"ck_scores_points"},
+        "attendance": {"ck_attendance_status"},
+    }
+    integrity_present = all(
+        table in tables and names <= {check["name"] for check in inspector.get_check_constraints(table)}
+        for table, names in required.items()
+    )
+    if tables & account_tables or owner_column or not integrity_present:
+        raise RuntimeError(
+            "Ambiguous revision 0002: this database does not match native integrity 0002. "
+            "The independently published accounts 0002 requires an explicit backup/adoption migration; "
+            "refusing to migrate or stamp it. Existing data has not been changed."
+        )
 
 
 def _validate_legacy_schema(conn) -> None:

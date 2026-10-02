@@ -15,7 +15,7 @@ from . import auth, observability
 from . import db as database
 from .calendar import SchoolCalendarMiddleware, school_calendar
 from .config import Settings, get_settings
-from .routers import ai, attendance, gradebook, reports, roster, system
+from .routers import account, ai, attendance, gradebook, reports, roster, system
 from .seed import seed_demo
 
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +98,7 @@ def create_app(
         from . import models  # noqa: F401  (register tables)
 
         database.run_migrations(engine)  # additive only — existing data is never dropped
-        if settings.seed_demo_data if seed is None else seed:
+        if settings.auth_mode != "accounts" and (settings.seed_demo_data if seed is None else seed):
             with session_factory() as s, school_calendar(settings.school_timezone):
                 seed_demo(s)
         yield
@@ -167,8 +167,8 @@ def create_app(
         return {"version": settings.version}
 
     app.include_router(auth.router, prefix="/api")
-    for r in (system, roster, gradebook, attendance, ai, reports):
-        app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.require_auth)])
+    for r in (system, roster, gradebook, attendance, ai, reports, account):
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.current_user)])
 
     observability.install(app)  # request ids, access logs, metrics, /api/ready, /api/metrics
 

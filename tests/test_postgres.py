@@ -9,6 +9,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
 from superteacher.db import run_migrations
+from superteacher.models import OWNER_ID
 
 
 @pytest.fixture
@@ -34,7 +35,10 @@ def test_postgres_migration_persistence_and_grade_constraints(postgres_engine):
     engine = postgres_engine
     run_migrations(engine)
     with engine.begin() as conn:
-        conn.execute(text("INSERT INTO courses (id, name) VALUES ('c1', 'Synthetic Math')"))
+        conn.execute(
+            text("INSERT INTO courses (id, name, owner_id) VALUES ('c1', 'Synthetic Math', :owner)"),
+            {"owner": OWNER_ID},
+        )
         conn.execute(text("INSERT INTO sections (id, course_id, name) VALUES ('s1', 'c1', 'Period 1')"))
         conn.execute(
             text("INSERT INTO students (id, name, grade_level, section_id) VALUES ('p1', 'Synthetic', 9, 's1')")
@@ -43,7 +47,7 @@ def test_postgres_migration_persistence_and_grade_constraints(postgres_engine):
     run_migrations(engine)
     with engine.connect() as conn:
         assert conn.execute(text("SELECT name FROM students WHERE id = 'p1'")).scalar_one() == "Synthetic"
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0002"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(text("UPDATE students SET grade_level = 13 WHERE id = 'p1'"))
 
@@ -52,7 +56,9 @@ def test_postgres_score_extra_credit_and_invalid_values(postgres_engine):
     engine = postgres_engine
     run_migrations(engine)
     with engine.begin() as conn:
-        conn.execute(text("INSERT INTO courses (id, name) VALUES ('c1', 'Math')"))
+        conn.execute(
+            text("INSERT INTO courses (id, name, owner_id) VALUES ('c1', 'Math', :owner)"), {"owner": OWNER_ID}
+        )
         conn.execute(text("INSERT INTO sections (id, course_id, name) VALUES ('s1', 'c1', 'Period 1')"))
         conn.execute(
             text("INSERT INTO students (id, name, grade_level, section_id) VALUES ('p1', 'Synthetic', 9, 's1')")

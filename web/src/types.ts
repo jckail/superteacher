@@ -28,7 +28,9 @@ export interface AttendanceSheet { section: SectionOut; day: string; rows: Atten
 export interface Overview { students: number; average: number | null; attendance_rate: number | null; homework_rate: number | null; at_risk: number; watch: number; distribution: Record<string, number>; attention: StudentSummary[] }
 export interface Insight { headline: string; strengths: string[]; concerns: string[]; actions: string[]; source: 'ai' | 'rules'; model: string | null; generated_at: string | null }
 export interface ImportResult { created: number; skipped: string[] }
-export interface AuthMe { authenticated: true; auth_required: boolean }
+export type AuthMode = 'passcode' | 'accounts';
+export interface AuthConfig { auth_mode: AuthMode }
+export interface AuthMe { authenticated: true; auth_required: boolean; email?: string | null }
 export interface AssessmentStat { id: string; title: string; kind: AssessmentKind; due_date: string; max_points: number; graded: number; average: number | null; median: number | null; min: number | null; max: number | null; missing_pct: number | null }
 export interface AttendanceDay { day: string; rate: number | null; marked: number; absent: number }
 export interface AttentionItem { id: string; name: string; risk: Risk; average: number | null; reasons: string[] }

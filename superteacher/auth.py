@@ -1,4 +1,8 @@
-"""Single shared-passcode authentication.
+"""Authentication: a shared passcode (default) or passwordless email accounts (AUTH_MODE=accounts).
+
+Both modes resolve every request to a ``CurrentUser`` through ONE dependency, :func:`current_user`; passcode mode maps
+to the implicit owner user, so ownership scoping is uniform. Accounts mode (sign-in links, server-side revocable
+sessions) is documented in ``accounts.py`` and docs/adr/0002. The rest of this docstring describes the passcode design.
 
 Design (small, auditable, no user table):
 * ``AUTH_PASSWORD`` is the passcode. Login compares in constant time and, on success, sets a signed
@@ -23,12 +27,17 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, Request, Response, WebSocketException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, WebSocketException, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.requests import HTTPConnection
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 
+from . import accounts, mailer
+from .accounts import CurrentUser
 from .config import Settings
+from .models import OWNER_EMAIL, OWNER_ID
 
 log = logging.getLogger("superteacher.auth")
 
@@ -69,7 +78,12 @@ class AuthState:
     def __init__(self, settings: Settings, secret_dir: Path | None = None):
         self.settings = settings
         self.disabled = settings.auth_disabled
-        if not self.disabled and not settings.auth_password:
+        self.accounts = settings.auth_mode == "accounts"
+        if self.accounts and self.disabled:
+            raise RuntimeError("AUTH_DISABLED cannot be combined with AUTH_MODE=accounts.")
+        if self.accounts:
+            mailer.validate_settings(settings)
+        if not self.disabled and not self.accounts and not settings.auth_password:
             raise RuntimeError(
                 "AUTH_PASSWORD is not set. Set AUTH_PASSWORD (and ideally SESSION_SECRET), or set "
                 "AUTH_DISABLED=true to run WITHOUT authentication (local development only)."
@@ -79,6 +93,11 @@ class AuthState:
         secret = settings.session_secret or self._load_or_create_secret(secret_dir)
         key = hmac.new(secret.encode(), (settings.auth_password or "").encode(), hashlib.sha256).hexdigest()
         self.serializer = URLSafeTimedSerializer(key, salt="superteacher-session")
+        self.key = hmac.new(secret.encode(), b"accounts-ip-hash", hashlib.sha256).digest()
+        self.link_ip = accounts.SlidingWindow(settings.accounts_link_per_ip_hour)
+        self.link_global = accounts.SlidingWindow(settings.accounts_link_global_hour)
+        self.verify_ip = accounts.SlidingWindow(30, window=600.0)
+        self._owner_ready = False
         self.ttl = settings.session_ttl_hours * 3600
         self.origins = {origin for o in settings.cors_origins if (origin := _origin(o)) is not None}
         self._lock = threading.Lock()
@@ -181,27 +200,62 @@ def _state(conn: HTTPConnection) -> AuthState:
 def _secure(request: Request, st: AuthState) -> bool:
     if st.settings.cookie_secure is not None:
         return st.settings.cookie_secure
-    return (
-        request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
-    )
+    # Uvicorn's trusted-proxy middleware sets the scheme. Raw client headers cannot establish HTTPS.
+    return request.url.scheme == "https"
 
 
-async def require_auth(conn: HTTPConnection) -> None:
-    """Router dependency for REST and WebSocket routes."""
+def _owner(st: AuthState, factory) -> CurrentUser:
+    if not st._owner_ready:
+        with factory() as db:
+            try:
+                accounts.ensure_owner(db)
+            except IntegrityError:  # another worker created it first
+                db.rollback()
+        st._owner_ready = True
+    return CurrentUser(OWNER_ID, OWNER_EMAIL, is_legacy=True)
+
+
+def _resolve(st: AuthState, factory, cookie: str | None, *, touch: bool = True) -> CurrentUser | None:
+    if st.accounts:
+        with factory() as db:
+            return accounts.resolve_session(db, st.settings, cookie, touch=touch)
+    if st.disabled or st.valid(cookie):
+        return _owner(st, factory)
+    return None
+
+
+async def current_user(conn: HTTPConnection) -> CurrentUser:
+    """THE dependency for every authenticated REST and WebSocket route: origin + CSRF + session -> the user.
+
+    Handlers scope every query to ``user.id``; tests/test_security_routes.py asserts no route skips it.
+    """
     st = _state(conn)
-    if st.disabled:
-        return
     is_ws = conn.scope["type"] == "websocket"
-    if not st.origin_ok(conn):
+    if not st.disabled and not st.origin_ok(conn):
         if is_ws:
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
         raise HTTPException(403, "Origin not allowed")
-    if not st.valid(conn.cookies.get(COOKIE)):
+    user = await run_in_threadpool(_resolve, st, conn.app.state.session_factory, conn.cookies.get(COOKIE))
+    if user is None:
         if is_ws:
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Not authenticated")
         raise HTTPException(401, "Not authenticated")
-    if not is_ws and conn.scope["method"] not in SAFE_METHODS and CSRF_HEADER not in conn.headers:
+    if not st.disabled and not is_ws and conn.scope["method"] not in SAFE_METHODS and CSRF_HEADER not in conn.headers:
         raise HTTPException(403, "Missing CSRF header")
+    return user
+
+
+async def ws_session_active(conn: HTTPConnection, user: CurrentUser, *, touch: bool = False) -> bool:
+    """Recheck the original connection cookie, including server revocation and account expiry."""
+    current = await run_in_threadpool(
+        _resolve, _state(conn), conn.app.state.session_factory, conn.cookies.get(COOKIE), touch=touch
+    )
+    return current is not None and current.id == user.id
+
+
+async def require_auth(conn: HTTPConnection) -> None:
+    """Back-compat for callers that only need the gate (metrics)."""
+    await current_user(conn)
 
 
 class LoginBody(BaseModel):
@@ -211,14 +265,49 @@ class LoginBody(BaseModel):
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def settings_of(conn: HTTPConnection) -> Settings:
+    return _state(conn).settings
+
+
+def _csrf(request: Request, st: AuthState) -> None:
+    if not st.origin_ok(request) or CSRF_HEADER not in request.headers:
+        raise HTTPException(403, "Missing CSRF header")
+
+
+def _set_cookie(response: Response, request: Request, st: AuthState, value: str, max_age: int) -> None:
+    response.set_cookie(
+        COOKIE, value, max_age=max_age, httponly=True, samesite="lax", secure=_secure(request, st), path="/"
+    )
+
+
+def clear_cookie(response: Response, request: Request, st: AuthState) -> None:
+    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax", secure=_secure(request, st))
+
+
+def _accounts_only(st: AuthState) -> None:
+    if not st.accounts:
+        raise HTTPException(404, "Not Found")
+
+
+def _ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+@router.get("/config")
+def auth_config(request: Request):
+    """Public and fixed-shape: tells the sign-in screen which form to show."""
+    return {"auth_mode": "accounts" if _state(request).accounts else "passcode"}
+
+
 @router.post("/login")
 def login(body: LoginBody, request: Request, response: Response):
     st = _state(request)
-    if not st.origin_ok(request) or CSRF_HEADER not in request.headers:
-        raise HTTPException(403, "Missing CSRF header")
+    _csrf(request, st)
+    if st.accounts:
+        raise HTTPException(404, "Not Found")
     if st.disabled:
         return {"authenticated": True, "auth_required": False}
-    client = request.client.host if request.client else "unknown"
+    client = _ip(request)
     wait = st.retry_after(client)
     if wait:
         raise HTTPException(429, f"Too many attempts. Try again in {wait}s.", headers={"Retry-After": str(wait)})
@@ -226,18 +315,118 @@ def login(body: LoginBody, request: Request, response: Response):
     st.record(client, ok)
     if not ok:
         raise HTTPException(401, "Incorrect passcode")
-    response.set_cookie(
-        COOKIE, st.issue(), max_age=st.ttl, httponly=True, samesite="lax", secure=_secure(request, st), path="/"
-    )
+    _set_cookie(response, request, st, st.issue(), st.ttl)
     return {"authenticated": True, "auth_required": True}
+
+
+GENERIC_LINK_REPLY = {"status": "ok", "message": "If that address can receive mail, a sign-in link is on its way."}
+
+
+class RequestLinkBody(BaseModel):
+    email: str = Field(max_length=320)
+
+
+class VerifyBody(BaseModel):
+    token: str = Field(min_length=16, max_length=200)
+
+
+def _link_base(settings: Settings) -> str:
+    base = settings.public_base_url or (settings.cors_origins[0] if settings.cors_origins else "")
+    return base.rstrip("/")
+
+
+@router.post("/request-link", status_code=202)
+def request_link(body: RequestLinkBody, request: Request, background: BackgroundTasks):
+    """Email a one-time sign-in link. The reply never depends on whether the address is known, allowed, rate limited
+    per address, or past the user cap: every such case returns the same 202 body after the same work. Only
+    address-independent limits (per client address, global) answer 429."""
+    st = _state(request)
+    _csrf(request, st)
+    _accounts_only(st)
+    s = st.settings
+    ip = _ip(request)
+    for window, key in ((st.link_ip, ip), (st.link_global, "*")):
+        if not window.allow(key):
+            wait = window.retry_after(key)
+            raise HTTPException(
+                429, "Too many sign-in requests. Please try again later.", headers={"Retry-After": str(wait)}
+            )
+    email = accounts.normalize_email(body.email)
+    if email is None:
+        raise HTTPException(422, "Enter a valid email address.")
+    with request.app.state.session_factory() as db:
+        accounts.purge_expired(db)
+        accounts.reserve_link_request(db)
+        send = (
+            accounts.allowed_domain(s, email)
+            and accounts.recent_token_count(db, email) < s.accounts_link_per_email_hour
+            and (
+                accounts.find_user(db, email) is not None
+                or email == accounts.normalize_email(s.accounts_owner_email)
+                or accounts.count_users(db) < s.accounts_max_users
+            )
+        )
+        # Same work either way (mint + hash + insert); a dropped request is simply rolled back.
+        raw = accounts.issue_login_token(db, s, email, accounts.hash_ip(st.key, ip))
+        if send:
+            db.commit()
+            background.add_task(mailer.send_login_link, s, email, f"{_link_base(s)}/auth/verify#token={raw}")
+        else:
+            db.rollback()
+    return GENERIC_LINK_REPLY
+
+
+def _session_info(st: AuthState, db, user: CurrentUser) -> dict:
+    return {
+        "authenticated": True,
+        "auth_required": True,
+        "auth_mode": "accounts",
+        "email": user.email,
+        "usage": accounts.usage_today(db, st.settings, user.id),
+    }
+
+
+@router.post("/verify")
+def verify(body: VerifyBody, request: Request, response: Response):
+    """Spend a sign-in token (POST only: a mail scanner that GETs the link cannot burn it) and start a session."""
+    st = _state(request)
+    _csrf(request, st)
+    _accounts_only(st)
+    if not st.verify_ip.allow(accounts.hash_ip(st.key, _ip(request))):
+        raise HTTPException(429, "Too many attempts. Try again later.", headers={"Retry-After": "600"})
+    bad = HTTPException(400, "This sign-in link is invalid or has expired. Request a new one.")
+    with request.app.state.session_factory() as db:
+        email = accounts.consume_login_token(db, body.token)
+        if email is None:
+            raise bad
+        got = accounts.get_or_create_user(db, st.settings, email)
+        if got is None or got[0].disabled:
+            raise bad
+        user, created = got
+        accounts.revoke_session(db, request.cookies.get(COOKIE))  # rotation: a pre-login cookie never survives
+        raw = accounts.create_session(db, st.settings, user)
+        _set_cookie(response, request, st, raw, st.settings.accounts_session_absolute_hours * 3600)
+        return {**_session_info(st, db, CurrentUser(user.id, user.email)), "new_user": created}
 
 
 @router.post("/logout")
 def logout(request: Request, response: Response):
     st = _state(request)
-    if not st.origin_ok(request) or CSRF_HEADER not in request.headers:
-        raise HTTPException(403, "Missing CSRF header")
-    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax", secure=_secure(request, st))
+    _csrf(request, st)
+    if st.accounts:
+        with request.app.state.session_factory() as db:
+            accounts.revoke_session(db, request.cookies.get(COOKIE))  # F-06: the server forgets the session
+    clear_cookie(response, request, st)
+    return {"authenticated": False}
+
+
+@router.post("/logout-all")
+def logout_all(request: Request, response: Response, user: CurrentUser = Depends(current_user)):
+    st = _state(request)
+    _accounts_only(st)
+    with request.app.state.session_factory() as db:
+        accounts.revoke_all_sessions(db, user.id)
+    clear_cookie(response, request, st)
     return {"authenticated": False}
 
 
@@ -246,6 +435,10 @@ def me(request: Request):
     st = _state(request)
     if st.disabled:
         return {"authenticated": True, "auth_required": False}
-    if not st.valid(request.cookies.get(COOKIE)):
+    user = _resolve(st, request.app.state.session_factory, request.cookies.get(COOKIE))
+    if user is None:
         raise HTTPException(401, "Not authenticated")
-    return {"authenticated": True, "auth_required": True}
+    if st.accounts:
+        with request.app.state.session_factory() as db:
+            return _session_info(st, db, user)
+    return {"authenticated": True, "auth_required": True, "auth_mode": "passcode", "email": None}

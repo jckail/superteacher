@@ -6,6 +6,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from superteacher import metrics
+from superteacher.accounts import ensure_owner
 from superteacher.calendar import school_today
 from superteacher.db import Base
 from superteacher.models import Assessment, AssessmentKind, Course, Score, Section, Student
@@ -23,7 +24,8 @@ def test_unflushed_metrics_keep_none_section_semantics():
 def test_column_and_orm_metrics_use_only_active_section(engine):
     Base.metadata.create_all(engine)
     with Session(engine) as db:
-        course = Course(id="c", name="Synthetic")
+        owner_id = ensure_owner(db)
+        course = Course(id="c", name="Synthetic", owner_id=owner_id)
         old = Section(id="old", name="Old", course=course)
         active = Section(id="active", name="Active", course=course)
         s = Student(id="s", name="Student", grade_level=9, section=active)
@@ -66,7 +68,8 @@ def test_column_and_orm_metrics_use_only_active_section(engine):
         statements.clear()
         with Session(engine) as db:
             history = load_grade_history(db, "s", "active")
-            assert len(statements) == 1 and statements[0][1] == ("s", "active")
+            assert len(statements) == 1
+            assert statements[0][1] == (owner_id, "s", "active", owner_id)
             assert not db.identity_map
             assert len(history) == 1 and history[0]["section_id"] == "old"
             assert {p["assessment_id"]: p["points"] for p in history[0]["scores"]} == {"a0": 0, "a1": None}

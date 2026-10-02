@@ -1,3 +1,4 @@
+import { CHAT_STORE } from '../api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDialogFocus } from './ui';
@@ -15,7 +16,7 @@ const SUGGESTIONS = [
   'Summarize attendance concerns',
   'Suggest a small-group plan for struggling students',
 ];
-const STORE = 'st-chat';
+const STORE = CHAT_STORE;
 const SAFE_URL = /^(https?:|mailto:)/i;
 
 const loadHistory = (): Message[] => {

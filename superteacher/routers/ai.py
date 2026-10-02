@@ -6,10 +6,13 @@ import time
 from collections import deque
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, WebSocket
+from anyio import CancelScope
+from fastapi import APIRouter, Depends, Request, WebSocket
 from sqlalchemy.orm import Session
 
-from .. import ai, schemas
+from .. import accounts, ai, schemas
+from ..accounts import CurrentUser
+from ..auth import current_user, settings_of, ws_session_active
 from ..calendar import school_calendar, school_timezone
 from ..config import get_settings
 from ..db import get_db
@@ -42,8 +45,21 @@ class RateLimiter:
 
 
 @router.get("/students/{student_id}/insight", response_model=schemas.Insight)
-async def student_insight(student_id: str, db: Session = Depends(get_db)):
-    return await ai.ai_insight(db, get_student_or_404(db, student_id))
+async def student_insight(
+    student_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    student = get_student_or_404(db, user.id, student_id)
+
+    def charge() -> None:
+        try:
+            accounts.consume_quota(db, settings_of(request), user.id, "insight")
+        except accounts.QuotaExceeded as e:
+            raise accounts.quota_http_error(e) from None
+
+    return await ai.ai_insight(db, student, before_generate=charge, owner_id=user.id)
 
 
 async def _read(ws: WebSocket, inbox: asyncio.Queue) -> None:
@@ -71,7 +87,7 @@ async def _read(ws: WebSocket, inbox: asyncio.Queue) -> None:
 
 
 @router.websocket("/chat/ws")
-async def chat_ws(ws: WebSocket):
+async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
     """Streaming chat.
 
     Client -> {"content": str, "student_id"?: str, "tool_events"?: bool} | {"type": "reset"}
@@ -81,6 +97,7 @@ async def chat_ws(ws: WebSocket):
     await ws.accept()
     history: list[dict] = []
     factory = ws.app.state.session_factory
+    settings = settings_of(ws)
     limiter = RateLimiter(ai.setting_int("chat_rate_limit_per_min", 12))
     inbox: asyncio.Queue = asyncio.Queue(maxsize=MAX_PENDING_FRAMES)
     reader = asyncio.create_task(_read(ws, inbox))
@@ -103,10 +120,12 @@ async def chat_ws(ws: WebSocket):
 
                     def snapshot():
                         with factory() as db:
-                            return ai.build_context_parts(db, student_id)
+                            return ai.build_context_parts(db, student_id, owner_id=user.id)
 
                     roster, focus = await asyncio.to_thread(snapshot)
-                    async with contextlib.aclosing(ai.run_chat(list(history), roster, focus, factory)) as events:
+                    async with contextlib.aclosing(
+                        ai.run_chat(list(history), roster, focus, factory, owner_id=user.id)
+                    ) as events:
                         async for ev in events:
                             if ev["type"] == "delta":
                                 reply.append(ev["text"])
@@ -132,6 +151,26 @@ async def chat_ws(ws: WebSocket):
 
     running: asyncio.Task | None = None
     getter: asyncio.Task | None = None
+
+    async def watch_session() -> None:
+        while True:
+            await asyncio.sleep(1)
+            try:
+                active = await ws_session_active(ws, user)
+            except Exception:
+                active = False
+            if not active:
+                if running and not running.done():
+                    running.cancel()
+                    await asyncio.gather(running, return_exceptions=True)
+                async with send_lock:
+                    await ws.close(code=1008, reason="Session ended")
+                while not inbox.empty():
+                    inbox.get_nowait()
+                inbox.put_nowait(None)
+                return
+
+    watcher = asyncio.create_task(watch_session())
     try:
         while True:
             getter = getter or asyncio.create_task(inbox.get())
@@ -174,6 +213,11 @@ async def chat_ws(ws: WebSocket):
                 )
             elif not limiter.allow():
                 await send({"type": "error", "message": "You're sending messages too quickly. Please wait a moment."})
+            elif not await ws_session_active(ws, user, touch=True):
+                await ws.close(code=1008, reason="Session ended")
+                break
+            elif (quota_error := await asyncio.to_thread(_charge_chat, factory, settings, user.id)) is not None:
+                await send(quota_error)
             else:
                 sid = msg.get("student_id")
                 running = asyncio.create_task(
@@ -182,10 +226,28 @@ async def chat_ws(ws: WebSocket):
     except Exception:
         log.debug("chat connection ended", exc_info=True)
     finally:
-        for t in (running, getter, reader):
+        for t in (running, getter, reader, watcher):
             if t and not t.done():
                 t.cancel()  # cancelling a turn exits the upstream stream context manager
-        await asyncio.gather(*(t for t in (running, getter, reader) if t), return_exceptions=True)
+        # ASGI disconnect cancellation must not interrupt draining the tasks we just cancelled.
+        # Shield from AnyIO's repeated cancellation while streams release their capacity leases.
+        with CancelScope(shield=True):
+            await asyncio.gather(*(t for t in (running, getter, reader, watcher) if t), return_exceptions=True)
+
+
+def _charge_chat(factory, settings, user_id: str) -> dict | None:
+    """Count one chat message against the daily quota; the error frame to send when it is used up."""
+    with factory() as db:
+        try:
+            accounts.consume_quota(db, settings, user_id, "chat")
+        except accounts.QuotaExceeded as e:
+            return {
+                "type": "error",
+                "code": "quota_exceeded",
+                "message": e.message,
+                "resets_at": e.resets_at.isoformat(),
+            }
+    return None
 
 
 def _drop_unanswered(history: list[dict]) -> None:

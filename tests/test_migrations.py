@@ -8,7 +8,19 @@ from sqlalchemy import create_engine, inspect, text
 
 from alembic import command
 from superteacher import db as database
-from superteacher import models  # noqa: F401
+from superteacher import models
+from superteacher.db import ROOT
+
+
+def upgrade_to(eng, revision: str) -> None:
+    from alembic.config import Config
+
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "alembic"))
+    with eng.connect() as conn:
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, revision)
+        conn.commit()
 
 
 def _shape(eng):
@@ -60,7 +72,10 @@ def test_startup_never_drops_data(tmp_path):
     eng = create_engine(url)
     database.run_migrations(eng)
     with eng.begin() as c:
-        c.execute(text("insert into courses (id, name) values ('c1', 'Math')"))
+        c.execute(
+            text("insert into users (id, email, disabled, created_at) values ('u1', 'a@b.co', 0, CURRENT_TIMESTAMP)")
+        )
+        c.execute(text("insert into courses (id, name, owner_id) values ('c1', 'Math', 'u1')"))
     database.run_migrations(eng)  # second startup
     with eng.connect() as c:
         assert c.execute(text("select name from courses")).scalar() == "Math"
@@ -68,8 +83,9 @@ def test_startup_never_drops_data(tmp_path):
 
 def test_legacy_db_without_alembic_version_is_stamped_not_recreated(tmp_path):
     eng = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
-    _baseline(eng)  # how the app created DBs before Alembic
+    upgrade_to(eng, "0001")  # baseline schema before legacy version-table removal
     with eng.begin() as c:
+        c.execute(text("drop table alembic_version"))
         c.execute(text("insert into courses (id, name) values ('c1', 'Science')"))
     database.run_migrations(eng)
     with eng.connect() as c:
@@ -130,7 +146,7 @@ def test_legacy_adoption_uses_frozen_baseline_with_new_revisions(tmp_path):
         _baseline(eng)
         database.run_migrations(eng)
         with eng.connect() as conn:
-            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0002"
+            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0003"
         assert len(inspect(eng).get_check_constraints("assessments")) == 2
     finally:
         eng.dispose()
@@ -151,8 +167,10 @@ def _seed_baseline(eng):
 def _rows(eng):
     with eng.connect() as conn:
         return {
-            name: conn.execute(text(f'SELECT * FROM "{name}" ORDER BY 1')).all()
-            for name in database.Base.metadata.tables
+            name: conn.execute(
+                text(f'SELECT {"id, name" if name == "courses" else "*"} FROM "{name}" ORDER BY 1')
+            ).all()
+            for name in ("courses", "sections", "students", "assessments", "scores", "attendance", "notes", "insights")
         }
 
 
@@ -180,7 +198,7 @@ def test_integrity_upgrade_preserves_every_row_with_foreign_keys_enabled(tmp_pat
         with eng.connect() as conn:
             assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
             assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
-            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0002"
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0003"
     finally:
         eng.dispose()
 
@@ -234,6 +252,119 @@ def test_legacy_foreign_key_violation_is_rejected_before_schema_changes(tmp_path
         assert _rows(eng) == before_rows
         assert _shape(eng) == before_shape
         with eng.connect() as conn:
+            assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+    finally:
+        eng.dispose()
+
+
+def test_owner_name_uniqueness_is_case_insensitive_per_owner(tmp_path):
+    eng = create_engine(f"sqlite:///{tmp_path / 'u.db'}")
+    database.run_migrations(eng)
+    with eng.begin() as c:
+        for u in ("u1", "u2"):
+            c.execute(
+                text(
+                    "insert into users (id, email, disabled, created_at) "
+                    f"values ('{u}', '{u}@x.co', 0, CURRENT_TIMESTAMP)"
+                )
+            )
+        c.execute(text("insert into courses (id, name, owner_id) values ('c1', 'Algebra', 'u1')"))
+        c.execute(text("insert into courses (id, name, owner_id) values ('c2', 'Algebra', 'u2')"))  # other owner: fine
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError), eng.begin() as c:
+        c.execute(text("insert into courses (id, name, owner_id) values ('c3', 'ALGEBRA', 'u1')"))
+
+
+def test_upgrade_from_0001_backfills_existing_rows_to_the_owner(tmp_path):
+    eng = database.make_engine(f"sqlite:///{tmp_path / 'old.db'}")  # the real engine: foreign keys ON
+    upgrade_to(eng, "0001")
+    with eng.begin() as c:
+        c.execute(text("insert into courses (id, name) values ('c1', 'Algebra'), ('c2', 'History')"))
+        c.execute(text("insert into sections (id, course_id, name) values ('s1', 'c1', 'P1')"))
+        c.execute(text("insert into students (id, name, grade_level, section_id) values ('st1', 'Ada', 9, 's1')"))
+    database.run_migrations(eng)  # 0001 -> head with data present
+    with eng.connect() as c:
+        owner = c.execute(text("select id, email from users")).all()
+        assert owner == [(models.OWNER_ID, models.OWNER_EMAIL)]
+        assert c.execute(text("select owner_id from courses")).scalars().all() == [models.OWNER_ID] * 2
+        assert (
+            c.execute(text("select count(*) from sections")).scalar() == 1
+        )  # no cascade damage from the table rebuild
+        assert c.execute(text("select count(*) from students")).scalar() == 1
+        assert c.execute(text("select name from sqlite_master where name='uq_courses_owner_name'")).scalar()
+
+
+def test_fresh_database_has_no_owner_user(tmp_path):
+    eng = create_engine(f"sqlite:///{tmp_path / 'f.db'}")
+    database.run_migrations(eng)
+    with eng.connect() as c:
+        assert c.execute(text("select count(*) from users")).scalar() == 0
+
+
+def test_native_integrity_then_accounts_upgrade_preserves_history_and_constraints(tmp_path):
+    eng = database.make_engine(f"sqlite:///{tmp_path / 'native-chain.db'}")
+    try:
+        upgrade_to(eng, "0001")
+        _seed_baseline(eng)
+        # Preserve a prior-section score alongside the student's active section.
+        with eng.begin() as conn:
+            conn.execute(text("INSERT INTO sections VALUES ('prior', 'c', 'Prior')"))
+            conn.execute(text("INSERT INTO assessments VALUES ('old', 'prior', 'History', 'quiz', 10, '2026-09-01')"))
+            conn.execute(text("INSERT INTO scores VALUES ('oldscore', 'old', 's', 9)"))
+        before = _rows(eng)
+        upgrade_to(eng, "0002")
+        assert _rows(eng) == before
+        checks = {
+            table: inspect(eng).get_check_constraints(table)
+            for table in ("students", "assessments", "scores", "attendance")
+        }
+        upgrade_to(eng, "0003")
+        assert _rows(eng) == before
+        assert {table: inspect(eng).get_check_constraints(table) for table in checks} == checks
+        with eng.connect() as conn:
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0003"
+            assert conn.execute(text("SELECT owner_id FROM courses")).scalar() == models.OWNER_ID
+            assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+            assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+    finally:
+        eng.dispose()
+
+
+@pytest.mark.parametrize("cli", [False, True])
+def test_independent_accounts_0002_is_rejected_without_mutation(tmp_path, cli):
+    import runpy
+
+    from alembic.operations import Operations
+
+    eng = database.make_engine(f"sqlite:///{tmp_path / 'independent-accounts.db'}")
+    try:
+        upgrade_to(eng, "0001")
+        _seed_baseline(eng)
+        # Reproduce the independent branch: accounts DDL on baseline 0001,
+        # stamped 0002, without native integrity constraints.
+        migration = runpy.run_path(str(ROOT / "alembic/versions/0003_accounts.py"))
+        with eng.connect() as conn:
+            conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            conn.commit()
+            with conn.begin():
+                with Operations.context(MigrationContext.configure(conn)):
+                    migration["upgrade"]()
+                conn.execute(text("UPDATE alembic_version SET version_num = '0002'"))
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+            conn.commit()
+        before_rows, before_shape = _rows(eng), _shape(eng)
+        with pytest.raises(RuntimeError, match="Ambiguous revision 0002"):
+            if cli:
+                upgrade_to(eng, "head")
+            else:
+                database.run_migrations(eng)
+        assert _rows(eng) == before_rows and _shape(eng) == before_shape
+        with eng.connect() as conn:
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0002"
+            assert conn.execute(text("SELECT id, email FROM users")).all() == [(models.OWNER_ID, models.OWNER_EMAIL)]
+            assert conn.execute(text("SELECT owner_id FROM courses")).scalar() == models.OWNER_ID
             assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
     finally:
         eng.dispose()
