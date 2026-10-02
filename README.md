@@ -53,3 +53,6 @@ Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket orig
 
 ## Not yet
 Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
+
+## Decisions
+Open architecture decisions (persistence, identity, privacy, grading policy, domain cutover): [docs/adr/README.md](docs/adr/README.md)
