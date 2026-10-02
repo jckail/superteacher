@@ -25,7 +25,7 @@ function setup(url = '/roster', strict = false) {
   const view = render(strict ? <StrictMode>{tree()}</StrictMode> : tree());
   return { ...view, client, rerenderScope: () => view.rerender(tree()), user: userEvent.setup() };
 }
-const names = () => screen.getAllByRole('row').slice(1).map((r) => within(r).queryByRole('link')?.textContent).filter(Boolean);
+const names = () => screen.getAllByRole('row').slice(1).map((r) => within(r).queryAllByRole('link').find(link => link.classList.contains('row-link'))?.textContent).filter(Boolean);
 function deferred<T>() { let resolve!: (v: T) => void; let reject!: (e: Error) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function request(index: number) { const [path, options] = vi.mocked(api).mock.calls[index]; return { url: new URL(path, 'https://test.invalid'), options }; }
 beforeEach(() => { scope.course = null; scope.section = null; vi.mocked(api).mockReset(); vi.mocked(api).mockResolvedValue(envelope([S('2', 'Ben', 'at_risk', 0), S('4', 'Dee', 'unknown', null)])); });
@@ -38,6 +38,7 @@ describe('server-paged roster', () => {
     expect(names()).toEqual(['Zulu', 'Alpha']);
     expect(screen.getByText('2 of 500 students')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Alpha' })).toHaveAttribute('href', '/students/2');
+    expect(screen.getByRole('link', { name: 'Conference sheet for Alpha' })).toHaveAttribute('href', '/students/2/conference');
     expect(screen.getByRole('row', { name: /Alpha/ }).querySelector('.chip')).toHaveClass('unknown');
     expect(request(0).url.pathname).toBe('/students/page');
     expect(request(0).url.searchParams.get('limit')).toBe('50');

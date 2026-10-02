@@ -244,7 +244,7 @@ export default function Roster() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="link" onClick={(e) => { if (!(e.target instanceof Element && e.target.closest('a'))) nav(`/students/${r.id}`); }}>
-                  <td className="name"><Link className="row-link" to={`/students/${r.id}`}>{r.name}</Link><div className="muted" style={{ fontWeight: 400, fontSize: '.8rem' }}>Grade {r.grade_level}</div></td>
+                  <td className="name"><Link className="row-link" to={`/students/${r.id}`}>{r.name}</Link><div className="muted" style={{ fontWeight: 400, fontSize: '.8rem' }}>Grade {r.grade_level}</div><Link to={`/students/${r.id}/conference`} aria-label={`Conference sheet for ${r.name}`} style={{ fontSize: '.8rem' }}>Conference sheet</Link></td>
                   <td className="hide-sm">{r.course}<div className="muted" style={{ fontSize: '.8rem' }}>{r.section}</div></td>
                   <td><span className="num" style={{ color: gradeColor(r.average), fontWeight: 600 }}>{fmt(r.average, '%')}</span> <span className="muted">{r.letter}</span></td>
                   <td className="hide-sm"><Trend v={r.trend} /></td>
