@@ -78,7 +78,8 @@ it('labels future ungraded work from the server cutoff while due and zero-score 
     { assessment_id: 'zero', title: 'Scored zero', kind: 'quiz', due_date: '1999-12-31', max_points: 10, points: 0, pct: 0 },
     { assessment_id: 'early', title: 'Early recorded score', kind: 'quiz', due_date: '2000-01-02', max_points: 10, points: 10, pct: 100 },
   ] };
-  vi.mocked(api).mockImplementation(async (path) => path.endsWith('/grade-history') ? { student_id: 'ada', active_section_id: 'class', sections: [] }
+  vi.mocked(api).mockImplementation(async (path) => path === '/calendar' ? { timezone: 'America/Los_Angeles', today: '2000-01-01' }
+    : path.endsWith('/grade-history') ? { student_id: 'ada', active_section_id: 'class', sections: [] }
     : path.endsWith('/insight') ? { headline: 'Summary', strengths: [], concerns: [], actions: [], source: 'rules' } : student);
   setup(<Routes><Route path="/students/:id" element={<Student />} /></Routes>);
   const future = (await screen.findByText('Future work')).closest('tr')!;

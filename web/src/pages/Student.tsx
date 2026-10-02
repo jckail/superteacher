@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { AssessmentKind, CourseOut, GradeHistoryOut, GradeHistorySection, Insight as InsightData, NoteOut, StudentDetail, StudentPatch } from '../types';
 import { ApiError, api, fmt } from '../api';
+import { useSchoolCalendar } from '../schoolCalendar';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { AttendanceHeat, TrendChart } from '../components/charts';
@@ -203,6 +204,21 @@ export default function Student() {
     onError: (e) => toast.error(`Couldn’t remove student: ${e.message}`),
   });
   const s = q.data;
+  const calendar = useSchoolCalendar(Boolean(id));
+  const rolloverAttempt = useRef<{ id: string; day: string } | null>(null);
+  const schoolDay = calendar.data?.today;
+  const cutoff = s?.as_of;
+  const fetching = q.isFetching;
+  const readError = q.error;
+  useEffect(() => { rolloverAttempt.current = null; }, [id]);
+  useEffect(() => {
+    if (!id || s?.id !== id || !schoolDay || !cutoff || cutoff >= schoolDay ||
+        fetching || readError || calendar.error) return;
+    if (rolloverAttempt.current?.id === id && rolloverAttempt.current.day === schoolDay) return;
+    // Mark before invalidation so stale successes and repeated polls cannot loop.
+    rolloverAttempt.current = { id, day: schoolDay };
+    void qc.invalidateQueries({ queryKey: ['student', id], exact: true });
+  }, [id, s?.id, schoolDay, cutoff, fetching, readError, calendar.error, qc]);
   const kinds = useMemo(() => [...new Set((s?.scores ?? []).map((x) => x.kind))], [s]);
   if (q.isLoading) return <Loading />;
   if ((q.error instanceof ApiError && q.error.status === 404) || (q.error && !s && /not found/i.test(q.error.message))) {
@@ -213,7 +229,7 @@ export default function Student() {
       </>
     );
   }
-  if (q.error) return <><Link className="back" to="/roster">← Roster</Link><ErrorBox error={q.error} onRetry={() => q.refetch()} /></>;
+  if (q.error && !s) return <><Link className="back" to="/roster">← Roster</Link><ErrorBox error={q.error} onRetry={() => q.refetch()} /></>;
 
   if (!s) return <Loading />;
 
@@ -233,6 +249,14 @@ export default function Student() {
         </div>
         <div className="row"><StudentProfile key={s.id} student={s} /><button type="button" className="btn danger" onClick={remove} disabled={del.isPending}>Remove student</button></div>
       </div>
+      <ErrorBox error={q.error} onRetry={() => q.refetch()} />
+      {calendar.error && <div className="error row" role="alert">
+        <span>{calendar.error.message}</span>
+        <button type="button" className="btn small" disabled={calendar.isFetching} onClick={() => void calendar.refetch()}>Retry school calendar</button>
+      </div>}
+      <p className="muted">Recorded metrics calculated through {s.as_of}</p>
+      {schoolDay && cutoff && cutoff < schoolDay && <p role="status">Recorded metrics are shown through {cutoff}. {q.error ? 'Refresh failed. Use Retry to update them.' : q.isFetching ? 'Updating recorded metrics.' : 'Waiting for the latest school-day calculations.'}</p>}
+      <button type="button" className="btn small" disabled={q.isFetching} onClick={() => void q.refetch()}>Refresh recorded metrics</button>
       {s.risk_reasons.length > 0 && <p className="muted">⚑ {s.risk_reasons.join(' · ')}</p>}
       <div className="grid stats">
         <Stat label="Average" value={<span style={{ color: gradeColor(s.average) }}>{fmt(s.average, '%')}</span>} hint={s.letter && `${s.letter} · GPA ${s.gpa?.toFixed(1)}`} />
