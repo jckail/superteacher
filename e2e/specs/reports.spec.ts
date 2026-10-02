@@ -38,7 +38,7 @@ test('reports: stats, CSV download neutralises formula injection, parent draft u
   // parent update, no AI key -> template
   const composer = page.locator('.rep-composer');
   await expect(composer.getByRole('button', { name: 'Generate draft' })).toBeDisabled();
-  await composer.getByLabel('Student').selectOption({ label: plain });
+  await composer.getByRole('combobox', { name: /^Student/ }).selectOption({ label: plain });
   await composer.getByLabel('Tone').selectOption('concerned');
   await composer.getByRole('button', { name: 'Generate draft' }).click();
   await expect(composer.getByText('Template draft')).toBeVisible();

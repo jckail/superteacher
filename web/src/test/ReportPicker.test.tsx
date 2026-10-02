@@ -367,3 +367,38 @@ it('notifies only once for a matched invalidation after the restart latch succee
   expect(requests().at(-1)![1].rosterCursor).toBeUndefined();
   client.clear();
 });
+
+it('selects distinct IDs with duplicate visible names and pins only the chosen ID across pages', async () => {
+  request.mockImplementation((path: string, options?: { rosterCursor?: string }) => {
+    if (path.endsWith('/summary')) return Promise.resolve(summary);
+    if (path.endsWith('/parent-update')) return Promise.resolve(draft);
+    const response = options?.rosterCursor ? page(['third']) : page(['first', 'second'], 'duplicate-name-cursor');
+    response.items = response.items.map(s => ({ ...s, name: 'Alex Smith' }));
+    return Promise.resolve(response);
+  });
+  const { user, client } = mount();
+  const original = await screen.findAllByRole('option', { name: 'Alex Smith' });
+  expect(original.map(option => option.getAttribute('value'))).toEqual(['first', 'second']);
+  const select = screen.getByRole('combobox', { name: /^Student/ });
+  await user.selectOptions(select, 'second');
+  await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+  await screen.findByLabelText('Subject');
+  const writes = () => request.mock.calls.filter(([path]) => path.endsWith('/parent-update'));
+  expect(writes().map(([path]) => path)).toEqual(['/reports/students/second/parent-update']);
+  expect(writes()[0][1].body).toEqual({ tone: 'warm', expected_section_id: 'p1' });
+  await user.click(screen.getByRole('button', { name: 'Next students' }));
+  await waitFor(() => expect(screen.getAllByRole('option', { name: 'Alex Smith' }).map(option => option.getAttribute('value'))).toEqual(['second', 'third']));
+  expect(select).toHaveValue('second');
+  expect(screen.getByLabelText('Subject')).toHaveValue('Ada update');
+  await user.click(screen.getByRole('button', { name: 'Regenerate' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Regenerate' })).toBeEnabled());
+  expect(writes().map(([path]) => path)).toEqual(['/reports/students/second/parent-update', '/reports/students/second/parent-update']);
+  await user.selectOptions(select, 'third');
+  expect(screen.queryByLabelText('Subject')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+  await screen.findByLabelText('Subject');
+  expect(writes().at(-1)![0]).toBe('/reports/students/third/parent-update');
+  expect(select).toHaveValue('third');
+  expect(screen.getAllByRole('option', { name: 'Alex Smith' })).toHaveLength(1);
+  client.clear();
+});
