@@ -50,7 +50,9 @@ python deployment_tests.py http://localhost:8080   # export AUTH_PASSWORD first
 ```
 
 Terminate TLS in front (Caddy, nginx, a load balancer) so the cookie is `Secure`; forward
-`X-Forwarded-Proto`. The image runs as a non-root user (uid 10001), pins its base images, and its
+`X-Forwarded-Proto`. The image sets `FORWARDED_ALLOW_IPS=*` so uvicorn trusts `X-Forwarded-For`: without it every user appears to come
+from the proxy's address and the login lockout becomes global. That is safe when only your proxy can reach the
+container, as on Cloud Run; if the container is reachable directly, set it to your proxy's IP. The image runs as a non-root user (uid 10001), pins its base images, and its
 healthcheck uses the public `/api/health`.
 
 ## Cloud Run

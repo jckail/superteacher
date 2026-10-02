@@ -144,3 +144,59 @@ def test_disabled_mode_open():
     app.dependency_overrides[database.get_db] = lambda: iter([sf()])
     with TestClient(app) as cl:
         assert cl.get("/api/auth/me").json() == {"authenticated": True, "auth_required": False}
+
+
+def _behind_tls_proxy(client: TestClient, trusted: bool) -> TestClient:
+    """The same app as a TLS-terminating proxy (Cloud Run) presents it: browsers speak https, the app sees http."""
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+    app = ProxyHeadersMiddleware(client.app, trusted_hosts="*") if trusted else client.app
+    return TestClient(app, base_url="http://testserver")
+
+
+BROWSER = {**H, "Origin": "https://testserver", "X-Forwarded-Proto": "https"}
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+def test_https_browser_origin_accepted_when_app_sees_http(trusted):
+    # Guard: the same-origin check must not depend on the scheme the app sees, because TLS is terminated upstream and
+    # an https Origin arrives with an http scope. A scheme-strict check once broke browser logins/WebSockets this way.
+    with make() as base, _behind_tls_proxy(base, trusted) as proxied:
+        assert proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER).status_code == 200
+
+
+def test_websocket_with_https_origin_and_session_cookie():
+    with make() as base, _behind_tls_proxy(base, trusted=False) as proxied:
+        r = proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER)
+        cookie = f"{auth.COOKIE}={r.cookies[auth.COOKIE]}"
+        headers = {"Origin": "https://testserver", "Cookie": cookie}
+        with proxied.websocket_connect("/api/chat/ws", headers=headers) as ws:
+            ws.send_json({"content": "hi"})
+            assert ws.receive_json()["type"] in {"delta", "error", "done"}
+
+
+def test_cross_site_origin_still_rejected():
+    with make() as base, _behind_tls_proxy(base, trusted=True) as proxied:
+        evil = {**BROWSER, "Origin": "https://evil.example"}
+        assert proxied.post("/api/auth/login", json={"password": PW}, headers=evil).status_code == 403
+
+
+def _attempt(client: TestClient, ip: str, pw: str):
+    return client.post("/api/auth/login", json={"password": pw}, headers={**BROWSER, "X-Forwarded-For": ip})
+
+
+def test_lockout_is_per_client_when_proxy_headers_are_trusted():
+    # Behind Cloud Run every request comes from the platform's front end. If uvicorn doesn't trust X-Forwarded-For
+    # (FORWARDED_ALLOW_IPS), all users share one address and five typos from anyone lock everyone out.
+    with make() as base, _behind_tls_proxy(base, trusted=True) as proxied:
+        for _ in range(auth.MAX_FREE_ATTEMPTS + 1):
+            _attempt(proxied, "203.0.113.7", "wrong")
+        assert _attempt(proxied, "203.0.113.7", PW).status_code == 429  # the noisy client is locked out...
+        assert _attempt(proxied, "198.51.100.9", PW).status_code == 200  # ...a different client is not
+
+
+def test_lockout_is_shared_when_proxy_headers_are_not_trusted():
+    with make() as base, _behind_tls_proxy(base, trusted=False) as proxied:
+        for _ in range(auth.MAX_FREE_ATTEMPTS + 1):
+            _attempt(proxied, "203.0.113.7", "wrong")
+        assert _attempt(proxied, "198.51.100.9", PW).status_code == 429  # why the image must set FORWARDED_ALLOW_IPS
