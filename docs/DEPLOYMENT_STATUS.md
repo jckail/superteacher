@@ -7,6 +7,23 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `aeb32ad` is pushed to main and the working branch. Exact-source
+[CI37000556887](https://github.com/jckail/superteacher/actions/runs/37000556887)
+passed all gates: 1252 API tests without skips/xfails, 166 web tests, four browser
+tests and 83 E2E tests. It includes the reviewed saved-scope fix (`6f86251`) and
+offline archive viewer. The viewer also validated the preserved private rehearsal
+bundle's compatibility counts without creating a recipient report or approval.
+
+Its Cloud Build succeeded, but staging revision `00003-zv9` failed before receiving
+traffic: private archive extraction created root-owned nested directories with
+mode 0700, preventing the nonroot runtime from importing router modules. Existing
+revision `00002-jqp` remains at 100%; fresh public health/version probes confirmed
+healthy database access and source `3e6629c`. The failed image and replica prefix
+are preserved. A corrective Dockerfile permission change and CI reproduction are
+under review; the next candidate requires a new image and fresh replica prefix.
+The report picker and importer source compatibility follow-up are being completed
+separately. Production traffic and domain mappings remain unchanged.
+
 Source `3e6629c` implements roster pagination (`4ad8c5b`), CSV streaming
 (`5890342`), account JSON streaming (`464136a`), and the roster client
 (`9504fc1`), with independent task and integrated source review approval. Root's
@@ -50,11 +67,9 @@ browser blob downloads remain buffered. Streams join cleanup before response
 exit, including repeated cancellation. Live reads are not database snapshots.
 See [roster_pagination_exports.md](plans/roster_pagination_exports.md).
 
-A preexisting saved-scope hydration issue is confirmed: unresolved or failed
-course metadata can display a broader current-owner roster. A separate reviewed
-fix is in progress, preserving shell/signout and distinguishing pending, failed,
-missing and valid empty scopes. It is not part of this pinned staging image.
-Offline archival history access is the next synthetic implementation slice;
+The saved-scope fix preserves shell/signout and distinguishes pending, failed,
+missing and valid empty scopes. It is merged and passed exact CI, but is not part
+of the currently serving staging image. The offline archive viewer is also merged;
 real-data recipient/owner approval and native authenticated integration remain open.
 
 Linear/Obsidian integrations are unavailable in this session, and Agent Hub does
