@@ -190,13 +190,14 @@ export default function Roster() {
 
   const [legacyPageNotice, setLegacyPageNotice] = useState(() => params.has('page'));
   const q = useRosterPage({ courseId: course?.id, sectionId: section?.id, search, risk, sort: sort.key, direction: sort.dir === -1 ? 'desc' : 'asc' });
+  const { page: rosterPage, restart: restartRoster } = q;
   useEffect(() => {
     if (params.has('page')) {
       setLegacyPageNotice(true);
-      if (q.page > 1) q.restart();
+      if (rosterPage > 1) restartRoster();
       setParams((p) => { const n = new URLSearchParams(p); n.delete('page'); return n; }, { replace: true });
     }
-  }, [params, setParams, q.page, q.restart]);
+  }, [params, setParams, rosterPage, restartRoster]);
   const rows = q.data?.items ?? [];
   const toggleSort = (key: SortKey) => {
     const dir = sort.key === key ? -sort.dir : 1;

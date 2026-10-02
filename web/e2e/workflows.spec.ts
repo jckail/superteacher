@@ -296,7 +296,7 @@ test('quoted CSV imports report partial failures, persist valid rows and recover
   await expect(page.getByText('2 of 2 students', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Outside Grade Range', exact: true })).toBeHidden();
 
-  const studentsRoute = '**/api/students?**';
+  const studentsRoute = '**/api/students/page?**';
   await page.route(studentsRoute, (route) => route.fulfill({ status: 503, headers: { 'x-superteacher-e2e-fault': 'true' }, contentType: 'application/json', body: JSON.stringify({ detail: 'Synthetic roster read failure' }) }));
   await page.reload();
   const error = page.getByRole('alert').filter({ hasText: 'Synthetic roster read failure' });

@@ -103,6 +103,12 @@ describe.each(['all', 'course'] as const)('report review navigation from %s scop
         const sectionId = new URLSearchParams(path.split('?')[1]).get('section_id');
         return students.filter((student) => !sectionId || student.section_id === sectionId) as never;
       }
+      if (path.startsWith('/students/page?')) {
+        const params = new URLSearchParams(path.split('?')[1]);
+        const scoped = students.filter((student) => (!params.get('section_id') || student.section_id === params.get('section_id')) && (!params.get('course_id') || student.course_id === params.get('course_id')));
+        const matches = scoped.filter((student) => !params.get('risk') || student.risk === params.get('risk'));
+        return { items: matches, next_cursor: null, as_of: '2026-10-02', total_matches: matches.length, total_scoped: scoped.length } as never;
+      }
       throw new Error(`Unexpected request: ${path}`);
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -121,8 +127,17 @@ describe.each(['all', 'course'] as const)('report review navigation from %s scop
     expect(screen.getByRole('button', { name: 'Not enough data' })).toHaveAttribute('aria-pressed', 'true');
     const selection = JSON.parse(localStorage.getItem('st-scope') ?? '{}');
     expect(selection).toEqual({ courseId: scope === 'course' ? 'math' : null, sectionId: 'p1' });
-    const rosterRequests = vi.mocked(api).mock.calls.filter(([path]) => path.startsWith('/students?'));
+    const rosterRequests = vi.mocked(api).mock.calls.filter(([path]) => path.startsWith('/students?') || path.startsWith('/students/page?'));
     expect(rosterRequests.length).toBeGreaterThan(1);
     for (const [path] of rosterRequests) expect(new URLSearchParams(path.split('?')[1]).get('section_id')).toBe('p1');
+    expect(rosterRequests.some(([path]) => path.startsWith('/students?'))).toBe(true); // Reports picker keeps its complete array contract.
+    const pagedRequests = rosterRequests.filter(([path]) => path.startsWith('/students/page?'));
+    expect(pagedRequests.length).toBeGreaterThan(0);
+    for (const [path] of pagedRequests) {
+      const params = new URLSearchParams(path.split('?')[1]);
+      expect(params.get('risk')).toBe('unknown');
+      expect(params.get('limit')).toBe('50');
+      expect(params.get('course_id')).toBe(scope === 'course' ? 'math' : null);
+    }
   });
 });
