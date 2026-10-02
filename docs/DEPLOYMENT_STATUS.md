@@ -7,6 +7,20 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Reports, evaluation and keyboard focus integration (2026-10-02)
 
+Latest follow-up: PR69 head `2582d8c` is now merged as
+`d25694ef927dccd228bf0de4032555f117d92610` and published on main and the
+working branch. Independent review against the current parent found no conflicts
+or blockers. The delta normalizes typographic apostrophes and records the offline
+scorer hash; it does not change application AI requests. Root passed 21 standalone
+offline tests and focused Ruff checks. The first pytest launch failed before
+collection because repository warning configuration requires unavailable local
+SQLAlchemy; the standalone run used isolated pytest configuration and no conftest.
+Combined [CI37047594086](https://github.com/jckail/superteacher/actions/runs/37047594086)
+is running. A new exact-source artifact is being prepared; no build or deployment
+has executed for this source. Earlier112 build queue75 remains preserved, with no
+unchanged retry. The saved goal reports blocked; the user's resume instruction
+authorizes continuing the original scope without creating a replacement goal.
+
 Reviewed Reports draft settlement is integrated locally as `890658e` (isolated
 `47f5b4f`). Root established RED: unchanged control passed, pending teacher edits
 were overwritten. The fix retains current raw subject/message/source and presents
