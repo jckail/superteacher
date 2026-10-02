@@ -8,9 +8,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from .. import metrics, schemas
+from ..accounts import CurrentUser
+from ..auth import current_user
 from ..db import get_db
 from ..models import Assessment, Course, Note, Score, Section, Student
-from ..queries import STUDENT_LOAD, load_summaries
+from ..queries import STUDENT_LOAD, load_summaries, owned_course, owned_section, owned_student
 
 router = APIRouter(tags=["roster"])
 
@@ -61,16 +63,18 @@ def sync_scores(db: Session, student: Student) -> None:
     db.expire(student, ["scores"])
 
 
-def get_student_or_404(db: Session, student_id: str) -> Student:
-    s = db.scalar(select(Student).options(*STUDENT_LOAD, selectinload(Student.notes)).where(Student.id == student_id))
+def get_student_or_404(db: Session, owner_id: str, student_id: str) -> Student:
+    """404 for unknown ids AND for other users' students (indistinguishable)."""
+    s = owned_student(db, owner_id, student_id, *STUDENT_LOAD, selectinload(Student.notes))
     if not s:
         raise HTTPException(404, "Student not found")
     return s
 
 
 @router.get("/courses", response_model=list[schemas.CourseOut])
-def list_courses(db: Session = Depends(get_db)):
-    return db.scalars(select(Course).options(selectinload(Course.sections)).order_by(Course.name)).all()
+def list_courses(db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    q = select(Course).options(selectinload(Course.sections)).where(Course.owner_id == user.id).order_by(Course.name)
+    return db.scalars(q).all()
 
 
 def _name_taken(db: Session, model, name: str, **scope) -> bool:
@@ -83,10 +87,10 @@ def _name_taken(db: Session, model, name: str, **scope) -> bool:
 
 
 @router.post("/courses", response_model=schemas.CourseOut, status_code=201)
-def create_course(body: schemas.CourseIn, db: Session = Depends(get_db)):
-    if _name_taken(db, Course, body.name):
+def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    if _name_taken(db, Course, body.name, owner_id=user.id):
         raise HTTPException(409, "A course with that name already exists")
-    course = Course(name=body.name)
+    course = Course(name=body.name, owner_id=user.id)
     db.add(course)
     try:
         db.commit()
@@ -97,8 +101,8 @@ def create_course(body: schemas.CourseIn, db: Session = Depends(get_db)):
 
 
 @router.post("/sections", response_model=schemas.SectionOut, status_code=201)
-def create_section(body: schemas.SectionIn, db: Session = Depends(get_db)):
-    if not db.get(Course, body.course_id):
+def create_section(body: schemas.SectionIn, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    if not owned_course(db, user.id, body.course_id):
         raise HTTPException(404, "Course not found")
     if _name_taken(db, Section, body.name, course_id=body.course_id):
         raise HTTPException(409, "That section already exists in this course")
@@ -119,32 +123,38 @@ def list_students(
     section_id: str | None = None,
     risk: str | None = Query(default=None, pattern="^(on_track|watch|at_risk)$"),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
 ):
-    rows = load_summaries(db, q=q, course_id=course_id, section_id=section_id)
+    rows = load_summaries(db, user.id, q=q, course_id=course_id, section_id=section_id)
     return [summarize(s, m) for s, m in rows if not risk or m.risk == risk]
 
 
 @router.post("/students", response_model=schemas.StudentDetail, status_code=201)
-def create_student(body: schemas.StudentIn, db: Session = Depends(get_db)):
-    if not db.get(Section, body.section_id):
+def create_student(body: schemas.StudentIn, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    if not owned_section(db, user.id, body.section_id):
         raise HTTPException(404, "Section not found")
     s = Student(name=body.name, grade_level=body.grade_level, section_id=body.section_id)
     db.add(s)
     sync_scores(db, s)
     db.commit()
-    return detail(get_student_or_404(db, s.id))
+    return detail(get_student_or_404(db, user.id, s.id))
 
 
 @router.get("/students/{student_id}", response_model=schemas.StudentDetail)
-def get_student(student_id: str, db: Session = Depends(get_db)):
-    return detail(get_student_or_404(db, student_id))
+def get_student(student_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    return detail(get_student_or_404(db, user.id, student_id))
 
 
 @router.patch("/students/{student_id}", response_model=schemas.StudentDetail)
-def update_student(student_id: str, body: schemas.StudentPatch, db: Session = Depends(get_db)):
-    s = get_student_or_404(db, student_id)
+def update_student(
+    student_id: str,
+    body: schemas.StudentPatch,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    s = get_student_or_404(db, user.id, student_id)
     changes = body.model_dump(exclude_unset=True)
-    if "section_id" in changes and not db.get(Section, changes["section_id"]):
+    if "section_id" in changes and not owned_section(db, user.id, changes["section_id"]):
         raise HTTPException(404, "Section not found")
     moved = "section_id" in changes and changes["section_id"] != s.section_id
     for k, v in changes.items():
@@ -153,19 +163,21 @@ def update_student(student_id: str, body: schemas.StudentPatch, db: Session = De
         sync_scores(db, s)
     db.commit()
     db.expire_all()
-    return detail(get_student_or_404(db, student_id))
+    return detail(get_student_or_404(db, user.id, student_id))
 
 
 @router.delete("/students/{student_id}", status_code=204)
-def delete_student(student_id: str, db: Session = Depends(get_db)):
-    db.delete(get_student_or_404(db, student_id))
+def delete_student(student_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    db.delete(get_student_or_404(db, user.id, student_id))
     db.commit()
     return Response(status_code=204)
 
 
 @router.post("/students/{student_id}/notes", response_model=schemas.NoteOut, status_code=201)
-def add_note(student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db)):
-    s = get_student_or_404(db, student_id)
+def add_note(
+    student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)
+):
+    s = get_student_or_404(db, user.id, student_id)
     note = Note(student_id=s.id, body=body.body)
     db.add(note)
     db.commit()
@@ -173,9 +185,14 @@ def add_note(student_id: str, body: schemas.NoteIn, db: Session = Depends(get_db
 
 
 @router.post("/sections/{section_id}/import", response_model=schemas.ImportResult)
-def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depends(get_db)):
+def import_students(
+    section_id: str,
+    body: schemas.ImportIn,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
     """Bulk-add students from CSV (``name,grade_level``, header optional). Bad rows are skipped, not fatal."""
-    if not db.get(Section, section_id):
+    if not owned_section(db, user.id, section_id):
         raise HTTPException(404, "Section not found")
     existing = {
         unicodedata.normalize("NFC", n).casefold()

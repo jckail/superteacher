@@ -3,6 +3,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import metrics, schemas
+from ..accounts import CurrentUser
+from ..auth import current_user
 from ..config import get_settings
 from ..db import get_db
 from ..queries import load_summaries
@@ -26,8 +28,13 @@ def version():
 
 
 @router.get("/overview", response_model=schemas.Overview)
-def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
-    computed = load_summaries(db, course_id=course_id, section_id=section_id)
+def overview(
+    course_id: str | None = None,
+    section_id: str | None = None,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    computed = load_summaries(db, user.id, course_id=course_id, section_id=section_id)
 
     bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
     for _, m in computed:

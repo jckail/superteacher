@@ -13,6 +13,11 @@ PUBLIC = {
     # Readiness probe for the platform: returns only a fixed status body (no details, no data); see observability.py.
     ("GET", "/api/ready"),
     ("POST", "/api/auth/login"),
+    # Accounts mode sign-in (404 in passcode mode). Public by necessity: they are how a session starts. Each answers
+    # without a session only with generic bodies, is CSRF/Origin-checked and rate limited; see tests/test_accounts_*.
+    ("GET", "/api/auth/config"),
+    ("POST", "/api/auth/request-link"),
+    ("POST", "/api/auth/verify"),
     ("POST", "/api/auth/logout"),
     ("GET", "/api/auth/me"),
 }
@@ -63,6 +68,43 @@ def test_every_non_public_api_route_requires_a_session(app_client):
             offenders.append((method, path, r.status_code))
     assert checked > 20
     assert offenders == [], f"routes reachable without a session: {offenders}"
+
+
+def test_every_authenticated_route_resolves_the_current_user(app_client):
+    """Tenancy rests on one dependency. Swap it for a spy and require every non-public route to call it."""
+    from fastapi.requests import HTTPConnection
+
+    from superteacher.accounts import CurrentUser
+
+    app = app_client.app
+    seen: set[str] = set()
+
+    async def spy(conn: HTTPConnection):
+        seen.add(conn.scope["path"])
+        return CurrentUser("probe0000000", "probe@example.invalid")
+
+    app.dependency_overrides[auth.current_user] = spy
+    try:
+        missing = []
+        for method, path in _routes(app):
+            if method in ("WS", "MOUNT") or (method, path) in PUBLIC or not path.startswith("/api"):
+                continue
+            if (method, path) == ("GET", "/api/metrics"):
+                continue  # operator endpoint: METRICS_TOKEN bearer, no tenant data; 401 for sessions in accounts mode
+            concrete = _fill(path)
+            seen.discard(concrete)
+            app_client.request(method, concrete, headers={**H, "Origin": "http://testserver"}, json={})
+            if concrete not in seen:
+                missing.append((method, path))
+        assert missing == [], f"authenticated routes that never resolve current_user: {missing}"
+        sockets = [p for m, p in _routes(app) if m == "WS"]
+        for path in sockets:
+            seen.discard(path)
+            with app_client.websocket_connect(path) as ws:
+                ws.send_json({"type": "reset"})
+            assert path in seen, path
+    finally:
+        app.dependency_overrides.pop(auth.current_user, None)
 
 
 def test_non_public_routes_also_reject_a_forged_cookie(app_client):

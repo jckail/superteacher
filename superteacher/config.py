@@ -1,6 +1,7 @@
 """Runtime configuration, read once from the environment (and an optional .env)."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,6 +32,37 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 12
     # None = auto (Secure when the request is https, incl. X-Forwarded-Proto). Set true/false to force.
     cookie_secure: bool | None = None
+
+    # --- accounts (passwordless email sign-in; see docs/DEPLOYMENT.md and ADR 0002) ---
+    # "passcode" (default): the shared passcode above, mapped to one implicit owner user. "accounts": email links.
+    auth_mode: Literal["passcode", "accounts"] = "passcode"
+    # Origin used to build the emailed link. NEVER derived from the Host header (host-header poisoning).
+    # Falls back to the first CORS origin.
+    public_base_url: str | None = None
+    accounts_max_users: int = 500
+    # Comma-separated domains allowed to sign up ("school.org,example.edu"); empty = anyone.
+    accounts_email_allowlist_domains: str = ""
+    # If set, the first sign-in with this email adopts the data of the pre-accounts "owner" user.
+    accounts_owner_email: str | None = None
+    login_token_ttl_minutes: int = 15
+    accounts_session_idle_hours: int = 72
+    accounts_session_absolute_hours: int = 720
+    accounts_link_per_email_hour: int = 3
+    accounts_link_per_ip_hour: int = 10
+    accounts_link_global_hour: int = 300
+    # Mail: sendgrid | console (logs a redacted notice) | file (full message into auth_email_outbox_dir; tests/e2e).
+    auth_email_backend: Literal["sendgrid", "console", "file"] = "sendgrid"
+    auth_email_from: str | None = None
+    sendgrid_api_key: str | None = None
+    auth_email_outbox_dir: str | None = None
+    # console/file leak sign-in links, so they are refused when K_SERVICE is set (Cloud Run) unless forced.
+    auth_email_allow_insecure_backend: bool = False
+    # Per-user, per-UTC-day quotas for metered AI actions; global_daily_budget caps all users together (None = off).
+    quota_chat_per_day: int = 100
+    quota_insight_per_day: int = 60
+    quota_parent_update_per_day: int = 20
+    ai_global_daily_budget: int | None = None
+
     # Interactive API docs are off by default (they would expose the schema without a login).
     enable_docs: bool = False
 

@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import re
+from collections.abc import Callable
 from datetime import date, timedelta
 from statistics import mean, median
 from typing import Literal
@@ -306,10 +307,15 @@ def _context(s: Student, m: metrics.StudentMetrics) -> str:
 
 
 @observability.ai_observed("parent_update", observability.source_outcome)
-async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["ai", "template"]]:
+async def parent_update(
+    s: Student, tone: Tone, before_call: Callable[[], None] | None = None
+) -> tuple[ParentDraft, Literal["ai", "template"]]:
+    """``before_call`` runs only when a model call is about to happen (quota accounting); it may raise."""
     m = metrics.compute(s)
     ai = make_client()
     if ai is not None:
+        if before_call:
+            before_call()
         try:
             resp = await ai.messages.create(
                 model=get_settings().anthropic_insight_model, max_tokens=700,

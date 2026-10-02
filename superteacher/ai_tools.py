@@ -263,8 +263,10 @@ class ToolError(Exception):
     """Raised for bad tool name/arguments; the message is safe to show the model."""
 
 
-def execute(db: Session, name: str, raw_input: object) -> str:
-    """Run one tool and return the string for the tool_result block (always bounded in size)."""
+def execute(db: Session, owner_id: str, name: str, raw_input: object) -> str:
+    """Run one tool for ``owner_id`` and return the string for the tool_result block (always bounded in size).
+
+    Tools only ever see that owner's students: other tenants' rows are never loaded."""
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
     model, fn = _HANDLERS[name]
@@ -274,7 +276,7 @@ def execute(db: Session, name: str, raw_input: object) -> str:
         raise ToolError(
             "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
         ) from None
-    result = fn(load_students(db), args)
+    result = fn(load_students(db, owner_id), args)
     text = result if isinstance(result, str) else json.dumps(result, separators=(",", ":"), default=str)
     if len(text) > MAX_TOOL_RESULT_CHARS:
         text = text[:MAX_TOOL_RESULT_CHARS] + "\n[truncated]"
