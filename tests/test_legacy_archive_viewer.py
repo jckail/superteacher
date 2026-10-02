@@ -604,3 +604,36 @@ def test_schema_signature_only_normalizes_whitespace_and_constraint_order():
     assert signature == _schema_signature([("table", "t", "t", reordered)])
     assert signature != _schema_signature([("table", "t", "t", first.replace("'a  b'", "'a b'"))])
     assert signature != _schema_signature([("table", "t", "t", first.replace("a TEXT", "a INTEGER"))])
+
+
+@pytest.mark.parametrize("api", ["view", "validate"])
+@pytest.mark.parametrize("state", ["changed", "missing"])
+def test_runtime_importer_source_drift_refuses_before_helpers(approved, monkeypatch, api, state):
+    from pathlib import Path
+
+    from superteacher import view_legacy_archive as viewer
+
+    root = Path(approved[1]["output_path"]).parent
+    helper_source = root / "synthetic-importer.py"
+    if state == "changed":
+        helper_source.write_bytes(b"# different unsupported implementation\n")
+    monkeypatch.setattr(viewer.importer, "__file__", str(helper_source))
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("shared importer helper invoked with unsupported source")
+
+    monkeypatch.setattr(viewer.importer, "_source_fingerprint", forbidden)
+    monkeypatch.setattr(viewer.importer, "_parse", forbidden)
+    with pytest.raises(viewer.ViewerError, match="Unsupported runtime importer source"):
+        if api == "view":
+            invoke(approved)
+        else:
+            viewer.validate_bundle(
+                approved[1]["bundle_path"],
+                expected_bundle_sha256=approved[3],
+                expected_source_sha256=approved[2]["source_sha256"],
+                expected_owner_id=approved[2]["owner_id"],
+            )
+    assert not Path(approved[1]["output_path"]).exists()
+    assert not Path(approved[1]["audit_path"]).exists()
+    assert not list(root.glob(".legacy-*"))

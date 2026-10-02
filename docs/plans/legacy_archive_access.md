@@ -217,7 +217,7 @@ copy/delivery occurs. Native integration/export/delete/retention remains backlog
 Development evidence: initial acceptance failed with missing viewer module, then
 passed after implementation. Final focused command
 `/tmp/st-resume-python/bin/python -m pytest tests/test_legacy_archive_viewer.py -q`
-reported **57 passed in 14.83s**. Owned-file Ruff check and format check passed.
+reported **61 passed in 14.66s**. Owned-file Ruff check and format check passed.
 Coverage includes duplicate names/exact native selectors, history/null/Unicode,
 external digest pins, wrong/expired scopes, unsafe permissions/links/FIFO,
 contradictory manifests/responses, ZIP layout/CRC/size failures, JSON body guard
@@ -262,7 +262,26 @@ The pending audit's containing directory is fsynced immediately after the audit
 file's content fsync and before report publication, including when output/audit
 use distinct directories. Synthetic red evidence: all six repinned forged schema
 variants (NULL owner, type/nullability/FK/check/index drift), separate-directory
-audit durability, and both common owner-contract cases failed prior code. Final
-57-test focused suite passes; owned Ruff check/format check pass. A canonicalizer
+audit durability, and both common owner-contract cases failed prior code. Round-1
+57-test focused suite passed; owned Ruff check/format check pass. A canonicalizer
 regression confirms constraint reordering normalizes while quoted literal content
 and type changes remain distinct. No real artifacts were accessed during repairs.
+
+Runtime helper compatibility follow-up: both public APIs check the current
+importer's available source bytes against `SUPPORTED_IMPORTER` before invoking
+shared helpers; evidence derivation rechecks immediately before recursive helper
+reuse. A missing/changed/nonregular/unsupported source refuses with a fixed
+sanitized error and no report/audit. The supported packaging must provide the
+absolute regular `.py` source file (not a final symlink, bytecode-only, frozen or
+ZIP-import installation), bounded to 128KiB and stable during reading. Evolving
+that helper source therefore requires a separately reviewed compatibility pin,
+not automatic adoption. This proves available-source compatibility only: it is
+not executable-memory attestation, a dependency-tree pin, a signature or an
+operator/recipient authorization mechanism. Real-data entitlement remains
+unresolved independently of code compatibility.
+
+Four focused changed/missing-source cases across viewer and validation-only APIs
+failed prior code, then passed. They forbid shared helper invocation and assert
+no output/audit/temporary artifact. Full viewer suite: **61 passed in 14.66s**;
+owned Ruff check and format check passed. No real data/provider/cloud work or
+changes to the importer/dependencies were used for this follow-up.

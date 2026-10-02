@@ -103,6 +103,30 @@ def _hash(value):
     return value
 
 
+def _runtime_compatibility():
+    """Source-available packaging only; this is compatibility, not attestation."""
+    try:
+        path = Path(importer.__file__)
+        if not path.is_absolute() or path.suffix != ".py":
+            raise ValueError
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as source:
+            before = os.fstat(source.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_size > 128 * 1024:
+                raise ValueError
+            raw = source.read(128 * 1024 + 1)
+            after = os.fstat(source.fileno())
+
+        # Avoid calling any imported validation helper before proving its source
+        # compatible. Access-time advances are allowed on unchanged source bytes.
+        def identity(info):
+            return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+        if len(raw) > 128 * 1024 or identity(before) != identity(after) or _digest(raw) != SUPPORTED_IMPORTER:
+            raise ValueError
+    except Exception:
+        raise ViewerError("Unsupported runtime importer source.") from None
+
+
 @contextmanager
 def _parent(path):
     """Traverse each component with nofollow and anchor operations to its fd."""
@@ -255,6 +279,7 @@ def _grant(request, grant, bundle_hash, receipt_hash):
 
 
 def _evidence(parts, budget, grant, *, select_student=True):
+    _runtime_compatibility()
     _require(
         isinstance(grant["owner_id"], str) and re.fullmatch(r"[A-Za-z0-9]{12}", grant["owner_id"]),
         "Explicit valid snapshot owner is required.",
@@ -583,6 +608,7 @@ def _publish(request, grant, report, bundle_hash):
 def view_legacy_archive(request_file, *, expected_bundle_sha256, expected_receipt_sha256):
     """Only approved offline snapshot review; returns content-free status."""
     try:
+        _runtime_compatibility()
         bundle_hash, receipt_hash = _hash(expected_bundle_sha256), _hash(expected_receipt_sha256)
         budget = _Budget()
         request_raw, request_identity = _read(request_file, MAX_CONTROL)
@@ -636,6 +662,7 @@ def validate_bundle(bundle_file, *, expected_bundle_sha256, expected_source_sha2
     operator; this helper proves compatibility, not recipient entitlement.
     """
     try:
+        _runtime_compatibility()
         bundle_hash, source_hash = _hash(expected_bundle_sha256), _hash(expected_source_sha256)
         _require(
             isinstance(expected_owner_id, str) and re.fullmatch(r"[A-Za-z0-9]{12}", expected_owner_id),
