@@ -128,7 +128,7 @@ def test_verify_requires_csrf_header_and_same_origin(tmp_path):
 def test_email_normalisation_and_shape():
     n = accounts.normalize_email
     assert n("  Ada@Example.COM ") == "ada@example.com"
-    assert n("ａｄａ@example.com") == "ada@example.com"  # NFKC folds full-width forms
+    assert n("\uff41\uff44\uff41@example.com") == "ada@example.com"  # NFKC folds full-width forms
     assert n("a+tag@sub.example.co.uk") == "a+tag@sub.example.co.uk"
     for bad in (
         "",

@@ -6,7 +6,8 @@
 
 ``console`` and ``file`` expose links, so they are refused when ``K_SERVICE`` is set (Cloud Run) unless
 ``AUTH_EMAIL_ALLOW_INSECURE_BACKEND=true``. Sending is blocking I/O: callers run it off the event loop
-(``send_login_link_async``) and after the HTTP response is produced, so timing never reveals whether an address is known.
+(``send_login_link_async``) and after the HTTP response is produced, so timing never reveals whether an address
+is known.
 Failures are logged without the address, the token or the provider response body.
 """
 

@@ -1,4 +1,4 @@
-"""Builders for the accounts-mode suites: an app using the ``file`` mailer, plus sign-in helpers (no real email ever)."""
+"""Builders for the accounts-mode suites: an app on the ``file`` mailer plus sign-in helpers (no real email)."""
 
 import json
 import re

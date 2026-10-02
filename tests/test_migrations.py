@@ -91,7 +91,8 @@ def test_owner_name_uniqueness_is_case_insensitive_per_owner(tmp_path):
         for u in ("u1", "u2"):
             c.execute(
                 text(
-                    f"insert into users (id, email, disabled, created_at) values ('{u}', '{u}@x.co', 0, CURRENT_TIMESTAMP)"
+                    "insert into users (id, email, disabled, created_at) "
+                    f"values ('{u}', '{u}@x.co', 0, CURRENT_TIMESTAMP)"
                 )
             )
         c.execute(text("insert into courses (id, name, owner_id) values ('c1', 'Algebra', 'u1')"))

@@ -353,14 +353,10 @@ def consume_quota(db: Session, settings: Settings, user_id: str, kind: str) -> N
 
 def usage_today(db: Session, settings: Settings, user_id: str) -> dict[str, dict[str, int | str]]:
     today = now().date()
-    used = {
-        k: c
-        for k, c in db.execute(
-            select(UsageCounter.kind, UsageCounter.count).where(
-                UsageCounter.user_id == user_id, UsageCounter.day == today
-            )
-        )
-    }
+    rows = db.execute(
+        select(UsageCounter.kind, UsageCounter.count).where(UsageCounter.user_id == user_id, UsageCounter.day == today)
+    )
+    used = {kind: n for kind, n in rows}  # noqa: C416 (Row objects are not 2-tuples to dict())
     return {
         k: {"used": used.get(k, 0), "limit": quota_limit(settings, k), "resets_at": next_reset(today).isoformat()}
         for k in QUOTA_KINDS

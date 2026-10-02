@@ -23,7 +23,7 @@ TODAY = date.today().isoformat()
 
 
 def make_class(c, canary: str | None, note: str | None = None) -> dict:
-    """Course 'Algebra' / section 'P1' / 'Ada Lovelace' (+ an optional canary student), one assessment, scores, notes."""
+    """Course 'Algebra' / section 'P1' / 'Ada Lovelace' (+ optional canary student), an assessment, scores, notes."""
     cid = c.post("/api/courses", json={"name": "Algebra"}, headers=H).json()["id"]
     sid = c.post("/api/sections", json={"course_id": cid, "name": "P1"}, headers=H).json()["id"]
     names = ["Ada Lovelace"] + ([canary] if canary else [])
@@ -31,7 +31,7 @@ def make_class(c, canary: str | None, note: str | None = None) -> dict:
         c.post("/api/students", json={"name": n, "grade_level": 9, "section_id": sid}, headers=H).json()["id"]
         for n in names
     ]
-    aid = c.post("/api/sections/%s/assessments" % sid, json={"title": "Quiz 1", "max_points": 10}, headers=H).json()[
+    aid = c.post(f"/api/sections/{sid}/assessments", json={"title": "Quiz 1", "max_points": 10}, headers=H).json()[
         "assessments"
     ][0]["id"]
     c.put(f"/api/assessments/{aid}/scores", json={"scores": [{"student_id": s, "points": 7} for s in studs]}, headers=H)
@@ -208,7 +208,7 @@ def test_route_table_is_fully_covered(world):
 
 # ── AI surfaces ─────────────────────────────────────────────────────────
 def test_chat_context_and_tools_are_scoped(world):
-    alice, bob, a, b = world
+    alice, _, a, b = world
     f = alice.app.state.session_factory
     with f() as db:
         owner_b = db.execute(
@@ -246,7 +246,7 @@ async def _drain(gen):
 
 
 def test_chat_websocket_never_shows_another_tenants_data_to_the_model(world, monkeypatch):
-    alice, bob, a, b = world
+    _, bob, a, _ = world
     fake = FakeAI(
         [
             tool_turn("t1", "get_student", {"student_id": a["students"][1]}),
@@ -272,7 +272,7 @@ def test_chat_websocket_never_shows_another_tenants_data_to_the_model(world, mon
 
 def test_insight_cache_is_not_shared_across_owners(world, monkeypatch):
     alice, bob, a, b = world
-    payload = '{"headline":"%s headline","strengths":["s"],"concerns":["c"],"suggestions":["x"]}' % A_CANARY
+    payload = f'{{"headline":"{A_CANARY} headline","strengths":["s"],"concerns":["c"],"suggestions":["x"]}}'
     fake = FakeAI(creates=[payload])
     monkeypatch.setattr(ai, "client", lambda: fake)
     r = alice.get(f"/api/students/{a['students'][1]}/insight")
@@ -283,7 +283,7 @@ def test_insight_cache_is_not_shared_across_owners(world, monkeypatch):
 
 
 def test_parent_draft_only_for_own_students(world, monkeypatch):
-    alice, bob, a, b = world
+    alice, bob, a, _ = world
     fake = FakeAI(creates=['{"subject":"s","body":"b"}'])
     monkeypatch.setattr(svc, "make_client", lambda: fake)
     assert (
@@ -311,7 +311,7 @@ def test_csv_and_summary_contain_only_own_students(world):
 
 
 def test_import_lands_only_in_own_sections(world):
-    alice, bob, a, b = world
+    alice, bob, _, b = world
     r = bob.post(f"/api/sections/{b['section']}/import", json={"csv": "Imported Kid,9\nAda Lovelace,9\n"}, headers=H)
     assert r.status_code == 200 and r.json()["created"] == 1  # Ada already exists in B's section; A's Ada is irrelevant
     assert "Imported Kid" not in alice.get("/api/students").text
@@ -319,7 +319,7 @@ def test_import_lands_only_in_own_sections(world):
 
 # ── account export / delete only touch the caller ───────────────────────
 def test_export_has_only_own_data_and_delete_spares_others(world):
-    alice, bob, a, b = world
+    alice, bob, a, _ = world
     export = bob.get("/api/account/export")
     assert export.status_code == 200 and A_CANARY not in export.text and A_NOTE not in export.text
     assert "attachment" in export.headers["content-disposition"]
