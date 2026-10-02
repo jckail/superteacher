@@ -127,10 +127,26 @@ def _private_directory(path):
     )
 
 
+def _source_fingerprint(info):
+    # Reading may advance atime on an unchanged frozen source (e.g. relatime).
+    # Keep identity, access policy and content/change metadata in the guard.
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_mode,
+        info.st_uid,
+        info.st_gid,
+        info.st_nlink,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
 def _read_source(path):
     _no_symlinks(path)
     _private_directory(path.parent)
-    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
         info = os.fstat(stream.fileno())
         _require(
             stat.S_ISREG(info.st_mode)
@@ -142,7 +158,9 @@ def _read_source(path):
         _require(info.st_size <= MAX_ARCHIVE_BYTES, "Archive exceeds the bounded input size.")
         data = stream.read(MAX_ARCHIVE_BYTES + 1)
         _require(len(data) <= MAX_ARCHIVE_BYTES, "Archive exceeds the bounded input size.")
-        _require(os.fstat(stream.fileno()) == info, "Source changed while reading.")
+        _require(
+            _source_fingerprint(os.fstat(stream.fileno())) == _source_fingerprint(info), "Source changed while reading."
+        )
     return data
 
 

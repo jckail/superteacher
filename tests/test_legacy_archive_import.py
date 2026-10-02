@@ -6,6 +6,8 @@ import json
 import os
 import sqlite3
 import stat
+import subprocess
+import sys
 import zipfile
 
 import pytest
@@ -402,3 +404,92 @@ def test_capture_provenance_bindings(tmp_path, capture, problem):
     with pytest.raises(importer.LegacyImportError):
         run(tmp_path, capture)
     assert not (tmp_path / "bundle.zip").exists()
+
+
+def test_unchanged_frozen_source_accepts_atime_update(tmp_path, capture):
+    tmp_path.chmod(0o700)
+    source = tmp_path / "source.json"
+    raw = json.dumps(capture).encode()
+    source.write_bytes(raw)
+    source.chmod(0o400)
+    os.utime(source, ns=(1, source.stat().st_mtime_ns))
+    before = source.stat()
+    result = importer.import_legacy_archive(
+        source,
+        tmp_path / "bundle.zip",
+        expected_sha256=hashlib.sha256(raw).hexdigest(),
+        owner_id="rehearsal001",
+        owner_email="rehearsal@example.invalid",
+    )
+    after = source.stat()
+    assert result["status"] == "imported"
+    assert after.st_atime_ns > before.st_atime_ns
+    assert after.st_mtime_ns == before.st_mtime_ns
+    assert after.st_ctime_ns == before.st_ctime_ns
+    assert after.st_size == before.st_size
+    with zipfile.ZipFile(tmp_path / "bundle.zip") as bundle:
+        assert bundle.read("original_archive.json") == raw
+    assert source.read_bytes() == raw
+
+
+def test_fifo_source_is_refused_without_waiting_for_writer(tmp_path):
+    tmp_path.chmod(0o700)
+    source = tmp_path / "source.fifo"
+    os.mkfifo(source, 0o400)
+    destination = tmp_path / "bundle.zip"
+    # A subprocess deadline prevents a regression to blocking FIFO open from
+    # hanging the verification runner; the FIFO has deliberately no writer.
+    script = """
+import sys
+from superteacher.import_legacy_archive import LegacyImportError, import_legacy_archive
+try:
+    import_legacy_archive(sys.argv[1], sys.argv[2], expected_sha256="0" * 64,
+                          owner_id="rehearsal001", owner_email="rehearsal@example.invalid")
+except LegacyImportError:
+    print("refused")
+else:
+    raise SystemExit("unexpected publication")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(source), str(destination)],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=5,
+    )
+    assert result.stdout.strip() == "refused"
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".legacy-import-*"))
+
+
+@pytest.mark.parametrize("mutation", ["content", "mode"])
+def test_mutation_during_source_read_is_refused(tmp_path, capture, monkeypatch, mutation):
+    tmp_path.chmod(0o700)
+    source = tmp_path / "source.json"
+    raw = json.dumps(capture).encode()
+    source.write_bytes(raw)
+    source.chmod(0o400)
+    real_fstat = os.fstat
+    calls = 0
+
+    def changed_stat(fd):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            source.chmod(0o600)
+            if mutation == "content":
+                source.write_bytes(raw + b" ")
+                source.chmod(0o400)
+        return real_fstat(fd)
+
+    monkeypatch.setattr(os, "fstat", changed_stat)
+    with pytest.raises(importer.LegacyImportError, match="Source changed while reading"):
+        importer.import_legacy_archive(
+            source,
+            tmp_path / "bundle.zip",
+            expected_sha256=hashlib.sha256(raw).hexdigest(),
+            owner_id="rehearsal001",
+            owner_email="rehearsal@example.invalid",
+        )
+    assert not (tmp_path / "bundle.zip").exists()
+    assert not list(tmp_path.glob(".legacy-import-*"))
