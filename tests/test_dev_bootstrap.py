@@ -147,6 +147,9 @@ def test_second_server_spawn_failure_stops_first(monkeypatch):
 
 
 def test_busy_resource_gate_never_starts_servers(checkout, monkeypatch):
+    gate = checkout / "fake-gate"
+    gate.touch()
+    monkeypatch.setattr(dev, "GATE", gate)
     run = Mock(return_value=75)
     serve = Mock()
     monkeypatch.setattr(dev, "ready", lambda: False)
@@ -154,7 +157,7 @@ def test_busy_resource_gate_never_starts_servers(checkout, monkeypatch):
     monkeypatch.setattr(dev, "serve", serve)
     assert dev.managed_run() == 75
     assert run.call_count == 1
-    assert run.call_args.args[0][:2] == ["/home/jkail/.local/bin/agent-heavy-check", "--"]
+    assert run.call_args.args[0][:2] == [str(gate), "--"]
     serve.assert_not_called()
     assert not dev.STATE.exists()
 

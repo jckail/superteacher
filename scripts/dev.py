@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".superteacher-dev"
 PYTHON = STATE / "venv/bin/python"
 STAMP = STATE / "installed.json"
+GATE = Path("/home/jkail/.local/bin/agent-heavy-check")
 
 
 def fingerprint():
@@ -255,7 +256,7 @@ def run_setup(command, *, gated):
 
 def managed_run():
     if not ready():
-        gate = Path("/home/jkail/.local/bin/agent-heavy-check")
+        gate = GATE
         command = [sys.executable, str(Path(__file__).resolve()), "--install"]
         if gate.is_file():
             command.insert(0, "--")
