@@ -66,6 +66,26 @@ function AttendanceStrip({ days }: { days: AttendanceDay[] }) {
           <text className="dim" x={W} y={H + 14} textAnchor="end">{shortDay(days[days.length - 1].day)}</text>
         </svg>
       </div>
+      <details style={{ marginTop: 12 }}>
+        <summary>Show attendance numbers</summary>
+        <p className="muted-sm">
+          Present and tardy count as attended; excused absences are excluded from the rate.
+          {' '}Marked includes all recorded attendance statuses. A rate is not available when all marks are excused.
+        </p>
+        <div className="table-wrap" role="region" aria-label="Daily attendance numbers" tabIndex={0}>
+          <table>
+            <caption>Daily attendance numbers</caption>
+            <thead><tr><th scope="col">Date</th><th scope="col">Attendance rate</th><th scope="col">Marked</th><th scope="col">Absent</th></tr></thead>
+            <tbody>
+              {days.map((d) => <tr key={d.day}>
+                <th scope="row">{d.day}</th>
+                <td className="num">{d.rate == null ? 'Not available' : `${d.rate}%`}</td>
+                <td className="num">{d.marked}</td><td className="num">{d.absent}</td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </>
   );
 }
