@@ -1,7 +1,14 @@
-# Release checkpoint (2026-10-02, updated)
+# Historical release checkpoint (2026-10-02)
 
-What is verified, what is not, and what has to happen before the public domain moves. Everything under "Observed" was
-seen directly in this session.
+This file preserves the earlier release session's observations, incidents and owner decisions,
+including source `89c0071` and serving revision `superteacher-00008-96g` recorded below.
+These observations describe that checkpoint; they do not establish the currently serving revision
+or acceptance of a later source, build or candidate.
+
+For the latest verified source, immutable build and candidate acceptance evidence, start with
+[Deployment status and execution handoff](DEPLOYMENT_STATUS.md). Use the
+[operator runbook](OPERATOR_RUNBOOK.md) for deploy, rollback, restore and incident procedures.
+The existing release owner verifies live service state and outstanding gates before execution.
 
 ## Observed
 
