@@ -5,6 +5,25 @@ verification. The native overhaul is merged and isolated staging is deployed;
 this release operator has not changed production traffic or custom-domain mappings. Private
 backup artifacts stay outside Git and hosted project memory.
 
+## Attendance report freshness follow-up (2026-10-02)
+
+Published source `257a657e2ce4c069e4c41eeb7aa60f752ebcdea6` refreshes exactly
+the submitted section's deterministic report summary after attendance settles.
+It preserves captured section/client ownership across class switches and session
+replacement, existing rollback and queued optimism, and Insight/parent-generation
+policy. Root demonstrated RED: one control passed and seven settlement cases
+failed in 7.698s. GREEN passed 60 relevant tests across four files in 7.54s,
+plus TypeScript, focused ESLint and diff checks. Independent task and complete-change
+reviews approved SPEC/QUALITY without blocking findings. See
+[the bounded plan](plans/attendance_summary_freshness.md).
+
+Exact combined [CI37049099552](https://github.com/jckail/superteacher/actions/runs/37049099552)
+is running. This newer source has no accepted image or runtime deployment.
+Previous d256 and112 admission75 receipts remain preserved; no unchanged retry
+is authorized by a source review. The separate Insight freshness gap remains:
+its GET can charge quota and generate AI content, so an explicit refresh/provenance
+design is still needed before changing its cache policy.
+
 ## Reports, evaluation and keyboard focus integration (2026-10-02)
 
 Latest follow-up: PR69 head `2582d8c` is now merged as
@@ -23,7 +42,9 @@ CI-state SHA256 `d931db14dcf787651b977d27c74546e9ab50ad7d9d19e81832fb7a34c8814b8
 The exact archive SHA256 is `6a26a610fc7febc55fa3666b6db5f99ad24dc9ff202108ca5d97da9095a0191a`;
 independent review verified all 294 files/323 context entries and modes against
 Git. Root helper validation passed before execution. Protected build session81016
-was submitted to the shared gate; its outcome is pending. No deployment has
+exited75 when shared-gate admission expired, before the helper started. No intent,
+build proof, image or cloud mutation exists; the private blocker receipt is saved.
+Do not retry this source unchanged. No deployment has
 executed for this source. Earlier112 build queue75 remains preserved, with no
 unchanged retry. The saved goal reports blocked; the user's resume instruction
 authorizes continuing the original scope without creating a replacement goal.
