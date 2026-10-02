@@ -119,7 +119,8 @@ export function ScoreCell({ value, max, onSave, label, onNav, cell = '' }: Score
     if (!onNav?.(dir, cell)) e.currentTarget.blur();   // blur → commit
   };
   return (
-    <>
+    // Keep absolute sr-only text inside its scrollable table cell's containing block.
+    <span style={{ position: 'relative', display: 'inline-block' }}>
       <input className={`grade-input num ${value == null && text === '' ? 'missing' : ''} ${invalid ? 'invalid' : ''}`} inputMode="decimal" autoComplete="off"
         aria-label={label} aria-invalid={invalid || undefined} aria-describedby={`${descriptionId}-help${over || invalid ? ` ${descriptionId}-warning` : ''}`}
         title={max == null ? undefined : `out of ${max}`} data-cell={cell}
@@ -131,7 +132,7 @@ export function ScoreCell({ value, max, onSave, label, onNav, cell = '' }: Score
       {(over || invalid) && <span className="cell-warn" role="status" id={`${descriptionId}-warning`}>
         <span className="sr-only">{label}: </span>{invalid ? 'Enter a number ≥ 0' : `Over ${max}`}
       </span>}
-    </>
+    </span>
   );
 }
 
