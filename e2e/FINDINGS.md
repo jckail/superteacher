@@ -1,29 +1,18 @@
 # E2E / accessibility findings
 
-Found by the Playwright + axe-core suite in `e2e/`. File:line refs are against `web/src` on `origin/main` (JSX).
-`web/src/**/*.jsx|js` was deliberately **not edited** (a TypeScript conversion is in flight elsewhere); the patches below are for whoever owns that work.
-Items marked **fixed in CSS** were fixed in `web/src/styles.css` in this PR.
+Originally found by the Playwright + axe-core suite in `e2e/` against the JSX app. The merged app now uses TypeScript; historical source references below explain the original findings. Native fixes are identified explicitly; the old audit totals are not a fresh audit of the merged release.
 
-## Open (JSX / markup)
+## Resolved in the native app
 
-### 1. Modal does not return focus to the opener (a11y, WCAG 2.4.3) - serious UX
-- Pages: every `Modal` with an `autoFocus` child (Add student, Add course, New assignment, Import CSV) and the confirm `alertdialog`.
-- Rule: no axe rule (behavioural); caught by `specs/keyboard.spec.ts` (marked `test.fail`, so it turns red "unexpectedly passed" once fixed - then drop `test.fail`).
-- Where: `web/src/components/ui.jsx:26` and `:41`.
-- Cause: `opener = document.activeElement` is read inside `useEffect`, but a child's React `autoFocus` has already moved focus into the dialog during commit, so on close focus is "restored" to an element inside the dead dialog and lands on `<body>`.
-- Patch:
-  ```diff
-  - const closeRef = useRef(onClose);
-  + const closeRef = useRef(onClose);
-  + const openerRef = useRef(document.activeElement);   // render phase: runs before children's autoFocus commits
-  ...
-  -    const opener = document.activeElement;
-       const el = box.current;
-  ...
-  -    return () => { document.removeEventListener('keydown', onKey, true); if (opener?.isConnected) opener.focus?.(); };
-  +    return () => { document.removeEventListener('keydown', onKey, true); const o = openerRef.current; if (o?.isConnected) o.focus?.(); };
-  ```
-  (Under StrictMode the ref initialiser can run twice; both reads happen before commit, so the value is still the opener.)
+### 1. Modal opener focus restoration
+
+`web/src/components/ui.tsx` captures the opener during render, before a descendant's `autoFocus`, and restores it when the dialog unmounts. The same focus handling covers confirmation alertdialogs. Both opener-restoration cases in `specs/keyboard.spec.ts` passed in PR #15 CI run `36967196648`; that run reported them as failures solely because their old expected-failure annotations remained. Those annotations are now removed, retaining every focus assertion as regression coverage. The original JSX implementation captured the opener inside an effect after focus had moved.
+
+### 3. School-day defaults and academic cutoffs
+
+The old browser UTC/server-local mismatch is addressed by the configured IANA school timezone and authenticated `/api/calendar`. The TypeScript attendance and assignment forms consume the server's school day, and backend metrics use the same school calendar. See `docs/SCHOOL_CALENDAR.md`. The isolated E2E harness pins `SCHOOL_TIMEZONE=UTC` for deterministic school-day defaults; it does not determine the production school's timezone.
+
+## Open or mitigated findings
 
 ### 2. Removing a student logs two 404s in the console and briefly refetches a deleted record
 - Page: `/students/:id` -> "Remove student" -> confirm.
@@ -40,12 +29,6 @@ Items marked **fixed in CSS** were fixed in `web/src/styles.css` in this PR.
   + },
   ```
   Then delete `allowConsole(/status of 404/)` from `specs/student.spec.ts`.
-
-### 3. "Today" is the UTC date in the browser but the server's local date on the backend
-- Pages: Attendance (default date and `max`), Gradebook (new-assignment due date), also `components/charts.jsx:82`.
-- Where: `web/src/pages/Attendance.jsx:11`, `web/src/pages/Gradebook.jsx:10`: `new Date().toISOString().slice(0, 10)`; backend uses `date.today()` (`superteacher/metrics.py`, `reports.py`).
-- Impact: a teacher in a US time zone after ~16:00-20:00 local gets *tomorrow's* date as "today": attendance sheet for tomorrow, new assignments due tomorrow, which the metrics engine treats as not yet due, so the class average shows "-". Reproduced in this suite when the server ran in PDT (the e2e server now pins `TZ=UTC`, as Cloud Run does, to stay deterministic).
-- Patch: one shared helper, `export const today = () => new Date().toLocaleDateString('en-CA');` (local date, `YYYY-MM-DD`) and import it in both pages and `charts.jsx`. Better long-term: have the server expose its "today" (and school time zone) in `/api/overview`.
 
 ### 4. `heading-order` (moderate, best-practice): empty states skip from h1 to h3
 - Pages: `/roster`, `/gradebook`, `/attendance` when a section has no students (axe label `empty:*`; 3 pages x 4 viewport/theme combinations = 12).
@@ -66,3 +49,8 @@ Items marked **fixed in CSS** were fixed in `web/src/styles.css` in this PR.
 ## Audit baseline (axe-core 4.x, tags wcag2a/2aa/21a/21aa/22aa + best-practice)
 Before CSS fixes: 2 serious (`scrollable-region-focusable`, reports page, mobile light+dark), 12 moderate (`heading-order`, empty states). Zero `color-contrast` violations in light or dark theme on any audited page/state.
 After: 0 serious/critical; the same 12 moderate `heading-order` items remain (need the JSX change in 4).
+
+
+## Merged-release assertion updates
+
+PR #15 CI run `36967196648` exposed two stale selectors alongside the fixed-focus annotations: `Quiz 1` also matched the new `Edit Quiz 1` button, and the insight test expected an environment-variable instruction removed from the teacher-facing UI. The gradebook header now uses an exact accessible-name match, while score persistence and server-value assertions remain intact. The insight case checks the current recorded-grades/attendance explanation, Rule-based label and nonempty headline. Note creation/reload and confirmation/cancellation/deletion assertions are unchanged. The updated cases require a fresh CI result; this edit does not claim they have rerun successfully.

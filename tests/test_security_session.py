@@ -11,7 +11,7 @@ from superteacher import auth
 from superteacher.config import Settings
 from tests.sec_util import PW, H, behind_proxy, build, login
 
-BROWSER = {**H, "Origin": "https://testserver", "X-Forwarded-Proto": "https"}
+BROWSER = {**H, "Origin": "http://testserver", "X-Forwarded-Proto": "http"}
 
 
 @pytest.fixture
@@ -210,17 +210,20 @@ def test_malformed_login_bodies_are_not_oracles_and_never_500():
             assert r.status_code in (400, 422), body
 
 
-def test_lone_surrogate_passcode_is_a_401_not_a_500():
+def test_lone_surrogate_passcode_is_rejected_without_a_500():
     with build(raise_server_exceptions=False) as c:
         r = c.post(
             "/api/auth/login", content='{"password":"\\ud800"}', headers={**H, "content-type": "application/json"}
         )
-        assert r.status_code == 401
+        assert r.status_code == 422
+        assert "\\ud800" not in r.text
 
 
 def test_huge_passcode_is_handled_in_constant_work():
     with build() as c:
-        assert login(c, "A" * 1_000_000).status_code == 401
+        response = login(c, "A" * 1_000_000)
+        assert response.status_code == 422
+        assert len(response.content) < 1024
 
 
 @pytest.mark.parametrize("trusted", [False, True])

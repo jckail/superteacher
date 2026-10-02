@@ -1,122 +1,155 @@
-# Identity candidate integration review
+# Identity integration review and remaining work
 
-Read-only source review on 2026-10-01. The authoritative checkout is
-`/home/jkail/projects/superteacher`; the independently active candidate is
-`/home/jkail/work/st-accounts`. Candidate files may change concurrently. This
-document records observed implementation and required checks, not candidate
-completion or passing tests. No candidate edits, merges, tests, builds, installs,
-or browser checks were performed. The root agent owns verification.
+Read-only review updated 2026-10-02 at 05:05 UTC (2026-10-01 Pacific).
+The native checkout is `/home/jkail/projects/superteacher`, reviewed at
+`034428412cefcc0aaee2a03d6386e1a1d1c30835`. Accounts candidate
+[PR #12](https://github.com/jckail/superteacher/pull/12), `team/accounts`, was
+fetched into `refs/remotes/origin/accounts-review` and inspected at exact commit
+[`c2d8edddf3aa0ec3758fa76cde2d993a66329505`](https://github.com/jckail/superteacher/commit/c2d8edddf3aa0ec3758fa76cde2d993a66329505).
+The earlier `de52835` snapshot and missing-browser-flow finding are superseded.
+No foreign worktree was checked out or edited; no candidate tests, builds,
+dependency installs, browser checks, real mail or paid AI calls were run.
 
-## Blocking differences
+## What the current candidate implements
 
-1. **Migration identity collides.** Native
-   `alembic/versions/0002_data_integrity.py:11` and candidate
-   `alembic/versions/0002_accounts.py:19` both declare revision `0002`, parent
-   `0001`, but apply different schemas. Copying both files produces duplicate
-   revision identities. Replacing one with the other leaves an already stamped
-   `0002` database without the replacement's schema changes. Keep the native
-   integrity revision and introduce a distinct accounts successor for native
-   databases. If candidate databases have already been migrated, their `0002`
-   has a different meaning and needs an explicit adoption path; first establish
-   whether such databases exist.
-2. **Candidate transfer code deletes grade history.** Candidate
-   `superteacher/routers/roster.py:45` deletes scores from other sections during
-   `sync_scores`. Native transfer code retains them and exposes
-   `/students/{id}/grade-history`. Integrate ownership into native transfer
-   behavior instead of replacing it with candidate code. Candidate summary
-   loading (`superteacher/queries.py:66`) also includes every score belonging to
-   selected students; native summaries exclude historical sections. Preserve
-   that active-section restriction.
-3. **Candidate browser authentication is incomplete.** Candidate
-   `web/src/pages/Login.jsx:1` submits only a passcode, and `web/src/auth.jsx:1`
-   has no accounts mode selection or link verification. No `request-link`,
-   `verify`, or `auth_mode` handler appeared in the inspected candidate browser
-   source. Account mode rejects `/auth/login`; emailed `/auth/verify#token=...`
-   therefore needs an implemented browser flow before switching modes.
-4. **Existing WebSockets outlive revoked sessions.** Candidate
-   `superteacher/routers/ai.py:88` resolves `CurrentUser` at connection setup,
-   then uses that captured identity for later turns without another session
-   check. `accounts.resolve_session:247` enforces expiry/disabled status and
-   `revoke_all_sessions:275` removes sessions, but those changes are not checked
-   by an already connected chat. Revalidate before each authorized turn and
-   define cancellation behavior for ongoing generation. Existing candidate
-   session tests check reconnection after logout, not continued use of the
-   original connection.
+The product contract is **passwordless email sign-in**. First successful token
+verification creates an account and a synthetic starter classroom; recovery is
+requesting another sign-in link. There are no passwords or password-reset screens.
+`web/src/auth.jsx` selects accounts/passcode mode through `/auth/config`;
+`EmailLogin.jsx` requests a link, and `VerifyEmail.jsx` reads `/auth/verify#token=…`,
+removes the fragment from history and POSTs the token. Account export/delete,
+logout-all, demo notice and quota messages also exist. Port these behaviors into
+the native TypeScript frontend and preserve its accessibility and editing tests.
 
-## Ownership integration
+Server tokens and sessions store hashes; token consumption uses a conditional
+UPDATE, and verification rotates the previous session. Request-link replies are
+generic for blocked, capped and unknown addresses. GET link scanning does not
+consume tokens. The file mailer now names messages using time plus randomness;
+SendGrid disables tracking and avoids logging recipient/token contents.
+These source observations do not establish production delivery or integration.
 
-Candidate `queries.py:24-39` has owner-scoped course, section, assessment and
-student lookup helpers. Candidate REST routers receive `CurrentUser`, report
-loads pass `user.id`, chat context passes the owner, and `ai_tools.execute:266`
-requires an owner. `ai.ai_insight:353` expects a previously authorized student
-before accessing its student-keyed cache. These mechanisms should be adapted
-into the native bounded query/context/capacity implementation.
+## Integration blockers at the reviewed commit
 
-Native assessment PATCH, note PATCH/DELETE, grade-history, `student_candidates`,
-`iter_summaries`, and school-calendar paths postdate the inspected candidate.
-Audit every native route and every query/tool entry point, including foreign
-filter IDs and write payload IDs. Authorize both the student and destination
-section before transfers; authorize notes through their owning student. History
-and account exports must retain all owned historical assessment metadata, not
-only score IDs. Keep owner authorization ahead of cache hits and quota charges.
+1. **Migration revision collision and storage regression.** Native
+   `alembic/versions/0002_data_integrity.py` and candidate
+   `alembic/versions/0002_accounts.py` both declare `revision = "0002"`, parent
+   `0001`, with different meanings. Keep native integrity `0002`; add accounts as
+   a distinct successor and retain its numeric/enum CHECK constraints in models
+   and migrations. Establish whether any candidate accounts `0002` databases
+   exist before designing an adoption path. Native `db._validate_legacy_baseline`
+   refuses unsupported schema drift; candidate `db.run_migrations` instead stamps
+   any database with a model table. Preserve the frozen-baseline validation and
+   SQLite foreign-key restoration/checks; add PostgreSQL migration coverage.
+2. **Transfers delete grades and summaries include historical grades.** Candidate
+   `routers/roster.sync_scores` deletes other-section score rows. Native retains
+   them and exposes `/students/{id}/grade-history`. Candidate `queries.load_summaries`
+   reads all student scores and attendance, while native bounded summaries restrict
+   scores to the active section and attendance to the school date. Add ownership
+   to native behavior; preserve raw points, prior-section metadata, bounded history
+   reads and history UI/export. Never replace the native transfer implementation.
+3. **Native calendar, editing and numeric contracts are absent.** Candidate metrics
+   use `date.today()` and lack `as_of`; its tree lacks the school-calendar module,
+   assessment PATCH, note PATCH/DELETE and grade-history route. It restores the
+   1.5-times-maximum score cap and two-decimal CSV rendering. Integrate ownership
+   into the native routes, atomic numeric validation, school timezone and request
+   snapshot, full-precision CSV and browser edits. Keep native course-plus-initial-
+   section atomic creation. Candidate frontend JS files are older implementations,
+   not replacements for the native TypeScript pages.
+4. **Connected WebSockets do not revalidate revoked sessions.** Candidate
+   `routers/ai.chat_ws` resolves `CurrentUser` once at the handshake and captures
+   it for all later turns. Expiry, logout-all, disable and account deletion therefore
+   need checks on the original connection before each authorized turn. Define and
+   test cancellation of ongoing generation. Retain native bounded context/tools,
+   disconnect cleanup, request timeout and shared capacity across chat/insights/
+   drafts; candidate uses a chat-only semaphore instead.
+5. **Strict origin and proxy trust behavior regresses.** Candidate
+   `auth.AuthState.origin_ok` accepts the same host with either HTTP or HTTPS;
+   native compares normalized scheme/host/port. Candidate `_secure` trusts raw
+   `X-Forwarded-Proto`; retain native trusted-proxy origin/IP/cookie tests and policy.
+6. **Parent-draft privacy regresses.** Candidate `reports._context` sends teacher
+   notes and puts instructions/data together in a user message. Native excludes
+   confidential notes, separates system instructions from escaped student data,
+   and distinguishes not-yet-due work. Preserve native privacy, capacity, deadlines
+   and client cleanup while adding the candidate quota hook and observability.
+7. **Owner adoption can be blocked by the full user cap.** Migration creates
+   `owner0000000` with a placeholder email. `accounts.get_or_create_user` supports
+   adopting it via `accounts_owner_email`, but `auth.request_link` suppresses mail
+   when that email is not already present and the user cap is full. Permit the
+   configured bootstrap case and use `normalize_email` for both configured and
+   incoming addresses; the configured address currently only strips/lowers.
+8. **Signup and quota concurrency need a deployment decision.**
+   `get_or_create_user` checks cap then inserts/commits without an atomic cap
+   claim or same-email conflict recovery, then seeds separately. Concurrent
+   same-email verification can hit the unique email constraint; failed seeding
+   can leave an account without its starter classroom. `consume_quota` uses a
+   process-local lock and read/modify/write counters, so multi-process correctness
+   is not established. Make these paths transactional/atomic for the intended
+   topology, or explicitly constrain the supported topology and test it.
 
-Native `auth.py:132` compares normalized scheme/host/port. Candidate
-`auth.py:130` accepts the same host with either HTTP or HTTPS. Preserve the
-native same-origin behavior and its trusted-proxy tests during integration.
+## Ownership integration plan
 
-## Bootstrap, links and recovery
+Candidate `queries.py` contains `owned_course`, `owned_section`,
+`owned_assessment`, `owned_student` and owner-scoped roster reads. REST routers,
+reports, chat snapshots and tools generally thread `user.id`; insights authorize
+before student-keyed cache access. Adapt these mechanisms into native services.
 
-Candidate migration backfills existing courses to deterministic
-`owner0000000`; `accounts.get_or_create_user:151` adopts that user's existing
-data for configured `accounts_owner_email`. New users receive starter data.
-`auth.request_link:302` gates delivery by user cap before owner adoption:
-when the cap is full, the still-placeholder owner's configured address is not
-an existing email and receives no link. Allow and verify that bootstrap case.
-Use the same email normalization for the configured owner and input addresses.
+Inventory every native route and query/tool entry point, including
+`student_candidates`, `iter_summaries`, `summaries_for`, `load_grade_history`,
+assessment edits, note edits/deletes, calendar/overview, backup/admin paths and
+new account lifecycle routes. Decide which system operations require operator
+access rather than ordinary account access. Scope foreign filter IDs and payload
+IDs; authorize both student and destination before transfers; authorize notes
+through their student. Authorize before cache hits or quota charges. Preserve
+uniform 404 behavior for foreign resource IDs and unchanged raw rows on denial.
 
-The observed design is passwordless: signup happens only after email-token
-verification, and requesting another link provides recovery. There is no
-password-reset implementation. Confirm that this meets the intended product
-contract before presenting password/signup/reset screens.
+Account export must retain historical assessment metadata as well as score IDs.
+Account deletion must remove owned active/history data and invalidate connected
+sessions. Preserve native deployment/persistence/backup files during integration;
+none of the older candidate manifests supersede the current Cloud Run contracts.
 
-`accounts.consume_login_token:205` atomically marks a live token consumed;
-tokens and sessions store hashes. Link replies are generic, delivery runs after
-the response, fragments keep tokens out of URL queries, and `mailer.py:71-125`
-redacts recipient/token/error contents and disables tracking. Provider delivery
-and usable production link configuration still need verification. Do not send
-real mail during tests.
+## CI evidence
 
-`get_or_create_user` checks the user cap and inserts without a shared creation
-lock or atomic cap claim. Same-email concurrent verification can reach the
-unique email insert without an `IntegrityError` handler. Quota increments
-(`accounts.py:329`) use a process-local lock and database read/modify/write;
-cross-process quota correctness is not established. Verify these concurrency
-paths against the intended deployment topology.
+At 05:05:20 UTC, current commit `c2d8edd` had **lint, API, web, E2E and Docker
+success** in
+[run 36967089684](https://github.com/jckail/superteacher/actions/runs/36967089684).
+Do not treat candidate CI as proof of compatibility with native main: it tests
+its older branch contracts. Refresh the exact head and completed checks before
+approving integration.
 
-## Required candidate checks after integration settles
+Historical commit `de52835b154bce4a2bec2d9bec73c5a508d05542` failed
+[run 36966515994](https://github.com/jckail/superteacher/actions/runs/36966515994):
 
-- Migration matrix: empty database, supported unversioned legacy database,
-  native `0001`, native integrity `0002`, and any actually deployed candidate
-  accounts `0002`. Compare raw IDs/points/notes/attendance/cache/history before
-  and after; preserve constraints and validate foreign keys. Retain native
-  `db.py:94` frozen-baseline drift refusal rather than candidate's broad
-  stamp-if-any-table logic (`db.py:79`). Check SQLite batch migration pragma
-  restoration and PostgreSQL schema behavior.
-- Two-owner route matrix covering all native additions, foreign IDs/filters,
-  batch writes, reports, exports/deletion, chat context/tools and cache hits;
-  verify denied writes leave raw rows unchanged.
-- Legacy owner adoption, full cap bootstrap, new signup and starter isolation;
-  concurrent same-email signup/cap/quotas using independent DB sessions.
-- Token expiry/replay/tampering/scanner GET, generic blocked/unknown replies,
-  fragment removal from browser history, mail privacy and delivery failure,
-  trusted proxy origin/IP, cookie flags/rotation/idle and absolute expiry.
-- Logout, logout-all, disable and delete while chat is already connected;
-  reject subsequent turns and verify ongoing-work cancellation policy.
-- Native transfer/history/metrics and numeric CSV/edit regressions, plus
-  browser email sign-in, link verification, expired-link recovery and account
-  export/delete. Reconcile candidate tests with native fixtures instead of
-  replacing native regression coverage.
+- E2E: 81 passed, 1 failed. The accounts lifecycle scenario
+  `e2e/accounts/accounts.spec.ts:44` timed out at line 101 waiting for visible
+  `getByRole('navigation', { name: 'Main' })` after signing in again. The failed
+  assertion establishes the second-sign-in step; it does not alone establish
+  the product root cause.
+- Docker: image smoke test could not reach port 8080 during its health polling
+  (connection reset, then refused connections). The failed-step log does not
+  contain the container traceback, so it does not prove the startup cause.
+- `c2d8edd` adds runtime `httpx` and time-ordered file-mailer names, with
+  `tests/test_runtime_requirements.py`. Its successful Docker and E2E reruns supersede
+  those historical failures. They do not clear the native integration blockers.
 
-Graphify's shared corpus lacks native Superteacher code coverage; source was
-inspected directly. Agent Hub did not identify the candidate checkout. No
-private material was uploaded to hosted memory.
+## Required checks after integration settles
+
+- Migration matrix: empty DB, supported unversioned legacy DB, native `0001`,
+  native integrity `0002`, and any actually existing accounts `0002` DB. Compare
+  raw IDs/points/notes/attendance/cache/history and constraints; check SQLite
+  foreign keys/pragma restoration and PostgreSQL behavior.
+- Two-owner matrix: all native additions, foreign IDs/filters, atomic batches,
+  reports/export/delete, chat context/tools/cache and operator-only endpoints.
+- Owner adoption at full cap, signup/starter isolation, concurrent same-email
+  signup/cap/quotas with independent sessions and intended worker topology.
+- Token expiry/replay/tampering/scanner GET, generic link replies, fragment
+  removal, mail privacy/failure, trusted proxy origin/IP and cookie/expiry rules.
+- Logout/logout-all/disable/delete while the original chat remains connected;
+  subsequent turns and ongoing-work cancellation policy.
+- Native transfer/history/calendar/numeric/edit regressions and browser email
+  signup, expired-link recovery, export/delete and privacy clearing. Production
+  delivery/configuration verification uses the agreed provider and no real mail
+  during automated tests.
+
+Graphify's shared corpus lacks native Superteacher code coverage; exact Git
+objects and live native sources were inspected directly. This document contains
+curated project facts only; no private material was uploaded to hosted memory.

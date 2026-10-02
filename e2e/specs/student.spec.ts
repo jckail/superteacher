@@ -14,10 +14,10 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
   await expect(page).toHaveURL(new RegExp(`/students/${c.students[0].id}$`));
   await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
 
-  // No ANTHROPIC_API_KEY: the insight card falls back to rules, and says how to enable AI.
+  // With AI unavailable, the card identifies its recorded-data basis and provides a useful headline.
   const insight = page.locator('section.insight');
   await expect(insight.getByText('Rule-based')).toBeVisible();
-  await expect(insight.getByText('ANTHROPIC_API_KEY')).toBeVisible();
+  await expect(insight.getByText('This summary uses recorded grades and attendance. AI-written suggestions are unavailable.', { exact: true })).toBeVisible();
   await expect(insight.locator('strong')).not.toBeEmpty();
 
   // notes

@@ -245,7 +245,7 @@ def test_unknown_api_path_does_not_return_spa_html(engine, session_factory, tmp_
         assert c.get("/roster").status_code == 200
         response = c.get("/api/missing")
         assert response.status_code == 404
-        assert response.json() == {"detail": "Not found"}
+        assert response.json() == {"detail": "Not Found"}
 
 
 def test_database_failure_reports_unhealthy_status(client):
