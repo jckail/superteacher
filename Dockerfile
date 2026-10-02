@@ -21,6 +21,8 @@ RUN python /tmp/install_litestream.py "$LITESTREAM_VERSION" "$LITESTREAM_SHA256"
 COPY superteacher/ ./superteacher/
 COPY alembic/ ./alembic/
 COPY alembic.ini server.py litestream.yml docker-entrypoint.sh ./
+# Do not rely on git preserving the executable bit (repos on Windows/WSL mounts often do not).
+RUN chmod 0755 /app/docker-entrypoint.sh
 COPY --from=web /web/dist ./web/dist
 
 # Non-root; data lives on a volume. Secrets (AUTH_PASSWORD, SESSION_SECRET, ANTHROPIC_API_KEY) are injected at
