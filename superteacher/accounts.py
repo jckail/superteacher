@@ -74,7 +74,11 @@ def normalize_email(raw: object) -> str | None:
     if not _LOCAL.match(local):
         return None
     labels = domain.split(".")
-    if len(labels) < 2 or not all(_LABEL.match(x) for x in labels) or labels[-1].isdigit():
+    if (
+        len(labels) < 2
+        or not all(_LABEL.match(x) for x in labels)
+        or not re.match(r"^(?:[a-z]{2,}|xn--[a-z0-9-]+)$", labels[-1])
+    ):
         return None
     return s
 

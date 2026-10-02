@@ -493,3 +493,20 @@ def test_metrics_token_unset_means_bearer_ignored(authed_app, monkeypatch):
 
 def test_metrics_open_only_when_auth_disabled(open_client):
     assert open_client.get("/api/metrics").status_code == 200
+
+
+def test_redaction_covers_accounts_secrets_and_emails():
+    from superteacher import observability as o
+
+    link = "http://x/auth/verify#token=abcDEF123_-abcDEF123_-abcDEF123_-abcDEF123"
+    out = o.redact(f"sent {link} to Jane.Doe+x@School.example.org with SG.abcdefgh12345678.ijklmnop12345678")
+    assert "abcDEF123" not in out and "Jane" not in out and "School.example.org" not in out and "SG." not in out
+    assert "[REDACTED-EMAIL]" in out
+
+
+def test_redaction_knows_the_sendgrid_setting(monkeypatch):
+    from superteacher import observability as o
+    from superteacher.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "sendgrid_api_key", "not-a-real-key-123", raising=False)
+    assert "not-a-real-key-123" not in o.redact("auth failed for key not-a-real-key-123")
