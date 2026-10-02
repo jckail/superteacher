@@ -1,7 +1,7 @@
 import type { ChangeEvent, KeyboardEvent, AriaAttributes } from 'react';
 import type { AssessmentKind, AssessmentOut, AssessmentPatch, Gradebook as GradebookData, GradebookRow } from '../types';
-import { useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
@@ -165,6 +165,22 @@ export default function Gradebook() {
   });
 
   const gb = q.data;
+  const pendingScores = useIsMutating({ mutationKey: ['gb-score'] });
+  const rolloverAttempt = useRef<{ sectionId: string; day: string } | null>(null);
+  const sectionId = section?.id;
+  const schoolDay = calendar.data?.today;
+  const cutoff = gb?.as_of;
+  const fetching = q.isFetching;
+  const readError = q.error;
+  useEffect(() => {
+    if (!ready || !sectionId || !schoolDay || !cutoff || cutoff >= schoolDay ||
+        fetching || readError || pendingScores > 0) return;
+    const previous = rolloverAttempt.current;
+    if (previous?.sectionId === sectionId && previous.day === schoolDay) return;
+    // Mark before invalidation: repeated calendar notifications cannot loop this read.
+    rolloverAttempt.current = { sectionId, day: schoolDay };
+    void qc.invalidateQueries({ queryKey: ['gradebook', sectionId], exact: true });
+  }, [ready, sectionId, schoolDay, cutoff, fetching, readError, pendingScores, qc]);
   const rows = useMemo(() => {
     if (!gb) return [];
     const get = (r: GradebookRow) => (sort.key === 'name' ? r.name.toLowerCase() : sort.key === 'avg' ? r.average : (r.points[sort.key] ?? null));
@@ -207,6 +223,8 @@ export default function Gradebook() {
       <ScopeStatus />
       <ErrorBox error={calendar.error} onRetry={() => calendar.refetch()} />
       {calendar.data && <p className="muted">School dates use {calendar.data.timezone}.</p>}
+      {gb && <p className="muted">Grades calculated through {gb.as_of}</p>}
+      {cutoff && schoolDay && cutoff < schoolDay && <p role="status">Grades are shown through {cutoff}. {readError ? 'Refresh failed. Use Retry to update them.' : 'Waiting for the latest school-day calculations.'}</p>}
       <ErrorBox error={q.error} onRetry={() => q.refetch()} />
       {q.isLoading && <Loading />}
       {gb && (gb.rows.length === 0 ? (

@@ -59,7 +59,7 @@ class ScorePoint:
 @dataclass
 class StudentMetrics:
     as_of: date = field(default_factory=school_today)
-    average: float | None = None  # 0-100
+    average: float | None = None  # percentage; may exceed 100 with extra credit
     letter: str | None = None
     gpa: float | None = None
     trend: float | None = None  # recent-3 minus earlier average, in points

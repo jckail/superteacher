@@ -242,7 +242,7 @@ describe('saved scope hydration', () => {
       if (path === '/calendar') return { timezone: 'UTC', today: '2026-10-02' };
       if (path.startsWith('/students/page?')) return { items: [], next_cursor: null, as_of: '2026-10-02', total_matches: 0, total_scoped: 0 };
       if (path.endsWith('/summary')) return { as_of: '2026-10-02', section_id: section.id, section: section.name, course: 'Saved course', students: 0, unknown: 0, on_track: 0, watch: 0, at_risk: 0, average: null, distribution: {}, assessments: [], attention: [], attendance: [], attendance_rate: null };
-      if (path.endsWith('/gradebook')) return { section, assessments: [], rows: [] };
+      if (path.endsWith('/gradebook')) return { as_of: '2026-10-02', section, assessments: [], rows: [] };
       if (path.includes('/attendance?')) return { section, day: '2026-10-02', rows: [] };
       throw new Error(`Unexpected request ${path}`);
     });

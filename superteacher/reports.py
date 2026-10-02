@@ -83,7 +83,7 @@ class AssessmentStat(BaseModel):
     due_date: date
     max_points: float
     graded: int
-    average: float | None  # all percentages are 0-100 of max points
+    average: float | None  # percentage of max points; may exceed 100 with extra credit
     median: float | None
     min: float | None
     max: float | None
@@ -237,7 +237,7 @@ def template_draft(
     elif m.average is not None:
         strengths.append(f"{first} currently has an average of {m.average:.0f}% in {course}")
     if m.trend is not None and m.trend >= 5:
-        strengths.append("recent work has improved compared with earlier in the term")
+        strengths.append("recent work has improved compared with earlier work")
     if m.attendance_rate is not None and m.attendance_rate >= 95:
         strengths.append("attendance has been excellent")
     if m.homework_rate is not None and m.homework_rate >= 90:

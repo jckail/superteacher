@@ -238,6 +238,7 @@ class GradebookRow(BaseModel):
 
 
 class Gradebook(BaseModel):
+    as_of: date
     section: SectionOut
     assessments: list[AssessmentOut]
     rows: list[GradebookRow]

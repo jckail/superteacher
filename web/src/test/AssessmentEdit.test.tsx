@@ -9,7 +9,7 @@ import { api } from '../api';
 
 vi.mock('../api', async (original) => ({ ...(await original<typeof import('../api')>()), api: vi.fn() }));
 const assessment: AssessmentOut = { id: 'quiz-1', section_id: 'section-1', title: 'Quiz', kind: 'quiz', max_points: 10, due_date: '2026-10-01' };
-const gradebook: Gradebook = { section: { id: 'section-1', course_id: 'course-1', name: 'Period 1' }, assessments: [assessment], rows: [] };
+const gradebook: Gradebook = { as_of: '2026-10-01', section: { id: 'section-1', course_id: 'course-1', name: 'Period 1' }, assessments: [assessment], rows: [] };
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const onClose = vi.fn();

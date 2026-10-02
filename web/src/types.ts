@@ -26,7 +26,7 @@ export interface NoteOut { id: string; body: string; created_at: string }
 export interface StudentDetail extends StudentSummary { as_of: string; scores: ScoreOut[]; attendance: AttendanceOut[]; absences: number; tardies: number; notes: NoteOut[] }
 export interface AssessmentOut { id: string; section_id: string; title: string; kind: AssessmentKind; max_points: number; due_date: string }
 export interface GradebookRow { student_id: string; name: string; average: number | null; letter: string | null; points: Record<string, number | null> }
-export interface Gradebook { section: SectionOut; assessments: AssessmentOut[]; rows: GradebookRow[] }
+export interface Gradebook { as_of: string; section: SectionOut; assessments: AssessmentOut[]; rows: GradebookRow[] }
 export interface ScoreEntry { student_id: string; points: number | null }
 export interface AttendanceMark { student_id: string; status: AttendanceStatus }
 export interface AttendanceSheetRow { student_id: string; name: string; status: AttendanceStatus | null }

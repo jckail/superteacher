@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import schemas
 from ..accounts import CurrentUser
 from ..auth import current_user
+from ..calendar import school_today
 from ..db import get_db
 from ..models import Assessment, Score, Section, Student
 from ..queries import load_summaries, owned_assessment, owned_section
@@ -22,17 +23,19 @@ def _section(db: Session, owner_id: str, section_id: str) -> Section:
 
 
 def build_gradebook(db: Session, owner_id: str, section: Section) -> schemas.Gradebook:
+    as_of = school_today()
     assessments = db.scalars(
         select(Assessment).where(Assessment.section_id == section.id).order_by(Assessment.due_date, Assessment.title)
     ).all()
     rows = []
-    for st, m in load_summaries(db, owner_id, section_id=section.id):
+    for st, m in load_summaries(db, owner_id, section_id=section.id, today=as_of):
         points = {a.id: None for a in assessments}  # every column present, even without a score row
         points.update({sp.assessment_id: sp.points for sp in m.scores})
         rows.append(
             schemas.GradebookRow(student_id=st.id, name=st.name, average=m.average, letter=m.letter, points=points)
         )
     return schemas.Gradebook(
+        as_of=as_of,
         section=schemas.SectionOut.model_validate(section),
         assessments=[schemas.AssessmentOut.model_validate(a) for a in assessments],
         rows=rows,
