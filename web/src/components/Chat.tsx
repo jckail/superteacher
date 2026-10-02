@@ -17,7 +17,15 @@ const SUGGESTIONS = [
   'Suggest a small-group plan for struggling students',
 ];
 const STORE = CHAT_STORE;
-const SAFE_URL = /^(https?:|mailto:)/i;
+function sameOriginUrl(href: string | undefined): string | null {
+  if (!href) return null;
+  try {
+    const url = new URL(href, window.location.href);
+    return (url.protocol === 'http:' || url.protocol === 'https:')
+      && url.origin === window.location.origin && !url.username && !url.password
+      ? url.href : null;
+  } catch { return null; }
+}
 
 const loadHistory = (): Message[] => {
   try {
@@ -34,11 +42,14 @@ const saveHistory = (messages: Message[]) => {
   } catch { /* storage unavailable */ }
 };
 
-/** Links from model output: only http(s)/mailto, always opened in a new tab without leaking the opener. */
+/** Model output may contain injected links. Only same-origin HTTP(S) destinations are clickable. */
 const mdComponents: Components = {
-  a: ({ href, children }) => (href && SAFE_URL.test(href)
-    ? <a href={href} target="_blank" rel="noopener noreferrer nofollow">{children}</a>
-    : <span>{children}</span>),
+  a: ({ href, children }) => {
+    const destination = sameOriginUrl(href);
+    return destination
+      ? <a href={destination} target="_blank" rel="noopener noreferrer nofollow">{children}</a>
+      : <span>{children}</span>;
+  },
   img: ({ alt }) => <span>{alt}</span>,
 };
 
