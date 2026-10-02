@@ -93,8 +93,8 @@ exited75 when shared-gate admission expired, before the helper started. No inten
 build proof, image or cloud mutation exists; the private blocker receipt is saved.
 Do not retry this source unchanged. No deployment has
 executed for this source. Earlier112 build queue75 remains preserved, with no
-unchanged retry. The saved goal reports blocked; the user's resume instruction
-authorizes continuing the original scope without creating a replacement goal.
+unchanged retry. The goal was blocked at that historical checkpoint; it is now active under the
+user's resume instruction, with its original scope preserved.
 
 Reviewed Reports draft settlement is integrated locally as `890658e` (isolated
 `47f5b4f`). Root established RED: unchanged control passed, pending teacher edits
@@ -941,7 +941,7 @@ objects were read. Use the isolated preview flow in `CLOUD_SQL_PLAN.md`, includi
 the deliberately invalid preview credential, without apply/destroy/plan output.
 Do not provision it merely to deploy the accepted Litestream branch.
 
-## Current coordination and integration holds (2026-10-02)
+## Coordination and integration review history (2026-10-02)
 
 Direct AgentMon and Linear tools now work for this session. The existing release
 issue is [JCK-51](https://linear.app/jckail/issue/JCK-51/promote-main-to-the-live-service-database-lineage-accounts-0002-vs)
@@ -950,8 +950,8 @@ release execution and verification ownership. Agent Hub still does not resolve
 this checkout to a configured project-memory scope; curated local checkpoints
 remain the fallback. Registration and heartbeats do not establish execution.
 
-PR72 exact head `db32c1af53e05c20a1e8e1f8b4f489f7f286a41e` has seven-job CI
-and Bugbot success, but source review holds integration. Before starting the
+At the initial review, PR72 exact head `db32c1af53e05c20a1e8e1f8b4f489f7f286a41e`
+had seven-job CI and Bugbot success, but source review held integration. Before starting the
 auth-disabled demo backend, managed SQLite and sidecar paths need explicit alias
 rejection; the internal installation entry must preserve the worktree lock and
 shared verification gate. Findings are recorded on the existing
@@ -1020,3 +1020,70 @@ install/startup remains unverified.
 Canonical incremental index attempt10310 exited75 on shared admission timeout;
 no source refresh is claimed or repeated. The prior source257 index remains
 historical; current login definitions were checked against live source.
+
+
+## Developer setup and proxy source batch (2026-10-02)
+
+PR72 final head `a9b363a90ef34b2880122b7fa118238bdca53c33` passed
+49 focused author tests, independent final SPEC/QUALITY review and all seven CI
+jobs plus Bugbot in [CI37058773242](https://github.com/jckail/superteacher/actions/runs/37058773242).
+It merged as `d732834503a79d87228b404da0d3da3299c3ef35`. Managed database
+and SQLite sidecar aliases are refused before synthetic startup; installation
+retains the worktree lock and shared gate, and its child reports expected failures
+with the launcher's friendly message and exit status2. Root's actual read-only
+`python scripts/dev.py --check` passed and reported dependencies needing managed
+setup. Actual clean-clone installation/startup and optional dev-container work
+remain open under [JCK-72](https://linear.app/jckail/issue/JCK-72/developer-experience-one-command-setup-and-dev-container).
+The author's merged bootstrap tree is released from root's recovery reservation;
+other verification/recovery reservations remain in force.
+
+PR71 exact head `7c9c91993dc91929650d1c12403f23dbcacbf268` passed 61 focused
+checks, security and current-parent reviews, and seven-job CI plus Bugbot in
+[CI37042076565](https://github.com/jckail/superteacher/actions/runs/37042076565).
+It merged as `2989e6faaebe9a4ee24adbdb7fcd1d02c7ab740b`. Trusted forwarded
+hops remain0. Enabling them requires actual ingress/header suffix and direct-access
+exclusion verification under [JCK-62](https://linear.app/jckail/issue/JCK-62/harden-login-lockout-against-rotating-x-forwarded-for-f-05);
+this source integration changes no deployment environment or trust setting.
+
+Combined source2989 passed all seven jobs in
+[CI37059941317](https://github.com/jckail/superteacher/actions/runs/37059941317),
+including 1472 API tests in189.84s and 259 Docker tests in33.76s. Root captured
+private authentic CI metadata/full logs; CI-state SHA256 is
+`edfbc24da6ddebe6d7d5bc176c4037f8e922e023fcd8d7330347b8c7b00d4a66`.
+The archive SHA256 is
+`095fd7802906ce6751c352b01d9359f542752412202e801f2b600596d3d0a8be`.
+Independent preparation review verified all303 Git-matching files/332 context
+entries and executable modes. Root validated the frozen helper and authentic
+final CI binding before the single protected build attempt, session1580.
+Session1580 exited0. Cloud Build `e4993b7b-5b02-4484-81d7-d481dd30cf85`
+completed SUCCESS at20:34:33.047570Z, producing immutable image
+`gcr.io/portfolio-383615/superteacher@sha256:04c20ffaf6079726eb9537c0dd53dcc899c977edce01b5cbca26b47b01c03224`.
+Root verified state, source/archive/CI bindings, exact tag and digest. Build-proof
+SHA256 is `5d2333e985f1e7d100efb982795da131b0bfe57f111699f1e25b7bd37fe91bce`.
+No runtime acceptance is inferred. The source257 private candidate remains unchanged.
+The earlier accessibility combined CI37056428667 also completed all seven jobs
+successfully after its integration checkpoint above.
+
+Canonical source2989 incremental index attempt17310 exited75 before refresh;
+no unchanged retry followed. The prior source257 index remains historical, and
+new source review uses live files. Shared Graphify refresh skipped an active
+writer. The independent performance-budget author lane, PR77/JCK-57, remains
+separate pending root review and final checks. Private-platform continuation,
+synthetic runtime workflows, restore/integrity, production lineage/drain/rollback,
+real-provider/email acceptance and domain cutover remain required.
+
+
+PR77 original head `237619fdc6d8985a20b2f1692b557e298dcde513` passed
+seven-job CI, but its Bugbot finding and root follow-up review hold integration:
+the existing benchmark orchestration can reduce15 requested samples to5 when
+its probe includes slow cleanup, while the new checker requires15. The author pushed repaired head `52720f2e076ed2928ad5f82083efc3a188a986ff`
+with98 focused checks and fixed CI sample counts; fresh CI and root final review
+remain pending. Prior green CI does not dismiss this boundary. Root preserves source ownership and avoids
+duplicate benchmark edits.
+
+The successful build released the shared verification gate. After fresh live-job
+inspection and hash-pinned local continuation inputs passed, root began one
+changed-capacity read-only candidate admission. This is separate from the earlier
+admission75; any new refusal will be preserved without unchanged retries. Session92861 exited75 before the helper started; root verified the continuation
+intent/success/failure outputs remain absent and saved a separate private blocker.
+No cloud call or unchanged retry followed. Continuation success remains absent.
