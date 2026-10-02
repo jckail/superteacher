@@ -59,6 +59,16 @@ new-service no-token denial/token handshake, configuration, synthetic workflows
 and restore still require execution. No candidate service was created by these
 probes. Preserve all prior queue75 and failure receipts without unchanged retries.
 
+The private create-only helper is prepared outside Git and independently approved
+at SHA256 `4d893b7f9a955f90f03c60e041efbb691cf29b30006b6870e5657508603d72d6`.
+Review corrected receipt-schema compatibility, pre-create token acquisition and
+revision-read authority checks. Root's controlled missing-manifest entrypoint
+check passed with zero CLI/HTTP calls and no phase files. Initial test-harness
+bytecode bookkeeping was diagnosed and corrected without cache deletion.
+This is preparation/negative-gate evidence only: no manifest, successful112 build,
+new service, synthetic workflow, or restore receipt exists. Do not execute until
+an eligible accepted artifact and reviewed manifest are available.
+
 Shared Graphify refreshed successfully (164506 nodes) but excludes native
 Superteacher source. Canonical code-context indexing completed under its internal shared gate
 (session55212): 201 files, 1744 chunks, no warnings. Semantic ParentComposer/Insight
