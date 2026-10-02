@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, AriaAttributes } from 'react';
 import type { AssessmentKind, AssessmentOut, AssessmentPatch, Gradebook as GradebookData, GradebookRow } from '../types';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
@@ -92,6 +92,7 @@ export function EditAssessment({ assessment, onClose }: { assessment: Assessment
  * `onSave(points)` may return a promise; if it rejects the draft reverts.
  */
 export function ScoreCell({ value, max, onSave, label, onNav, cell = '' }: ScoreCellProps) {
+  const descriptionId = useId();
   const [draft, setDraft] = useState<number | string>(value ?? '');
   const [prev, setPrev] = useState(value);
   const revision = useRef(0);
@@ -120,9 +121,16 @@ export function ScoreCell({ value, max, onSave, label, onNav, cell = '' }: Score
   return (
     <>
       <input className={`grade-input num ${value == null && text === '' ? 'missing' : ''} ${invalid ? 'invalid' : ''}`} inputMode="decimal" autoComplete="off"
-        aria-label={label} aria-invalid={invalid || undefined} title={`out of ${max}`} data-cell={cell}
+        aria-label={label} aria-invalid={invalid || undefined} aria-describedby={`${descriptionId}-help${over || invalid ? ` ${descriptionId}-warning` : ''}`}
+        title={max == null ? undefined : `out of ${max}`} data-cell={cell}
         value={draft} onChange={(e) => { revision.current += 1; setDraft(e.target.value); }} onBlur={commit} onKeyDown={onKeyDown} />
-      {(over || invalid) && <span className="cell-warn" role="status">{invalid ? 'Enter a number ≥ 0' : `Over ${max}`}</span>}
+      <span className="sr-only" id={`${descriptionId}-help`}>
+        {max != null && <>Score out of {max}. Scores above this maximum are allowed as extra credit. </>}
+        Leave blank for no recorded score.
+      </span>
+      {(over || invalid) && <span className="cell-warn" role="status" id={`${descriptionId}-warning`}>
+        <span className="sr-only">{label}: </span>{invalid ? 'Enter a number ≥ 0' : `Over ${max}`}
+      </span>}
     </>
   );
 }
