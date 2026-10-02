@@ -40,7 +40,7 @@ export default function SmallGroupBuilder({ gradebook, sectionId, schoolDay, set
     </div>
     {result.error && <p role="status">{result.error}</p>}
     {!result.error && !result.groups.length && <p>No students match this evidence.</p>}
-    {result.withoutEvidence > 0 && <p>{result.withoutEvidence} students lack enough score evidence for this choice and are excluded.</p>}
+    {result.withoutEvidence > 0 && <p>{result.withoutEvidence} {result.withoutEvidence === 1 ? 'student lacks' : 'students lack'} enough score evidence for this choice and {result.withoutEvidence === 1 ? 'is' : 'are'} excluded.</p>}
     {current.mode === 'weak' && <p className="muted">Percentages weight each graded assignment by its possible points. Unscored and future work are excluded; extra credit is preserved.</p>}
     {result.groups.map((group, index) => <div key={group.id} role="group" aria-label={`Suggested group ${index + 1}`}>
       <h3>Group {index + 1} · {group.label}</h3>

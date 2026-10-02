@@ -45,7 +45,7 @@ it('shows weighted zero evidence without assigning unscored or genuinely strong 
   const { user } = setup(); await user.selectOptions(screen.getByLabelText('Group by'), 'weak');
   expect(group().getByText('Zero · 0%')).toBeInTheDocument();
   expect(group().queryByText(/Weighted/)).not.toBeInTheDocument();
-  expect(screen.getByText(/1 students lack enough score evidence/)).toBeInTheDocument();
+  expect(screen.getByText(/1 student lacks enough score evidence/)).toBeInTheDocument();
   await user.click(group().getByText('Recorded evidence for group 1'));
   expect(group().getByText('Quiz · due 2026-10-02 · 0 / 10')).toBeInTheDocument();
 });
