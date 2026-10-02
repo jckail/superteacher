@@ -4,6 +4,23 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+Reviewed source `4f7ba66` is serving isolated staging revision `00004-hlb`.
+[CI37003990788](https://github.com/jckail/superteacher/actions/runs/37003990788)
+passed all gates: 1266 API tests without skips/xfails, 184 web, four browser and
+83 E2E cases. Its Docker smoke reproduces restricted release-directory permissions.
+Protected immutable-image build succeeded, and synthetic HTTP workflows, scoped
+cursor/CSV/account exports, raw historical precision, section preflight and
+copied-cookie logout passed. Independent read-only replica recovery execution
+`superteacher-overhaul-recovery-4f7ba66-p4rlv` succeeded at 12:12:26 UTC; integrity,
+native head `0003`, transfer/history and raw precision passed. Staging receipt
+readback also passed. This is not a final production drain or zero-loss RPO claim.
+Source/artifact/prefix bindings and preserved failure evidence are recorded in
+[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). Production remains unchanged.
+Class-summary optimization and grading-calendar/model follow-ups remain separate
+work; the full overhaul is active.
+
+Earlier successful release:
+
 Reviewed source `3e6629c` adds roster API/client pagination and
 CSV/account JSON streaming. Root focused verification: 67 pagination/CSV,
 12 account stream, two CORS and 50 frontend/session cases passed. Two new

@@ -10,14 +10,23 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
-Current feature milestone through `c95d9f9`: independently reviewed roster API
+Current release `4f7ba66` passed every exact CI gate (1266 API, 184 web, four
+browser, 83 E2E tests) and serves isolated staging revision `00004-hlb`. It includes
+the reviewed saved-scope fix, bounded Reports picker/section preflight, offline
+viewer/source compatibility and container permissions correction. Synthetic HTTP
+workflow/export/history/logout checks and independent read-only replica restore
+passed. Integrity/head `0003`, transfer/history/raw precision and staging receipt
+readback passed. Production traffic and domains remain unchanged. See the deployment
+ledger for exact artifact bindings and the preserved rejected candidate.
+
+Earlier feature milestone through `c95d9f9`: independently reviewed roster API
 and client pagination, CSV streaming and account JSON streaming. Root verified
 67 pagination/CSV, 12 account-stream, two CORS and 50 frontend/session focused
 cases. Two added PostgreSQL cases require the real CI service and skipped locally.
 Full history scans/CPU, assessment width, single large records and browser blob
 buffering remain distinct from bounded ranking/output/fetch batches. Broad
-exact-head verification and a new serving image remain pending; the deployment
-ledger separates these facts from the last fully verified main release.
+exact-head verification and a new serving image subsequently passed as recorded
+above; the deployment ledger separates staging from production acceptance.
 
 These statements describe inspected source, not a claim that every current check passes or that the public host serves this code.
 
@@ -32,7 +41,7 @@ These statements describe inspected source, not a claim that every current check
 | Runtime safety | Public health in `main.py` now logs database failures privately and returns sanitized HTTP 503. API responses are no-store, unknown API paths return 404 instead of SPA HTML, and injected app database factories apply to REST. | Duplicate shadowed health/version handlers were removed; the public handlers are the sole definitions. |
 | Frontend reliability | Attendance captures section/day in mutation variables; reports bound extra-credit bar width; chat detaches stale socket handlers and bounds stored conversation history. Focus, mobile styles, and reduced-motion CSS exist. | Component regressions cover concurrent writes and private-session boundaries. Chromium browser workflow and WCAG checks are being verified; full screen-reader and production-release coverage remains open. |
 | Migrations | Alembic baseline `0001` and startup upgrade path exist. `tests/test_migrations.py` checks schema shape, metadata drift, repeat startup, and legacy data preservation. | Native chain is 0001 -> 0002 -> 0003. Independently published accounts0002 needs the explicit offline adoption bridge; it is separate from legacy EduTrack conversion. |
-| Delivery | CI defines Python lint/tests, frontend lint/tests/build, Docker build and basic auth/SPA smoke tests. Deployment docs cover passcodes, secrets, migration and backup commands. | Main5113de8 passed all CI gates,996APItests/1knownxfail. Source7166813 is deployed to isolated staging with synthetic writes and independent replica restore verified. Production domain remains legacy. |
+| Delivery | Exact-source CI covers Python, strict frontend checks, browser workflows and restricted-directory Docker/auth smoke. Deployment binds an immutable digest and fresh isolated replica. | Source4f7ba66 passed all gates:1266API/no skippedxfail,184web,4browser,83E2E. Staging00004-hlb serves it; synthetic HTTP and independent read-only restore/readback passed. Production domain remains legacy. |
 
 ## Public deployment evidence
 

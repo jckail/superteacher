@@ -7,6 +7,46 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `4f7ba66bb320c4453dbe39afc9ce8246a4dc208c` is pushed to main and the
+working branch. Exact-source
+[CI37003990788](https://github.com/jckail/superteacher/actions/runs/37003990788)
+passed every gate: 1266 API tests without skips/xfails (including real PostgreSQL),
+184 web tests, four browser tests, 83 E2E tests, lint/types/build, Docker/auth smoke
+and the informational benchmark. The Docker job reproduces mode-0700 source
+directories before building and verifies startup as the nonroot runtime user.
+This release includes saved-scope readiness, the bounded Reports student picker
+and expected-section preflight, the offline archive viewer and its importer-source
+compatibility guard. Independent reviews and focused checks passed.
+
+Protected Cloud Build `258adca0-b0b4-43de-8a32-39e992bcad80` succeeded at
+12:05:08 UTC from an immutable Git archive (SHA256
+`9a42ccf28829c6ad31c8dfbe215227aaff21ee2d39fd78ffb365a8c61c3e7659`).
+Image: `gcr.io/portfolio-383615/superteacher@sha256:0b1cf21c796876f6aa492f5956913b78ebd61d401c044d4eb23648bb0283c301`.
+Ready staging revision `superteacher-overhaul-staging-00004-hlb` serves it at 100%,
+with full-SHA VERSION and a verified fresh replica prefix
+`overhaul-staging/4f7ba66bb320c4453dbe39afc9ce8246a4dc208c-c7513fa2af8a`.
+AI/demo disabled; max one instance, no minimum. Synthetic creation, transfer,
+history/raw precision, login/logout and copied-cookie revocation passed. Extra
+HTTP checks passed scoped header continuations/counts, Unicode/BOM/CRLF CSV,
+historical account JSON, transferred-student section-preflight rejection and a
+matching-section template draft. Private receipts/credentials stay outside Git.
+Recovery-only execution `superteacher-overhaul-recovery-4f7ba66-p4rlv` succeeded
+at 12:12:26 UTC. The exact image/prefix restored into fresh transient SQLite and
+verified integrity/FKs/head `0003`, transfer history, notes, attendance and both
+raw extra-credit values. Its entrypoint is overridden: it never starts a server
+or replica writer. Structured logs and subsequent staging receipt readback passed.
+This proves those staged records restored; final production drain and zero-loss
+RPO remain unproven.
+Fresh metadata confirms native `00006-cjv` and legacy `00018-t58` remain Ready at
+100%, with no production traffic/domain change.
+
+The next class-summary optimization is in progress in source, separately from this
+pinned artifact. Gradebook school-day refresh and truthful template wording are
+documented follow-ups. Full terms/policies/enrollment, real-data owner/recipient
+authority, runtime IAM, AI evaluation and final production cutover remain open.
+
+### Earlier rejected candidate and preserved successful release
+
 Source `aeb32ad` is pushed to main and the working branch. Exact-source
 [CI37000556887](https://github.com/jckail/superteacher/actions/runs/37000556887)
 passed all gates: 1252 API tests without skips/xfails, 166 web tests, four browser
@@ -17,12 +57,12 @@ bundle's compatibility counts without creating a recipient report or approval.
 Its Cloud Build succeeded, but staging revision `00003-zv9` failed before receiving
 traffic: private archive extraction created root-owned nested directories with
 mode 0700, preventing the nonroot runtime from importing router modules. Existing
-revision `00002-jqp` remains at 100%; fresh public health/version probes confirmed
+revision `00002-jqp` remained at 100%; fresh public health/version probes confirmed
 healthy database access and source `3e6629c`. The failed image and replica prefix
-are preserved. A corrective Dockerfile permission change and CI reproduction are
-under review; the next candidate requires a new image and fresh replica prefix.
-The report picker and importer source compatibility follow-up are being completed
-separately. Production traffic and domain mappings remain unchanged.
+are preserved. Docker correction `59d406a`, the CI reproduction and a fresh image
+resolved this in release `4f7ba66`. The failed prefix was not reused. Its first
+combined CI run found an ambiguous legacy Student locator; `4f7ba66` narrows that
+locator without weakening assertions and adds distinct-ID/duplicate-name coverage.
 
 Source `3e6629c` implements roster pagination (`4ad8c5b`), CSV streaming
 (`5890342`), account JSON streaming (`464136a`), and the roster client
@@ -42,7 +82,7 @@ Protected foreground Cloud Build `3bc0704a-fe6a-4264-80b8-e1ef47ec0b8b`
 succeeded at 10:51:11 UTC from a Git archive of that exact source (SHA256
 `b70b141fc4298f98cd53f1be3cbbf427e5dcb3af5fcee1a7c6f818c23353af20`).
 Image: `gcr.io/portfolio-383615/superteacher@sha256:64212aa76b885ce196c59eba50388a91f096b390f952d1bd82a27c7029907c81`.
-Isolated staging revision `superteacher-overhaul-staging-00002-jqp` serves it,
+Isolated staging revision `superteacher-overhaul-staging-00002-jqp` served it,
 with VERSION equal to full source SHA and a verified fresh replica prefix
 `overhaul-staging/3e6629cdacd622721290a9d4ff4c89b4d78cbe9b-b59e6468eb20`.
 AI/demo disabled; max one instance, no minimum. Synthetic creation, raw precision,
@@ -67,9 +107,10 @@ browser blob downloads remain buffered. Streams join cleanup before response
 exit, including repeated cancellation. Live reads are not database snapshots.
 See [roster_pagination_exports.md](plans/roster_pagination_exports.md).
 
-The saved-scope fix preserves shell/signout and distinguishes pending, failed,
-missing and valid empty scopes. It is merged and passed exact CI, but is not part
-of the currently serving staging image. The offline archive viewer is also merged;
+At the earlier `3e6629c` checkpoint, the saved-scope fix was merged and had passed
+exact CI but was not part of that image. It now serves in `4f7ba66`, preserving
+shell/signout and distinguishing pending, failed, missing and valid empty scopes.
+The offline archive viewer also serves in the newer image;
 real-data recipient/owner approval and native authenticated integration remain open.
 
 Linear/Obsidian integrations are unavailable in this session, and Agent Hub does
