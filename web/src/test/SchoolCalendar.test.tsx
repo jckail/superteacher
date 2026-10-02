@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -33,8 +33,11 @@ it('uses the school date for attendance and preserves a manually selected day ac
   fireEvent.change(date, { target: { value: '2026-09-29' } });
   await vi.waitFor(() => expect(api).toHaveBeenCalledWith('/sections/class/attendance?day=2026-09-29', { signal: expect.any(AbortSignal) }));
   await act(async () => { client.setQueryData(['school-calendar'], { timezone: 'America/Los_Angeles', today: '2026-10-01' }); });
-  expect(date).toHaveValue('2026-09-29');
-  expect(date).toHaveAttribute('max', '2026-10-01');
+  // React Query notifies subscribers asynchronously after the cache update.
+  await waitFor(() => {
+    expect(date).toHaveAttribute('max', '2026-10-01');
+    expect(date).toHaveValue('2026-09-29');
+  });
 });
 
 it('does not request or show attendance with an unavailable school calendar', async () => {
