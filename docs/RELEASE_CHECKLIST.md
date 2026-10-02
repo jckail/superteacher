@@ -4,7 +4,23 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
-Reviewed source `07974de` serves isolated staging revision `00005-klh`.
+Reviewed source `c3277b4` serves isolated staging revision `00006-fl2`.
+[CI37010699744](https://github.com/jckail/superteacher/actions/runs/37010699744)
+passed all gates: 1309 API without skips/xfails, 194 web, four browser and 83 E2E
+cases. Actual Python 3.12.15 image checks passed version/UID/imports/inventory,
+259 focused runtime compatibility cases and existing restricted-directory auth/
+startup smoke. Root's 95 Overview regressions and independent reviews passed.
+Protected immutable build and synthetic Overview/summary/cutoff/history/precision,
+export/preflight/logout checks passed. Recovery-only execution
+`superteacher-overhaul-recovery-c3277b4-hlwcb` succeeded at 13:20:46 UTC; structured
+integrity/FKs/head `0003`, history and both raw-score proofs passed. Final-image
+Python 3.12.15/inventory and staging receipt readback passed. All 39 prior observed
+package resolutions matched; no final drain or zero-loss RPO claim. Exact evidence
+belongs in the deployment ledger. Production traffic and custom-domain mappings remain unchanged.
+
+Previous verified summary and calendar release:
+
+Reviewed source `07974de` previously served isolated staging revision `00005-klh`.
 [CI37007214732](https://github.com/jckail/superteacher/actions/runs/37007214732)
 passed all gates: 1294 API without skips/xfails, 194 web, four browser and 83 E2E
 cases, including real PostgreSQL summary cursors and restricted-directory Docker

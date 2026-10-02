@@ -10,17 +10,18 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
-Current release `07974de` passed every exact CI gate (1294 API, 194 web, four
-browser, 83 E2E tests) and serves isolated staging revision `00005-klh`. It adds
-reviewed class-summary column reads/batches, server Gradebook cutoff and forward
-school-day refresh, and truthful template wording to the earlier saved-scope,
-Reports picker, archive-viewer and container-permission fixes. Real PostgreSQL
-summary cursor parity passed. Synthetic HTTP summary/cutoff, workflow/export,
-history/raw precision and logout checks passed. Independent recovery-only
-execution `07974de-xq7gr` passed integrity/FKs/head `0003`, history and both raw
-scores at 12:56:40 UTC; subsequent staging receipt readback passed. Earlier
-`4f7ba66` restore evidence is preserved. Production traffic and domains remain unchanged.
-See the deployment ledger for exact artifact bindings and preserved failure evidence.
+Current release `c3277b4` passed every exact CI gate (1309 API, 194 web, four
+browser, 83 E2E tests) and serves isolated staging revision `00006-fl2`. It adds
+bounded Overview attention retention and digest-pinned Python 3.12.15 to the
+reviewed summary/cutoff/scope/picker/archive/container work. Actual-image checks
+passed version/UID/imports/inventory, 259 focused runtime cases and unchanged
+production dependency versions in the temporary test environment. Synthetic HTTP
+Overview/summary/cutoff, workflows/history/precision, exports and logout passed.
+Independent recovery-only execution `c3277b4-hlwcb` passed integrity/FKs/head
+`0003`, transfer/history/raw precision at 13:20:46 UTC. Executed final-image
+Python 3.12.15/inventory and subsequent staging receipt readback passed; all 39
+prior observed package resolutions matched. Previous `07974de` evidence is preserved. Production traffic and
+domains remain unchanged. See the deployment ledger for exact artifact bindings.
 
 Earlier feature milestone through `c95d9f9`: independently reviewed roster API
 and client pagination, CSV streaming and account JSON streaming. Root verified
@@ -44,7 +45,7 @@ These statements describe inspected source, not a claim that every current check
 | Runtime safety | Public health in `main.py` now logs database failures privately and returns sanitized HTTP 503. API responses are no-store, unknown API paths return 404 instead of SPA HTML, and injected app database factories apply to REST. | Duplicate shadowed health/version handlers were removed; the public handlers are the sole definitions. |
 | Frontend reliability | Attendance captures section/day in mutation variables; reports bound extra-credit bar width; chat detaches stale socket handlers and bounds stored conversation history. Focus, mobile styles, and reduced-motion CSS exist. | Component regressions cover concurrent writes and private-session boundaries. Chromium browser workflow and WCAG checks are being verified; full screen-reader and production-release coverage remains open. |
 | Migrations | Alembic baseline `0001` and startup upgrade path exist. `tests/test_migrations.py` checks schema shape, metadata drift, repeat startup, and legacy data preservation. | Native chain is 0001 -> 0002 -> 0003. Independently published accounts0002 needs the explicit offline adoption bridge; it is separate from legacy EduTrack conversion. |
-| Delivery | Exact-source CI covers Python, strict frontend checks, browser workflows and restricted-directory Docker/auth smoke. Deployment binds an immutable digest and fresh isolated replica. | Source07974de passed all gates:1294API/no skippedxfail,194web,4browser,83E2E. Staging00005-klh serves it; synthetic HTTP and independent restore/readback passed; integrity/FKs/head0003 and raw history preserved. Production domain remains legacy. |
+| Delivery | Exact-source CI covers Python, strict frontend checks, browser workflows and restricted-directory Docker/auth smoke. Deployment binds an immutable digest and fresh isolated replica. | Sourcec3277b4 passed all gates:1309API/no skippedxfail,194web,4browser,83E2E and259actual-runtime focused cases. Staging00006-fl2 serves it; synthetic HTTP and independent restore/inventory/readback passed; integrity/FKs/head0003 and raw history preserved. Production unchanged. Production domain remains legacy. |
 
 ## Public deployment evidence
 
@@ -67,7 +68,7 @@ Priority 0 means a release integrity or data safety prerequisite. Priority 1 mea
 | P1 — model integrity | Database-enforced grade-level/points/max-points/enum invariants are implemented and tested. Define assessment edits, enrollment/transfer history, academic terms, archive/delete behavior, and note management. Transfers now preserve old scores/history and exclude old-section scores from active metrics; academic terms, archive policy and dated enrollment remain open. | Reviewed migration and data-policy decisions, direct invalid database writes rejected, preserved transfer/history examples, CRUD integration tests and UI workflows. |
 | P1 — grading policy | Make weights, grade thresholds, missing-work treatment, extra credit, attendance scope and reporting periods explicit and configurable at the appropriate level. Current weights/thresholds are module constants. | Hand-computed fixtures prove each configured policy across overview, roster, detail, reports and AI; future/due work and extra credit handled consistently. |
 | P1 — concurrent writes | Prevent old grade/attendance requests from overwriting newer intent and provide visible pending/success/error states. Client rollback alone cannot enforce ordering of server commits. | Deliberately reordered requests and failed saves preserve the latest intended state; switching section/day/student cannot apply stale results to a different record. |
-| P1 — backend scale | Introduce bounded pagination/filtering where appropriate and measure representative large datasets. Summary history and AI tool candidates are bounded/streamed; true API pagination, broad export bounds and representative production capacity remain open. | Dataset/load definition, latency/memory/query-count measurements, pagination contract and UI, scoped tool queries, no regressions in computed metrics. |
+| P1 — backend scale | Introduce bounded pagination/filtering where appropriate and measure representative large datasets. Roster API/client pagination, column-batched summary and streamed CSV/account exports are implemented. Overview retains at most eight attention candidates; scalar means and full history scans remain. Other complete matrices, individual large values, browser buffering and representative capacity measurements remain open. | Dataset/load definition, latency/memory/query-count measurements, pagination contract and UI, scoped tool queries, no regressions in computed metrics. |
 | P1 — AI reliability | Unify provider-client lifetime, explicit timeout/retry rules, structured output validation and cancellation across chat, insight and parent updates. Chat, insights and parent drafts now close provider clients; parent drafts have a 30-second SDK timeout and 45-second total deadline. All three workloads share a bounded provider budget and total deadlines; real-provider evaluation and cross-worker admission policy remain open. | Fake and real-provider smoke tests, provider failures/timeouts, concurrent calls, cancellation, fallback provenance and no leaked resources. |
 | P1 — AI grounding | Apply the same untrusted-text hygiene to parent updates as chat/insights. Parent-update context now sanitizes and bounds names/titles in a separate student-record block and omits notes. Adversarial regression tests exist; factuality and privacy evaluation remain open. Add evaluated factuality and privacy checks rather than relying on prompt wording. | Malicious delimiter/instruction fixtures stay data; drafts cannot cite other students or disclose private notes; benchmark questions compare statements with underlying records. |
 | P1 — AI usefulness | Build reviewable teaching actions from insight/chat findings: concrete intervention plans with supporting records and teacher confirmation before any persistent action. Current tools are read-only searches/statistics. | Representative teacher tasks produce traceable evidence and editable actions; stale data is identified; any future writes require explicit user intent and authorization. |

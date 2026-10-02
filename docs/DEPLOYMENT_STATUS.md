@@ -7,6 +7,58 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `c3277b4ea55617f0adce5521a26422ec54e77b77` is pushed to main and the
+working branch. Exact-source
+[CI37010699744](https://github.com/jckail/superteacher/actions/runs/37010699744)
+passed all gates: 1309 API tests without skips/xfails including real PostgreSQL,
+194 web tests, four browser tests, 83 E2E tests, lint/types/build, Docker/auth
+smoke and the informational benchmark. Independent reviews and root's 95 focused
+Overview regressions passed.
+
+This release retains at most eight Overview attention candidates while preserving
+native scalar means, counts, stable ordering, the missing-average sentinel and
+full DTOs. Scalar mean storage remains O(N); full population/history scans and
+existing batch histories remain. It also pins Python 3.12.15 Bookworm to a verified
+base digest. Actual-image checks confirmed Python 3.12.15, UID 10001, imports,
+OpenSSL 3.0.22 and SQLite 3.40.1. A disposable constrained pytest environment kept
+all 40 production distribution versions unchanged and passed 259 Unicode/security,
+account-token, archive and streaming cases. CI's native API runner used 3.12.14.
+All 39 prior observed pip-install resolutions matched the CI image inventory;
+this is narrower than a full prior executed runtime inventory. See
+[runtime maintenance](plans/runtime_maintenance.md) for evidence and limits.
+
+Protected Cloud Build `5ebbab7c-acbf-494d-95c3-9926180ff099` succeeded at
+13:14:12 UTC from an immutable Git archive (SHA256
+`e40d2e8fcc9cbec8c0c5926936ea10bb9d1cafce91319d39a0a6604b141b2b98`).
+Image: `gcr.io/portfolio-383615/superteacher@sha256:0618d422f3daa90b93c5760843d011a5dab29ddb4572e9cca837a664930a35d4`.
+Ready staging revision `superteacher-overhaul-staging-00006-fl2` serves it at 100%,
+with full-SHA VERSION and a verified fresh replica prefix
+`overhaul-staging/c3277b4ea55617f0adce5521a26422ec54e77b77-9df38b9db3d4`.
+AI/demo disabled; max one instance, no minimum. Synthetic HTTP checks passed
+creation/transfer/history/raw precision, Overview counts/native precision,
+summary statistics and Gradebook cutoff, cursor/CSV/account exports, parent-update
+section preflight and copied-cookie logout. Private credentials/receipts remain
+outside Git. Recovery-only execution
+`superteacher-overhaul-recovery-c3277b4-hlwcb` succeeded at 13:20:46 UTC.
+The exact image/prefix restored into fresh transient SQLite and verified integrity,
+foreign keys, native head `0003`, transfer history, notes, attendance and both raw
+extra-credit values. Both structured restore proofs and staging receipt readback
+passed. The overridden entrypoint never starts a server or replica writer.
+Executed final-image inventory confirmed Python 3.12.15, OpenSSL 3.0.22, SQLite
+3.40.1 and 40 distributions; all 39 prior observed package resolutions matched.
+Fresh metadata confirms native `00006-cjv` and legacy `00018-t58` remain Ready at
+100%; production traffic/domain mappings are unchanged. Final writer drain and
+zero-loss RPO remain unproven.
+
+Next: finish and independently review the Overview date-freshness slice, which
+is being implemented separately; this pinned artifact has no Overview
+cutoff or mounted school-day refresh. Other date consumers, dedicated runtime IAM,
+full grading policies/terms/enrollment, permitted real-provider evaluation and
+final dataset/writer-drain/rollback/domain cutover remain open. The original
+unbudgeted overhaul goal is active.
+
+### Previous verified summary and Gradebook release
+
 Source `07974de1753012da8a91d7d315bf2598925f0e8b` is pushed to main and the
 working branch. Exact-source
 [CI37007214732](https://github.com/jckail/superteacher/actions/runs/37007214732)
@@ -28,7 +80,7 @@ Protected Cloud Build `1762afb6-60b9-4f5b-94f1-f06016f2c600` succeeded at
 12:42:28 UTC from an immutable Git archive (SHA256
 `778afd78ff710c8911b1841ba413ea7a2188e39a22f81698a0b8ba521d6b54bd`).
 Image: `gcr.io/portfolio-383615/superteacher@sha256:8f39a734a448ded639687501960bce4a38b20c3d86da8c016ae009909400cd2c`.
-Ready staging revision `superteacher-overhaul-staging-00005-klh` serves it at 100%,
+Staging revision `superteacher-overhaul-staging-00005-klh` previously served it at 100%,
 with full-SHA VERSION and a verified fresh replica prefix
 `overhaul-staging/07974de1753012da8a91d7d315bf2598925f0e8b-08e06248b6cb`.
 AI/demo disabled; max one instance, no minimum. Synthetic HTTP checks passed

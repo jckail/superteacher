@@ -296,3 +296,21 @@ on forward school days; it still returns a full matrix.
 No full metric/history CPU or global
 memory bound, snapshot, browser streaming download or latency guarantee is
 claimed by these changes.
+
+## Overview retention and remaining date work
+
+Source `68a8ee5`, included in `c3277b4`, removes Overview's full retained
+student/metric list and retains at most eight attention candidates. Native means
+remain scalar lists and `metrics.mean_of`; literal missing-average sentinel 101
+and stable raw database stream ordering are preserved. Genuine old-code retention
+evidence failed at 600 live metrics, while the new reducer stays within eight
+winners plus iteration temporaries. Complete native response/filter parity and
+95 focused regressions passed, with independent specification and quality reviews.
+No total memory/CPU/RSS or database snapshot guarantee follows.
+
+The next separate slice captures Overview's server `as_of`, displays that cutoff
+and revalidates mounted data on forward school days. Its plan is independently
+reviewed and implementation is in progress; it is not part of `c3277b4`. Preserve
+cache identity/readiness/cancellation, show failed refresh with manual recovery,
+and avoid browser-date fallback. Student and Reports refresh, AI snapshot/draft
+semantics and paging traversal stability require their own contracts.
