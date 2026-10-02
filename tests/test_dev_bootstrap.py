@@ -26,7 +26,11 @@ def checkout(tmp_path, monkeypatch):
     monkeypatch.setattr(dev, "STATE", state)
     monkeypatch.setattr(dev, "PYTHON", state / "venv/bin/python")
     monkeypatch.setattr(dev, "STAMP", state / "installed.json")
-    return tmp_path
+    previous_umask = os.umask(0o077)
+    try:
+        yield tmp_path
+    finally:
+        os.umask(previous_umask)
 
 
 def test_install_uses_python312_hashes_and_locked_npm(checkout, monkeypatch):
@@ -323,3 +327,93 @@ def test_partial_venv_symlink_is_never_repaired(checkout, monkeypatch):
         dev.install()
     run.assert_not_called()
     assert (target / "keep").read_text() == "preserve"
+
+
+@pytest.mark.parametrize("name", ["demo.db", "demo.db-wal", "demo.db-shm", "demo.db-journal"])
+@pytest.mark.parametrize("alias", ["symlink", "hardlink", "dangling"])
+def test_database_alias_refused_before_any_child(checkout, monkeypatch, name, alias):
+    dev.STATE.mkdir(mode=0o700)
+    sentinel = checkout / "unrelated-records"
+    sentinel.write_bytes(b"preserve unrelated records")
+    target = dev.STATE / name
+    if alias == "hardlink":
+        os.link(sentinel, target)
+    else:
+        target.symlink_to(sentinel if alias == "symlink" else checkout / "absent")
+    setup, serve = Mock(), Mock()
+    monkeypatch.setattr(dev, "ready", lambda: True)
+    monkeypatch.setattr(dev, "preflight", Mock())
+    monkeypatch.setattr(dev, "run_setup", setup)
+    monkeypatch.setattr(dev, "serve", serve)
+    with pytest.raises(RuntimeError, match=r"demo|database"):
+        dev.managed_run()
+    setup.assert_not_called()
+    serve.assert_not_called()
+    assert sentinel.read_bytes() == b"preserve unrelated records"
+    assert target.is_symlink() if alias != "hardlink" else target.stat().st_nlink == 2
+
+
+@pytest.mark.parametrize("mode", [0o755, 0o770])
+def test_nonprivate_state_refused(checkout, monkeypatch, mode):
+    dev.STATE.mkdir(mode=mode)
+    dev.STATE.chmod(mode)
+    monkeypatch.setattr(dev, "ready", lambda: True)
+    monkeypatch.setattr(dev, "preflight", Mock())
+    serve = Mock()
+    monkeypatch.setattr(dev, "serve", serve)
+    with pytest.raises(RuntimeError, match="private"):
+        dev.managed_run()
+    serve.assert_not_called()
+
+
+@pytest.mark.parametrize("kind", ["directory", "fifo", "public-file"])
+def test_unsafe_database_entry_refused(checkout, monkeypatch, kind):
+    dev.STATE.mkdir(mode=0o700)
+    target = dev.STATE / "demo.db"
+    if kind == "directory":
+        target.mkdir()
+    elif kind == "fifo":
+        os.mkfifo(target, 0o600)
+    else:
+        target.touch(mode=0o644)
+        target.chmod(0o644)
+    monkeypatch.setattr(dev, "ready", lambda: True)
+    monkeypatch.setattr(dev, "preflight", Mock())
+    serve = Mock()
+    monkeypatch.setattr(dev, "serve", serve)
+    with pytest.raises(RuntimeError, match="database"):
+        dev.managed_run()
+    serve.assert_not_called()
+    assert target.exists()
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_private_regular_demo_can_resume_without_opening_database(checkout, monkeypatch, existing):
+    dev.STATE.mkdir(mode=0o700)
+    if existing:
+        for suffix in ("", "-wal", "-shm", "-journal"):
+            (dev.STATE / f"demo.db{suffix}").touch(mode=0o600)
+    monkeypatch.setattr(dev, "ready", lambda: True)
+    monkeypatch.setattr(dev, "preflight", Mock())
+    serve = Mock(return_value=0)
+    monkeypatch.setattr(dev, "serve", serve)
+    assert dev.managed_run() == 0
+    serve.assert_called_once()
+
+
+@pytest.mark.parametrize("other_owner", [False, True])
+def test_removed_internal_install_entry_never_runs_install(checkout, monkeypatch, other_owner):
+    import fcntl
+
+    monkeypatch.setattr(sys, "argv", ["dev.py", "--install"])
+    monkeypatch.setattr(dev, "preflight", Mock())
+    install = Mock()
+    monkeypatch.setattr(dev, "install", install)
+    with (checkout / ".superteacher-dev.lock").open("w") as lock:
+        if other_owner:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(SystemExit) as exc:
+            dev.main()
+        assert exc.value.code == 2
+    install.assert_not_called()
+    assert not dev.STATE.exists()

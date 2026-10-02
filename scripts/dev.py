@@ -8,6 +8,7 @@ import os
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,8 +30,27 @@ def fingerprint():
     }
 
 
+def qualify_demo_state():
+    """Preserve unsafe paths; existing regular data belongs to the trusted operator."""
+    try:
+        info = STATE.lstat()
+    except FileNotFoundError:
+        return
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+        raise RuntimeError("Demo state must be an owned private directory; preserve it and use manual setup.")
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        target = STATE / f"demo.db{suffix}"
+        try:
+            info = target.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_nlink != 1 or info.st_mode & 0o077:
+            raise RuntimeError(f"Unsafe demo database path {target.name}; preserve it and use manual setup.")
+
+
 def ready():
     try:
+        qualify_demo_state()
         if (
             STATE.is_symlink()
             or STAMP.is_symlink()
@@ -43,7 +63,7 @@ def ready():
             and PYTHON.is_file()
             and (ROOT / "web/node_modules/.bin/vite").is_file()
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError, RuntimeError):
         return False
 
 
@@ -87,6 +107,7 @@ def install():
         raise RuntimeError("Refusing to replace shared node_modules symlink.")
     if (STATE / "venv").is_symlink():
         raise RuntimeError("Refusing to repair a shared virtual environment symlink.")
+    qualify_demo_state()
     STATE.mkdir(mode=0o700, exist_ok=True)
     target = fingerprint()
     # Invalidate even a previous successful stamp before any repair mutations.
@@ -105,6 +126,7 @@ def install():
 
 
 def local_environment():
+    qualify_demo_state()
     env = os.environ.copy()
     # Environment values override .env, including production data/provider settings.
     env.update(
@@ -144,6 +166,7 @@ def stop(children):
 
 
 def serve():
+    qualify_demo_state()
     children = []
     spawning = False
     pending = False
@@ -177,7 +200,7 @@ def serve():
         for command, cwd in commands:
             spawning = True
             try:
-                child = subprocess.Popen(command, cwd=cwd, env=local_environment(), start_new_session=True)
+                child = subprocess.Popen(command, cwd=cwd, env=local_environment(), start_new_session=True, umask=0o077)
                 children.append(child)
             finally:
                 spawning = False
@@ -201,15 +224,11 @@ def serve():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Check tools/ports only; no installs or servers")
-    parser.add_argument("--install", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
         preflight()
         if args.check:
             print(f"Preflight passed; dependencies {'ready' if ready() else 'need managed setup'}.")
-            return 0
-        if args.install:
-            install()
             return 0
         lock_fd = os.open(ROOT / ".superteacher-dev.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         with os.fdopen(lock_fd, "w") as lock:
@@ -264,9 +283,13 @@ def run_setup(command, *, gated):
 
 
 def managed_run():
+    qualify_demo_state()
     if not ready():
         gate = GATE
-        command = [sys.executable, str(Path(__file__).resolve()), "--install"]
+        # No standalone install CLI: this payload is constructed only while
+        # main holds the worktree lock, and admitted by the shared gate below.
+        payload = f"import runpy; runpy.run_path({str(Path(__file__).resolve())!r})['install']()"
+        command = [sys.executable, "-c", payload]
         if gate.is_file():
             command.insert(0, "--")
             command.insert(0, str(gate))
@@ -276,6 +299,7 @@ def managed_run():
         if result:
             return result
     # Recheck before spawning: another process may have claimed a port during setup.
+    qualify_demo_state()
     preflight()
     return serve()
 
