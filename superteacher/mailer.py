@@ -19,12 +19,17 @@ import json
 import logging
 import os
 import secrets
+import smtplib
+import ssl
+import threading
 import time
 from dataclasses import dataclass
+from email.message import EmailMessage
 from pathlib import Path
 
 import httpx
 
+from . import observability
 from .config import Settings
 
 log = logging.getLogger("superteacher.mailer")
@@ -35,6 +40,63 @@ SUBJECT = "Your Super Teacher sign-in link"
 
 class MailerConfigError(RuntimeError):
     pass
+
+
+class DeliveryHealth:
+    """Circuit breaker over sign-in email delivery.
+
+    Sending fails for reasons the user cannot see (provider out of credits, revoked key, SMTP outage), and the
+    sign-in endpoint deliberately gives the same reply whatever happens to one address. So when the last
+    ``FAILURES`` sends in a row failed, the endpoint should say so honestly (HTTP 503) instead of promising a link
+    that is not coming. After ``COOLDOWN`` seconds one attempt is allowed through to find out if it has recovered.
+    State is per process and says nothing about any address, so it cannot be used to enumerate users.
+    """
+
+    FAILURES = 3
+    COOLDOWN = 300.0
+
+    def __init__(self, clock=time.monotonic):
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._consecutive = 0
+        self._last_failure = 0.0
+
+    def record(self, ok: bool) -> None:
+        with self._lock:
+            if ok:
+                self._consecutive = 0
+            else:
+                self._consecutive += 1
+                self._last_failure = self._clock()
+
+    def available(self) -> bool:
+        with self._lock:
+            if self._consecutive < self.FAILURES:
+                return True
+            return self._clock() - self._last_failure >= self.COOLDOWN  # half-open: let one probe through
+
+    def reset(self) -> None:
+        with self._lock:
+            self._consecutive = 0
+            self._last_failure = 0.0
+
+
+HEALTH = DeliveryHealth()
+
+
+def email_available() -> bool:
+    return HEALTH.available()
+
+
+def provider_reason(response: httpx.Response) -> str:
+    """A short, safe description of why a provider refused: its own error text, bounded. (Our log redaction also
+    scrubs anything that looks like an address, key or token.)"""
+    try:
+        errors = response.json().get("errors") or []
+        text = "; ".join(str(e.get("message", "")) for e in errors if isinstance(e, dict))
+    except Exception:
+        text = ""
+    return text.strip()[:160]
 
 
 @dataclass(frozen=True)
@@ -79,8 +141,29 @@ def validate_settings(settings: Settings) -> None:
         )
     if backend == "sendgrid" and not (settings.sendgrid_api_key and settings.auth_email_from):
         raise MailerConfigError("AUTH_EMAIL_BACKEND=sendgrid needs SENDGRID_API_KEY and AUTH_EMAIL_FROM.")
+    if backend == "smtp" and not (settings.smtp_host and settings.auth_email_from):
+        raise MailerConfigError("AUTH_EMAIL_BACKEND=smtp needs SMTP_HOST and AUTH_EMAIL_FROM.")
     if backend == "file" and not settings.auth_email_outbox_dir:
         raise MailerConfigError("AUTH_EMAIL_BACKEND=file needs AUTH_EMAIL_OUTBOX_DIR.")
+
+
+def _send_smtp(settings: Settings, msg: Message) -> None:
+    email = EmailMessage()
+    email["From"], email["To"], email["Subject"] = settings.auth_email_from, msg.to, msg.subject
+    email.set_content(msg.text)
+    email.add_alternative(msg.html, subtype="html")
+    context = ssl.create_default_context()  # verifies the server certificate and hostname
+    host, port = str(settings.smtp_host), settings.smtp_port
+    if settings.smtp_security == "ssl":
+        client: smtplib.SMTP = smtplib.SMTP_SSL(host, port, timeout=15, context=context)
+    else:
+        client = smtplib.SMTP(host, port, timeout=15)
+    with client:
+        if settings.smtp_security == "starttls":
+            client.starttls(context=context)
+        if settings.smtp_username:
+            client.login(settings.smtp_username, settings.smtp_password or "")
+        client.send_message(email)
 
 
 def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None = None) -> None:
@@ -99,6 +182,8 @@ def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w") as stream:
             json.dump({"to": msg.to, "subject": msg.subject, "text": msg.text, "html": msg.html}, stream)
+    elif backend == "smtp":
+        _send_smtp(settings, msg)
     else:
         payload = {
             "personalizations": [{"to": [{"email": msg.to}]}],
@@ -117,16 +202,26 @@ def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None
                 SENDGRID_URL, json=payload, headers={"Authorization": f"Bearer {settings.sendgrid_api_key}"}
             )
         if r.status_code >= 300:
-            raise RuntimeError(f"sendgrid returned HTTP {r.status_code}")
+            reason = provider_reason(r)
+            raise RuntimeError(f"sendgrid returned HTTP {r.status_code}" + (f": {reason}" if reason else ""))
 
 
 def send_login_link(settings: Settings, to: str, link: str, transport: httpx.BaseTransport | None = None) -> bool:
     """Never raises; returns whether the provider accepted the message."""
     try:
         send(settings, build_login_message(to, link, settings.login_token_ttl_minutes), transport)
+        HEALTH.record(True)
         return True
     except Exception as e:
-        log.error("sign-in email failed: %s", type(e).__name__)  # type only: messages can echo addresses/keys
+        HEALTH.record(False)
+        # The exception type always; the provider's own (bounded, redacted) reason when we have one, because
+        # "401" alone sent us looking at the wrong thing: the real cause was "Maximum credits exceeded".
+        detail = ""
+        if isinstance(e, RuntimeError):
+            # Scrub here, not only in the log formatter: a provider can echo the key or the recipient in its message.
+            secrets_in_play = (settings.sendgrid_api_key or "", settings.smtp_password or "", to)
+            detail = observability.redact(str(e), tuple(x for x in secrets_in_play if x))
+        log.error("sign-in email failed: %s%s", type(e).__name__, f" ({detail[:200]})" if detail else "")
         return False
 
 

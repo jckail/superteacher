@@ -323,7 +323,12 @@ def _ip(request: Request) -> str:
 @router.get("/config")
 def auth_config(request: Request):
     """Public and fixed-shape: tells the sign-in screen which form to show."""
-    return {"auth_mode": "accounts" if _state(request).accounts else "passcode"}
+    st = _state(request)
+    return {
+        "auth_mode": "accounts" if st.accounts else "passcode",
+        # False while sign-in email delivery is failing (see mailer.DeliveryHealth). Says nothing about any address.
+        "email_available": mailer.email_available() if st.accounts else True,
+    }
 
 
 @router.post("/login")
@@ -396,6 +401,14 @@ def request_link(body: RequestLinkBody, request: Request, background: Background
     st = _state(request)
     _csrf(request, st)
     _accounts_only(st)
+    if not mailer.email_available():
+        # Address-independent (the breaker watches the provider, not the user), so this leaks nothing about anyone.
+        # Better an honest 503 than a "link is on its way" that is not coming.
+        raise HTTPException(
+            503,
+            "Sign-in email is temporarily unavailable. Please try again in a few minutes.",
+            headers={"Retry-After": "300"},
+        )
     s = st.settings
     ip = _ip(request)
     for window, key in ((st.link_ip, ip), (st.link_global, "*")):
