@@ -2,9 +2,48 @@
 
 Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/superteacher`, excluding `.superdesign`. Current release evidence is below; older iteration checks remain historical. This release operator has not performed production custom-domain cutover.
 
+## Note, demo and administration integration (2026-10-02)
+
+The local combined source `68f2fa2` integrates note draft settlement (`6567a9e`,
+original isolated `42c01dc`), reviewed demo notice PR67 (`77218e0`), and reviewed
+account administration PR68 (`3b7e403`). Root reproduced note draft loss before
+implementation: the unchanged control passed and two edited-draft cases failed.
+Revision-aware settlement now preserves every later raw draft, including changes
+away and back to the submitted text; captured student/client and keyed lifecycle
+keep late completion isolated. Independent task and complete-branch reviews
+approved the fix. Combined focused verification passed 102 tests across ten files
+in 9.76s, TypeScript, focused ESLint and diff checks. Exact combined CI, immutable
+build and runtime acceptance remain pending for this source; earlier f423 evidence
+below accepts only that earlier source.
+
+PR67 adds a static public synthetic-demo/data-use notice and accessible links
+without private API calls. PR68 adds local filesystem-authorized account
+administration with scoped session/link revocation and durable private audit;
+it does not establish a web administrator role. Both individual heads passed
+independent review and all seven CI jobs. Combined-source acceptance remains a
+separate gate. No real account database was modified by this release operator.
+
+The current shared staging snapshot is `00009-bcw` on `fe2cd01`. Curated receipts
+agree with that snapshot; its original feature smoke failed and later read-only
+continuation/restore/readback are qualified evidence, not a complete successful
+feature run or acceptance of this combined candidate. Preserve that service and
+all historical failures. The next runtime phase is a separate create-only private
+candidate with a fresh synthetic replica prefix, after exact CI/build and actual
+invocation/identity preflight. Its source-only design creates no resource or token.
+Do not retry an unchanged protected-lock timeout or deploy through stale guards.
+
+Newly audited follow-ups: Reports Regenerate can overwrite subject/message edited
+while its request is pending (mounted RED regression pending); Attendance writes
+miss scoped Insight/report-summary invalidation; Insight and generated parent
+artifacts need independent input-day, timestamp and prompt-contract provenance.
+Account CLI list pagination/output bounds are a lower-priority refinement. Full
+grading policy, native production schema adoption, writer drain/rollback/domain
+cutover, dedicated runtime IAM acceptance and real provider/email acceptance remain
+open. Source verification does not establish any of those runtime/product outcomes.
+
 ## Current release checkpoint
 
-Latest published candidate `f423afcad2bfda91b9162f06457e2befee3cde7b` is pushed
+Earlier published candidate `f423afcad2bfda91b9162f06457e2befee3cde7b` is pushed
 to root main and the working branch. PR65 and PR66 were merged at 16:35:09 UTC.
 Its exact combined [CI37034932285](https://github.com/jckail/superteacher/actions/runs/37034932285)
 passed all seven jobs: 1357 API tests in 160.81s, 287 web tests across 23 files in
