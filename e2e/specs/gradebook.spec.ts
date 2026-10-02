@@ -61,10 +61,23 @@ test.describe('gradebook', () => {
   test('keyboard: Enter and arrows move between rows, Esc undoes', async ({ page, api }) => {
     const names = ['Aaa', 'Bbb', 'Ccc'].map((p) => `${p} ${uid()}`);
     const c = await api.classroom({ studentNames: names });
-    await api.assessment(c.sectionId, 'HW 1', 10);
+    const created = await api.assessment(c.sectionId, 'HW 1', 10);
+    expect(created.assessments).toHaveLength(1);
+    expect(created.assessments[0].title).toBe('HW 1');
+    const assessmentId: string = created.assessments[0].id;
+    expect(assessmentId).toEqual(expect.any(String));
+    expect(assessmentId).not.toBe('');
     await useClassroom(page, c);
     await page.goto('/gradebook');
     const cell = (i: number) => page.getByRole('textbox', { name: `${names[i]}, HW 1` });
+    // Local edits are optimistic; each serial score save must reach the server before reload.
+    const saves = c.students.map(({ id }, i) => page.waitForResponse((response) => {
+      const request = response.request();
+      if (request.method() !== 'PUT' || !response.ok() ||
+          new URL(response.url()).pathname !== `/api/assessments/${assessmentId}/scores`) return false;
+      const body: { scores?: { student_id: string; points: number }[] } = request.postDataJSON();
+      return body.scores?.length === 1 && body.scores[0].student_id === id && body.scores[0].points === i + 7;
+    }));
 
     await cell(0).click();
     await cell(0).fill('7');
@@ -83,6 +96,7 @@ test.describe('gradebook', () => {
     await page.keyboard.press('Escape');
     await expect(cell(0)).toHaveValue('7');
 
+    await Promise.all(saves);
     await page.reload();
     await expect(cell(0)).toHaveValue('7');
     await expect(cell(1)).toHaveValue('8');
