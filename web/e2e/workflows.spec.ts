@@ -1,5 +1,6 @@
 import { expect, test as base, type Page } from '@playwright/test';
 import axe from 'axe-core';
+import { randomUUID } from 'node:crypto';
 
 const passcode = 'superteacher-browser-tests';
 const test = base.extend<{ browserErrors: void }>({
@@ -57,8 +58,9 @@ async function createCourse(page: Page, name: string) {
 }
 
 test('teacher onboarding, durable grades/attendance, offline reports and private-session cleanup', async ({ page, context }) => {
-  const course = `Browser Biology ${test.info().retry}`;
-  const student = `Ada Browser ${test.info().retry}`;
+  const attempt = randomUUID();
+  const course = `Browser Biology ${attempt}`;
+  const student = `Ada Browser ${attempt}`;
   await page.goto('/roster');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Roster', exact: true })).toBeHidden();
@@ -78,12 +80,14 @@ test('teacher onboarding, durable grades/attendance, offline reports and private
   await sectionDialog.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(sectionDialog).toBeHidden();
   await page.getByLabel('Section', { exact: true }).selectOption({ label: 'Period 2' });
+  const sectionId = await page.getByLabel('Section', { exact: true }).inputValue();
 
   await page.getByRole('button', { name: '+ Student', exact: true }).click();
   const studentDialog = page.getByRole('dialog', { name: 'Add student' });
   await studentDialog.getByLabel('Name', { exact: true }).fill(student);
   await studentDialog.getByLabel('Grade level').selectOption('10');
-  await studentDialog.getByRole('combobox', { name: 'Section', exact: true }).selectOption({ label: 'Period 2' });
+  // Failed attempts leave synthetic courses in this server; section labels repeat across courses.
+  await studentDialog.getByRole('combobox', { name: 'Section', exact: true }).selectOption(sectionId);
   await studentDialog.getByRole('button', { name: 'Add student', exact: true }).click();
   await expect(studentDialog).toBeHidden();
   await expect(page.getByRole('link', { name: student, exact: true })).toBeVisible();
@@ -150,9 +154,10 @@ test('teacher onboarding, durable grades/attendance, offline reports and private
 });
 
 test('assignment, student profile and private notes can be corrected and persist after reload', async ({ page }) => {
-  const course = `Browser Corrections ${test.info().retry}`;
-  const student = `Grace Browser ${test.info().retry}`;
-  const renamed = `Grace Updated ${test.info().retry}`;
+  const attempt = randomUUID();
+  const course = `Browser Corrections ${attempt}`;
+  const student = `Grace Browser ${attempt}`;
+  const renamed = `Grace Updated ${attempt}`;
   await login(page);
   await createCourse(page, course);
   const courseId = await page.getByLabel('Course', { exact: true }).inputValue();
@@ -261,9 +266,10 @@ test('assignment, student profile and private notes can be corrected and persist
 });
 
 test('quoted CSV imports report partial failures, persist valid rows and recover from an HTTP read error', async ({ page }) => {
-  const course = `Browser Import ${test.info().retry}`;
-  const quotedName = `River "RJ", Browser ${test.info().retry}`;
-  const otherName = `Jamie Import ${test.info().retry}`;
+  const attempt = randomUUID();
+  const course = `Browser Import ${attempt}`;
+  const quotedName = `River "RJ", Browser ${attempt}`;
+  const otherName = `Jamie Import ${attempt}`;
   await login(page);
   await createCourse(page, course);
   await page.getByLabel('Section', { exact: true }).selectOption({ label: 'Period 1' });

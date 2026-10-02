@@ -48,8 +48,9 @@ test.describe('mobile 390px smoke: every page renders without console errors or 
     await page.keyboard.press('Escape');
 
     await page.getByRole('button', { name: 'Ask AI' }).click();
-    const chat = page.getByRole('complementary', { name: 'Super Teacher assistant' });
+    const chat = page.getByRole('dialog', { name: 'Super Teacher assistant' });
     await expect(chat).toBeVisible();
+    await expect(chat).toHaveAttribute('aria-modal', 'true');
     await expect(chat.getByLabel('Message')).toBeVisible();
     const cb = await chat.boundingBox();
     expect(cb!.x + cb!.width).toBeLessThanOrEqual(391);

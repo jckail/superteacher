@@ -9,8 +9,8 @@ test('chat panel without an API key explains itself and stays usable', async ({ 
 
   await chat.getByRole('textbox', { name: 'Message' }).fill('Who needs my attention?');
   await chat.getByRole('button', { name: 'Send' }).click();
-  await expect(chat.getByText(/AI is not configured on this server/)).toBeVisible();
-  await expect(chat.getByText('ANTHROPIC_API_KEY')).toBeVisible();
+  await expect(chat.getByText(/AI is not configured for this classroom yet/)).toBeVisible();
+  await expect(chat.getByText('Your grades, attendance and reports are available.', { exact: false })).toBeVisible();
   await expect(chat.getByRole('button', { name: 'Send' })).toBeDisabled(); // empty input, not stuck busy
   await expect(chat.getByRole('textbox', { name: 'Message' })).toBeEnabled();
 

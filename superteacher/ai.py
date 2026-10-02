@@ -193,8 +193,8 @@ async def run_chat(
                     yield {
                         "type": "delta",
                         "text": (
-                            "AI is not configured on this server (set `ANTHROPIC_API_KEY`). "
-                            "The rest of the app works without it."
+                            "AI is not configured for this classroom yet. "
+                            "Your grades, attendance and reports are available."
                         ),
                     }
                     return

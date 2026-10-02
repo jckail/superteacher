@@ -167,7 +167,8 @@ td.name { font-weight: 600; }
 :root[data-theme='dark'] .toast.error { color: #14102a; }
 .toast button { all: unset; cursor: pointer; margin-left: auto; padding: 0 4px; opacity: .8; border-radius: 4px; }
 .toast button:focus-visible { outline: 2px solid currentColor; }
-@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
+/* Notifications retain full text/background contrast throughout their entrance. */
+@keyframes toast-in { from { transform: translateY(8px); } }
 @media (max-width: 800px) { .toasts { left: 16px; bottom: 120px; } }
 
 /* modal extras */
