@@ -26,7 +26,7 @@ const concern: StudentSummary = {
   risk: 'at_risk', risk_reasons: ['Average 0% is failing'],
 };
 const base: OverviewData = {
-  students: 3, average: null, attendance_rate: null, homework_rate: null,
+  as_of: '2026-10-02', students: 3, average: null, attendance_rate: null, homework_rate: null,
   unknown: 3, on_track: 0, watch: 0, at_risk: 0, distribution: { A: 0, B: 0, C: 0, D: 0, F: 0 }, attention: [],
 };
 const overviewData = (kind: 'unknown' | 'partlyUnknown' | 'mixed' | 'healthy'): OverviewData => {
@@ -42,7 +42,7 @@ const classData = (o: OverviewData): ClassSummary => ({
   attention: o.attention.map((s) => ({ id: s.id, name: s.name, risk: s.risk, average: s.average, reasons: s.risk_reasons })),
 });
 function mount(page: 'overview' | 'reports', data: OverviewData) {
-  vi.mocked(api).mockImplementation(async (path) => (path === '/courses' ? courses : path.startsWith('/overview') ? data : path.endsWith('/summary') ? classData(data) : { items: [], next_cursor: null, as_of: '2026-10-02', total_matches: 0, total_scoped: 0 }) as never);
+  vi.mocked(api).mockImplementation(async (path) => (path === '/courses' ? courses : path === '/calendar' ? { timezone: 'America/Los_Angeles', today: '2026-10-02' } : path.startsWith('/overview') ? data : path.endsWith('/summary') ? classData(data) : { items: [], next_cursor: null, as_of: '2026-10-02', total_matches: 0, total_scoped: 0 }) as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><MemoryRouter><ScopeProvider>{page === 'overview' ? <Overview /> : <Reports />}</ScopeProvider></MemoryRouter></QueryClientProvider>);
 }

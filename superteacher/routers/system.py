@@ -21,7 +21,8 @@ def overview(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(current_user),
 ):
-    rows = iter_summaries(db, user.id, retain_scores=False, course_id=course_id, section_id=section_id)
+    as_of = school_today()
+    rows = iter_summaries(db, user.id, retain_scores=False, today=as_of, course_id=course_id, section_id=section_id)
     students = 0
     averages, attendance_rates, homework_rates = [], [], []
     risks = dict.fromkeys(("at_risk", "watch", "on_track", "unknown"), 0)
@@ -48,6 +49,7 @@ def overview(
     finally:
         rows.close()
     return schemas.Overview(
+        as_of=as_of,
         students=students,
         average=metrics.mean_of(averages),
         attendance_rate=metrics.mean_of(attendance_rates),

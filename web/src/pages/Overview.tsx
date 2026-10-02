@@ -1,8 +1,10 @@
 import type { Overview as OverviewData } from '../types';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useScope } from '../scope';
+import { useSchoolCalendar } from '../schoolCalendar';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
 import { Distribution } from '../components/charts';
@@ -16,6 +18,24 @@ export default function Overview() {
     queryFn: ({ signal }) => api<OverviewData>(`/overview?${new URLSearchParams({ ...(course && { course_id: course.id }), ...(section && { section_id: section.id }) })}`, { signal }),
   });
   const o = ready ? q.data : undefined;
+  const qc = useQueryClient();
+  const calendar = useSchoolCalendar(ready);
+  const courseId = course?.id;
+  const sectionId = section?.id;
+  const identity = JSON.stringify([ready, courseId, sectionId]);
+  const attempt = useRef({ identity, day: null as string | null });
+  if (attempt.current.identity !== identity) attempt.current = { identity, day: null };
+  const schoolDay = calendar.data?.today;
+  const cutoff = o?.as_of;
+  const fetching = q.isFetching;
+  const readError = q.error;
+  useEffect(() => {
+    if (!ready || !schoolDay || !cutoff || cutoff >= schoolDay || fetching || readError) return;
+    if (attempt.current.day === schoolDay) return;
+    // Mark before invalidation so an older response cannot cause a same-day loop.
+    attempt.current.day = schoolDay;
+    void qc.invalidateQueries({ queryKey: ['overview', courseId, sectionId], exact: true });
+  }, [ready, identity, courseId, sectionId, schoolDay, cutoff, fetching, readError, qc]);
   const hour = new Date().getHours();
   return (
     <>
@@ -27,6 +47,15 @@ export default function Overview() {
         <ScopePicker />
       </div>
       <ScopeStatus />
+      {ready && calendar.error && <div>
+        <ErrorBox error={calendar.error} />
+        <button className="btn" disabled={calendar.isFetching} onClick={() => void calendar.refetch()}>Retry school calendar</button>
+      </div>}
+      {o && <p className="muted">Progress calculated through {o.as_of}</p>}
+      {ready && cutoff && schoolDay && cutoff < schoolDay && <p role="status">
+        Progress is shown through {cutoff}. {fetching ? 'Updating school-day calculations…' : readError ? 'Refresh failed. Use Retry to update progress.' : 'Newer school-day calculations are available.'}
+        {!fetching && !readError && <> <button className="btn small" onClick={() => void q.refetch()}>Refresh progress</button></>}
+      </p>}
       <ErrorBox error={ready ? q.error : null} onRetry={() => q.refetch()} />
       {ready && q.isLoading && <Loading />}
       {o && (o.students === 0 ? (

@@ -48,6 +48,24 @@ describe('saved scope hydration', () => {
     expect(studentRequests()).toHaveLength(1);
   });
 
+  it('Overview waits for saved metadata before loading its cutoff and school calendar', async () => {
+    const metadata = deferred<CourseOut[]>();
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === '/courses') return metadata.promise;
+      if (path === '/calendar') return { timezone: 'America/Los_Angeles', today: '2026-10-02' };
+      if (path === '/overview?course_id=saved-course&section_id=saved-section') return { as_of: '2026-10-02', students: 0, average: null, attendance_rate: null, homework_rate: null, unknown: 0, on_track: 0, watch: 0, at_risk: 0, distribution: { A: 0, B: 0, C: 0, D: 0, F: 0 }, attention: [] };
+      throw new Error(`Unexpected request ${path}`);
+    });
+    setup('overview');
+    await vi.waitFor(() => expect(api).toHaveBeenCalledOnce());
+    expect(screen.queryByText(/Progress calculated through/)).not.toBeInTheDocument();
+    await act(async () => metadata.resolve(courses));
+    await screen.findByText('Progress calculated through 2026-10-02');
+    expect(screen.getByText('No students yet')).toBeInTheDocument();
+    expect(vi.mocked(api).mock.calls.map(([path]) => path).sort()).toEqual(['/calendar', '/courses', '/overview?course_id=saved-course&section_id=saved-section']);
+    expect(screen.getByText('Shell remains accessible')).toBeInTheDocument();
+  });
+
   it.each(['overview', 'reports', 'gradebook', 'attendance'] as const)('%s waits for metadata and shows its failure rather than false empty data', async (kind) => {
     const metadata = deferred<CourseOut[]>();
     vi.mocked(api).mockImplementation(async (path) => { if (path === '/courses') return metadata.promise; throw new Error(`Unexpected scoped read ${path}`); });

@@ -19,6 +19,11 @@ TODAY = date(2026, 10, 1)
 USER = CurrentUser("owner", "synthetic@example.invalid")
 
 
+@pytest.fixture(autouse=True)
+def fixed_cutoff(monkeypatch):
+    monkeypatch.setattr(system, "school_today", lambda: TODAY)
+
+
 def student(i):
     return SimpleNamespace(
         id=str(i),
@@ -39,6 +44,7 @@ def reference(rows):
         ),
     )
     return schemas.Overview(
+        as_of=TODAY,
         students=len(rows),
         average=metrics.mean_of(m.average for _, m in rows),
         attendance_rate=metrics.mean_of(m.attendance_rate for _, m in rows),
@@ -56,7 +62,7 @@ def test_attention_retention_does_not_materialize_all_metrics(monkeypatch):
 
     def stream(*args, **kwargs):
         nonlocal peak
-        assert kwargs == {"retain_scores": False, "course_id": "c", "section_id": "s"}
+        assert kwargs == {"retain_scores": False, "today": TODAY, "course_id": "c", "section_id": "s"}
         try:
             for i in range(600):
                 metric = metrics.StudentMetrics(average=float(600 - i), risk="at_risk")

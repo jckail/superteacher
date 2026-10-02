@@ -269,6 +269,7 @@ class AttendanceSheet(BaseModel):
 
 # ── overview ────────────────────────────────────────────────────────────
 class Overview(BaseModel):
+    as_of: date
     students: int
     average: float | None
     attendance_rate: float | None
