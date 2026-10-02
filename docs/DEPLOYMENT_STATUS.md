@@ -1302,3 +1302,36 @@ pinned synthetic/feature consumers are being prepared for review and testing.
 No accepted continuation, synthetic, recovery or production proof exists. The
 successful source5bad image remains built; production promotion is still pending
 the lineage, drain, persistence and rollback gates above.
+
+
+## Conference sheet and private acceptance progress (2026-10-02)
+
+PR84 was merged at source `135fa0f7f2532173d93c152ecda074eaad452c59`.
+The exact reviewed head passed seven CI jobs, Bugbot and independent review;
+its end-to-end run passed 91 cases, including seven conference-sheet cases.
+Desktop and mobile checks covered one-page PDF output, selected notes,
+print overflow, account-dialog privacy and student-context chat privacy.
+Combined-main CI run `37074674944` also passed all seven jobs. A fresh immutable
+archive and build context were prepared and locally validated for this source;
+no new image or runtime acceptance is inferred from that preparation.
+
+The first full continuation after the successful policy diagnostic failed with
+a health ReadTimeout at its ninth request. Scoped logs showed a 22.61-second
+server response, beyond the verifier's 15-second read limit. Both failed
+attempts and their receipts remain unchanged. A separate reviewed verifier
+extends only the positive authenticated health read to 45 seconds, retaining
+the other request limits, full guards and zero automatic retries. Its protected
+execution (session1728, exit0) completed 21 read-only requests in 13.051 seconds.
+Root and an independent reviewer verified the new private continuation proof,
+including the exact frozen257 image, resource identities, readiness, IAM,
+platform authentication and application no-cookie rejection gates.
+
+The subsequently protected synthetic workflow (session42934, exit0) completed
+42 requests in 7.071 seconds on that same private candidate. Its receipt records
+successful canonical record creation and final configuration readback. Root and
+an independent reviewer verified its receipt; further feature acceptance remains
+a separate gate.
+This candidate uses the older frozen257 source and does not qualify the new
+conference-sheet source. Recovery, lineage adoption, writer drain, rollback,
+provider/email and production promotion remain open. Production traffic and
+domains have not been changed by this release operator.
