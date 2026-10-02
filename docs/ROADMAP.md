@@ -22,8 +22,8 @@ privacy work (ADR 0003, issues "AI data minimisation" and "Terms and privacy not
 
 ## Close the loop: from insight to action
 - **Intervention plans** (tracked): reviewable actions linked to evidence, confirmed by the teacher before anything is saved.
-- **Small-group builder**: group students by shared missing work or weak assignment type, suggest a reteach slot. S to M.
-- **Conference sheet**: a one-page printable student summary (trend, attendance, missing work, notes the teacher chose to include) for parent-teacher conferences. S.
+- **Small-group builder** (open): group students by shared missing work or weak assignment type, suggest a reteach slot. S to M. A standalone helper draft is not integrated product behavior; this remains open within [JCK-80](https://linear.app/jckail/issue/JCK-80/idea-small-group-builder-and-conference-sheet).
+- **Conference sheet** (implemented in source, [PR84](https://github.com/jckail/superteacher/pull/84)): Roster links to a one-page student summary with trend, attendance, due unscored work and explicitly selected notes. Current-school-day and fit checks guard printing; account dialogs and assistant transcripts stay out of print. See the [teacher workflow](teacher-workspace.mdx#conference-sheets). Deployment acceptance is separate: consult the [operator runbook](OPERATOR_RUNBOOK.md) and [status ledger](DEPLOYMENT_STATUS.md), then confirm actual runtime readback. This completes the conference-sheet portion of JCK-80, not the small-group builder.
 - **Assistant that can write, with confirmation**: create an assignment, mark attendance, add a note. Every write shows a diff and needs a click. M.
 - **Nudges, not noise**: "three absences this month", "average dropped 12 points in two weeks", delivered once, dismissible, with the evidence.
 

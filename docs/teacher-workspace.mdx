@@ -4,7 +4,7 @@ title: Teacher workspace and frontend guide
 
 # Teacher workspace and frontend guide
 
-Current source provides the following flows. Screens and source imports are separate from release acceptance; consult the [release checkpoint](RELEASE_CHECKPOINT.md) for the deployment currently serving users.
+Current source provides the following flows. Source completion is separate from deployment acceptance. Start with the [operator runbook](OPERATOR_RUNBOOK.md) and [deployment status ledger](DEPLOYMENT_STATUS.md); dated entries do not establish what is serving now. The release owner must confirm the actual serving revision, image and domain target through runtime readback. The [release checkpoint](RELEASE_CHECKPOINT.md) retains historical release and owner context.
 
 ## Page map
 
@@ -13,12 +13,21 @@ Current source provides the following flows. Screens and source imports are sepa
 | `/` | Review class totals and students needing attention | [Overview.tsx](../web/src/pages/Overview.tsx) |
 | `/roster` | Search/filter, import CSV, manage students and sections | [Roster.tsx](../web/src/pages/Roster.tsx) |
 | `/students/:id` | Review assignments/history, attendance, notes and insight | [Student.tsx](../web/src/pages/Student.tsx) |
+| `/students/:id/conference` | Review a selected student’s conference sheet, then print or save a PDF | [ConferenceSheet.tsx](../web/src/pages/ConferenceSheet.tsx) |
 | `/gradebook` | Enter section scores and manage assessments | [Gradebook.tsx](../web/src/pages/Gradebook.tsx) |
 | `/attendance` | Mark the selected day's roll call | [Attendance.tsx](../web/src/pages/Attendance.tsx) |
 | `/reports` | Inspect statistics, export CSV, edit/copy parent drafts | [Reports.tsx](../web/src/pages/Reports.tsx) |
 | Ask AI panel | Ask scoped classroom questions | [Chat.tsx](../web/src/components/Chat.tsx) |
 
 Course/section selection is validated after metadata loads. An unavailable saved selection displays a recoverable state rather than silently broadening its scope. Server authorization applies even when browser scope or IDs change. School-day cutoffs follow the configured school timezone; browser-local dates alone are not evidence that a summary is current.
+
+## Conference sheets
+
+In Roster, choose **Conference sheet** beneath the student's name. Review the selected student's average, trend, attendance through the displayed school day and unscored assignments due by the displayed school-day cutoff. Uncheck missing-work items you do not want to include. Scored zero is not missing work, and future unscored assignments are excluded.
+
+Private notes start unchecked. Select only the notes you intend to share; consent binds the exact note text. Observed changes or removal require approval again, and changing students or sessions resets the selection. The sheet reads existing student data rather than generating AI content. An independently opened assistant retains the selected student's context, but its transcript and account dialogs are excluded from conference print output.
+
+Use **Refresh summary** if needed, then **Print conference sheet** to print or save a PDF. Printing requires a successful, unpaused read whose cutoff matches the current school day and content that fits the one-page Letter sheet. Include fewer notes or assignments if it exceeds one page. Native print shows a warning instead of the preview when the sheet is not ready. A matching date is a cutoff check, not proof that no same-day record changed after the read; review the preview and handle the saved PDF or paper as private student information.
 
 ## Authentication modes
 
@@ -59,6 +68,7 @@ Use synthetic fixtures and the relevant focused tests before changing these boun
 | Selection hydration and pagination | `ScopeHydration.test.tsx`, `ReportPicker.test.tsx` |
 | Cutoff refresh and retained drafts | `OverviewCalendar.test.tsx`, `ReportsCalendar.test.tsx` |
 | Copy feedback and table semantics | `Operations.test.tsx`, `Accessibility.test.tsx` |
+| Conference identity, note consent, current-day/fit gates and print privacy | [ConferenceSheet.test.tsx](../web/src/test/ConferenceSheet.test.tsx), [conference E2E/PDF fixtures](../e2e/seeded/conference.spec.ts) |
 | Real mobile/keyboard workflows | [E2E specs](../e2e/specs) and [findings](../e2e/FINDINGS.md) |
 
 Frontend unit tests live in [web/src/test](../web/src/test); CI also builds and drives the actual application. Follow shared-workspace resource limits for installs, builds and broad browser suites. The [architecture guide](architecture.mdx) explains server dependencies; existing deployment and recovery documents remain the authority for operating services.
