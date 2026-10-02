@@ -26,8 +26,15 @@ full logs and CI-state SHA256
 The exact archive SHA256 is
 `4cd7224dbf7c038e7ebf28c8a88807b85e162f30f0d3ea7d7f7161eb4a94fc80`.
 Independent review verified 296 Git-matching files/325 context entries and modes;
-root helper validation passed. Protected build session89535 is awaiting its
-outcome. This newer source has no accepted image or runtime deployment.
+root helper validation passed. Protected build session89535 exited0 with
+Cloud Build `b524f123-9699-4189-89af-2aeff7a39106` SUCCESS and immutable image
+`gcr.io/portfolio-383615/superteacher@sha256:4554d1b067e80152b46053aa088ecdb809e5bb78853fd9b41a22987f1f5c4be6`.
+Root verified build state, image digest and proof bindings; private build-proof
+SHA256 is `50a73dc4cc557a9990586bb96b6e740fa228939806e69a476f1f5b1621c21a79`.
+No runtime deployment has executed for this source yet. A private create-only
+manifest is under independent review. Its local input guard passed after the
+owned preflight parent was tightened from0755 to0700; the backup root was already
+0700. No candidate phase directory or resource was reserved by that local check.
 Previous d256 and112 admission75 receipts remain preserved; no unchanged retry
 is authorized by a source review. The separate Insight freshness gap remains:
 its GET can charge quota and generate AI content, so an explicit refresh/provenance
