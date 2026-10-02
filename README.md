@@ -44,6 +44,8 @@ Local settings default to synthetic demo seeding. Use `SEED_DEMO_DATA=false` for
 
 ## Validation and operations
 
+Start with the [operator runbook](docs/OPERATOR_RUNBOOK.md) for deployment, rollback, recovery, credential rotation and incident triage.
+
 CI runs Python lint/tests, web lint/types/tests/build, browser/E2E tests, Docker/auth smoke and a benchmark. Run relevant checks after changes; in shared agent workspaces, use the repository's verification owner and resource gate for broad suites, builds and installs.
 
 ```bash
