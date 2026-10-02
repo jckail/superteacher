@@ -12,15 +12,24 @@ calendar. Gradebook defers its automatic day read while score writes are pending
 Overview retains cached results through ordinary refresh errors. Their accepted
 cutoff/freshness work is the baseline for later consumers.
 
-Reports Summary source at `6cad257` has the same bounded section/day refresh,
-server-cutoff labeling, cached-data/error retention and explicit recovery controls.
-Its focused verification passed 78 tests and independent specification/code-quality
-review passed. Exact CI run `37020532918` failed the existing Gradebook keyboard
-reload/autosave barrier; its reviewed correction now awaits combined CI. A fresh
-post-merge focused set passed 86 tests, types and lint after the shared theme,
-clipboard feedback and table-accessibility changes. Reports has not
-been deployed on the basis of these results. A focused pass is not a full CI pass
-or deployment receipt.
+Reports Summary freshness, initially source `6cad257`, now has complete combined
+source/CI acceptance in `23f5ed0ff3ab2c7eddc88a027baaa5729231647c`:
+[CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475) passed all seven jobs (1350 API, 225 web, four browser,
+84 E2E; 259 actual Docker-runtime compatibility cases). The original
+`37020532918` failed a preexisting Gradebook keyboard reload/autosave barrier;
+the reviewed correction waits for three distinct committed score responses before
+reload without weakening original assertions. A fresh postmerge focused set passed
+86 tests/types/lint after theme, clipboard feedback and table-accessibility changes.
+Summary's exact section cache/signal, bounded attempt/recovery and actual edited
+draft/pending-generation preservation remain verified; real provider calls are not
+part of this acceptance.
+
+There is still no accepted source23 staging runtime: its first successful immutable
+build produced a candidate that failed startup on operator context mode 0600
+`/app/litestream.yml`. B5 `00007-9lq` remains Ready at 100%; the independently reviewed
+same-archive corrected B context passed source review, but protected build exited 75
+before helper execution: no build-b intent/proof or cloud call. Do not retry unchanged.
+Do not infer deployment/restore acceptance from CI or corrected script source.
 
 Student detail editor-preserving freshness remains **proposed, not implemented**.
 Current [Student.tsx](../../web/src/pages/Student.tsx) reads `['student', id]`

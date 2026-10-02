@@ -330,9 +330,25 @@ staging receipt readback passed. Exact artifact/prefix bindings are in the
 [deployment ledger](../DEPLOYMENT_STATUS.md). Production services/domains are
 unchanged; public Super Teacher mappings remain on `edutrack`.
 
-Student and Reports freshness, AI snapshot/draft semantics and paging traversal
+Reports Summary freshness subsequently passed independent review and complete
+exact-source [CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475) at `23f5ed0ff3ab2c7eddc88a027baaa5729231647c`:
+1350 API, 225 web, four browser, 84 E2E and 259 Docker-runtime compatibility cases,
+with all seven jobs successful. This frontend-only slice uses existing server
+as_of, exact section-summary query/signal and a bounded current-section/day attempt;
+old evidence/retry, selected/edited parent drafts and pending generation survive.
+No formula, cursor, provider or whole-page invalidation change was introduced.
+
+The first operator artifact built successfully but staging `00008-6cj` failed on
+mode 0600 `/app/litestream.yml`. Same-archive corrected context source/mode review
+passed; root's protected B build exited 75 before its helper started, with no
+build-b intent/proof or cloud call. Do not retry unchanged. B5 `00007-9lq`
+continues Ready at 100%; no source23 deployment/recovery acceptance is claimed.
+See the deployment ledger for failure bindings and final executed proof.
+
+Student/Insight freshness, AI snapshot/draft semantics and paging traversal
 stability require their own contracts. Roster cursors deliberately freeze the
 calculation date until restart. Full grading policies/terms/enrollment and final
 production adoption/drain/rollback/domain cutover remain open. Runtime IAM resources
-are separately provisioned with runtime acceptance pending. No total CPU/RSS
+are separately provisioned with permission probe PASS but protected rehearsal
+exit 75 before execution; runtime acceptance remains pending. No total CPU/RSS
 bound, atomic snapshot, zero-loss RPO or immediate-midnight freshness is claimed.

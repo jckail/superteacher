@@ -4,6 +4,32 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
+Exact release candidate `23f5ed0ff3ab2c7eddc88a027baaa5729231647c` passed all seven exact-source
+jobs in [CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475): 1350 API, 225 web, four browser,
+84 E2E and 259 actual Docker-runtime compatibility cases, plus lint/types/build,
+Docker/auth smoke and informational benchmark. Reports Summary freshness and
+SMTP breaker corrections have source/CI acceptance; no real SMTP/provider delivery
+is proved. Corrected keyboard response barriers preserve the original test checks.
+
+The first immutable artifact built successfully (`e866d260-390c-4fbb-90d5-c35688966f11`,
+digest `66df34171a6ee17ae027840f7945f056471ddcaf01a0e15fea608af96f03a35d`), but owned
+staging `00008-6cj` failed on unreadable mode 0600 `/app/litestream.yml`. B5 remains
+the latest Ready at 100% accepted staging artifact. The reviewed same-archive corrected
+context has readable 0644/0755 files and directories 0755, private 0700 roots and
+exclusive separate outputs/tag. Protected corrected build session 7798 exited 75 before helper execution; no
+build-b intent/proof or cloud call occurred. No corrected build/deploy/recovery
+acceptance exists; do not retry the unchanged blocked action.
+
+Runtime IAM permission probe passed; protected rehearsal exited 75 before helper
+execution, so runtime acceptance remains pending. Production promotion/domain
+cutover and broader model/provider acceptance remain open. Preserve failed artifacts
+and never bypass or repeat an unchanged lock-blocked action.
+
+Remote main now includes later PR19/roadmap commits; review/merge and new combined
+exact-source verification remain pending. Source23 CI does not cover those commits.
+
+Latest verified serving staging release (B5):
+
 Reviewed source `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` serves isolated
 staging revision `00007-9lq`.
 [CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634)
@@ -105,7 +131,7 @@ Source `881a2af` passed all gates in
 4 browser tests, 82 E2E tests, strict types/lint, frontend build and Docker
 build/auth smoke. Server-revocable passcode sessions are independently reviewed;
 no migration is needed, and v1 cookies require one new sign-in after release.
-The new-source protected image build stopped at shared-lock exit75 before Cloud
+The new-source protected image build stopped at shared-lock exit 75 before Cloud
 Build began; log /tmp/st-release-881a2af-build.log. No new serving image or
 production/staging deployment occurred; do not retry unchanged or bypass the lock.
 
@@ -119,7 +145,7 @@ legacy roster adapter has independent review and an exact private archive
 conversion/recovery proof (11 courses, 33 sections, 30 students; no fabricated
 events). All converted students truthfully derive unknown risk. The source and
 converted bundle have verified private GCS hash roundtrips. A new serving image
-build stopped at shared-lock exit75 before Cloud Build; staging remains7166813,
+build stopped at shared-lock exit 75 before Cloud Build; staging remains7166813,
 production services and domain mappings were not changed. Do not retry the
 unchanged build or bypass the lock. Full overhaul remains active; auth release,
 archive access, final dataset/owner decisions and production cutover are open.
@@ -133,7 +159,7 @@ legacy-passcode logout xfail**. Source7166813 has an immutable built image,
 isolated authenticated/synthetic staging verification and a successful independent
 replica restore. Exact image, revision and limits are in
 [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The earlier9de97ce image build
-stopped at shared verification-lock exit75 before any cloud build began.
+stopped at shared verification-lock exit 75 before any cloud build began.
 
 Corrected-helper adoption on a private restored production copy also passed in
 recovery-only executionhbrzh, using a checked helper artifact in runtime7166813.
@@ -168,9 +194,9 @@ The current workflow triggers on pushes to `main` and on pull requests. A releas
 
 Root will push the release branch and open a PR to start broad GitHub CI while the native shared verification lock is occupied. After merging newer origin/main source, preserve these release guards and use CI for the final merged candidate. Record the immutable release commit, PR URL, workflow run URL and successful job conclusions below before deploying its image. A run for a different commit does not satisfy this gate.
 
-- Current verified source: `b5c1b8d00294afce0ebb5228b3be1c3a423d6191`
-- Current CI: [37013321634, all seven jobs passed](https://github.com/jckail/superteacher/actions/runs/37013321634)
-- Current isolated staging: `00007-9lq`; exact artifact bindings above and in the deployment ledger.
+- Exact CI-verified release candidate: `23f5ed0ff3ab2c7eddc88a027baaa5729231647c`
+- Current CI: [37022756475, all seven jobs passed](https://github.com/jckail/superteacher/actions/runs/37022756475)
+- Latest accepted isolated staging: B5 `00007-9lq` at 100%; source23 corrected artifact remains pending.
 
 Historical PR15 checkpoint:
 

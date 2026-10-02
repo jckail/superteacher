@@ -10,7 +10,24 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
-Current release `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` passed all seven
+Exact CI-verified release candidate `23f5ed0ff3ab2c7eddc88a027baaa5729231647c` passed all seven jobs in
+[CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475): 1350 API, 225 web, four browser,
+84 E2E and 259 actual Docker-runtime compatibility cases. Reviewed Reports Summary
+freshness preserves exact query identity, cutoff/retry and edited/pending parent
+updates; SMTP breaker fixes pass synthetic source/API tests, with no real SMTP or
+provider delivery claim. Merged theme/copy/accessibility work is covered by exact CI;
+the narrow postmerge Summary review is not a full independent review of that PR.
+
+The first source23 immutable image built successfully but owned staging `00008-6cj`
+failed on mode 0600 `/app/litestream.yml`. The reviewed corrected same-archive context
+uses readable 0644/0755 files; root's protected B build exited 75 before helper
+execution, with no build-b intent/proof or cloud call. Do not retry unchanged.
+Source23 has no accepted staging runtime/recovery proof at this checkpoint. B5 below
+remains the latest accepted Ready at 100% staging artifact; original failure evidence
+is preserved. Runtime IAM permission probe passed independently, but protected
+rehearsal exited 75 before execution; runtime acceptance remains open.
+
+Latest accepted staging release `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` passed all seven
 exact CI jobs in [CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634):
 1312 API without skips/xfails, 207 web, four browser and 83 E2E cases. It serves
 isolated staging revision `00007-9lq` with Overview's captured server `as_of` and
@@ -33,7 +50,7 @@ Metadata at B5 acceptance confirmed native `00006-cjv`, legacy `00018-t58` and s
 `00007-9lq` Ready at 100%. Production traffic and domains remain unchanged; both
 public Super Teacher domain mappings still route to `edutrack`. Dedicated runtime
 IAM resources are provisioned separately, but runtime acceptance is pending and
-no production identity change is claimed. Other consumers' date freshness,
+no production identity change is claimed. Student/Insight date freshness and draft provenance,
 grading policies/terms/enrollment, real-provider evaluation and final production
 adoption/drain/rollback/cutover remain open. See the deployment ledger for exact
 source/image/prefix bindings and proof limitations. Subsequent metadata confirms
@@ -220,7 +237,7 @@ External main advanced6214af9 by merging scalePR11 during this work. Integrated 
 
 CI36967844593 forbf7aca1: **822backendpassed,1xfailed**; lint, webunit/type/build and informational1kbenchmark passed. Nativebrowser3passed/1failed: axe caught mid-animationtoastcolorcontrast; retry selected another course's same-labelPeriod2. Toast entrance now retains opacity; retryfixtures use UUIDs and sectionIDs. IncomingE2E78passed/3failed: mobilechat correctly exposes modal dialog instead of desktop complementary region; tests now assert dialog+aria-modal onphones with allaxe assertions retained. Friendly chat fallback explains remaining classroom tools without exposing environment-variable setup. Exact new CI required beforedeploy; Docker was gated/skipped on the failingbrowserrun.
 
-CI36968302956 forda86cee: incoming E2E81passed; lint/web/benchmark passed. Backend821passed/1failed/1xfailed because root missed older `test_chat.py` fallback-key assertion; corrected meaningful teacher notice + noenvironmentsetup assertion,2focusedcasespass. Nativebrowser3passed/1failed because longUUIDcoursename widened native ScopePickerselect onmobile; team bounded flex/selectwidths, retainslongfixture andoverflowassertion. ProtectedCloudBuild session28412 endedexit75 with emptylog—no cloud command/archive/image/deployment began. Do not retry unchanged merely because lock isbusy. `/tmp/st-stage-candidate.py` is prepared,notexecuted; use only an exactCI-verified image andisolated replica prefix. Externalpersist deployment job observed active; do not overlapproductiontrafficownership.
+CI36968302956 forda86cee: incoming E2E81passed; lint/web/benchmark passed. Backend821passed/1failed/1xfailed because root missed older `test_chat.py` fallback-key assertion; corrected meaningful teacher notice + noenvironmentsetup assertion,2focusedcasespass. Nativebrowser3passed/1failed because longUUIDcoursename widened native ScopePickerselect onmobile; team bounded flex/selectwidths, retainslongfixture andoverflowassertion. ProtectedCloudBuild session28412 endedexit 75 with emptylog—no cloud command/archive/image/deployment began. Do not retry unchanged merely because lock isbusy. `/tmp/st-stage-candidate.py` is prepared,notexecuted; use only an exactCI-verified image andisolated replica prefix. Externalpersist deployment job observed active; do not overlapproductiontrafficownership.
 
 Externalmain advanceddae26a5 with passwordlessaccounts PR12. Nativebranch must integrate it beforemerge/release, preserving TypeScript, numericconstraints, calendar, bounded AI, active-sectionmetrics, parentnoteprivacy andretainedtransferhistory. Identitymigrationrevisioncollision andownership for newlyaddedroutes remain concrete integration requirements; avoid wholesaleacceptance of olderJS/routes. Rootcontinues teamintegration within original activegoal.
 
@@ -317,7 +334,7 @@ Production-copy rehearsal failed closed: first restored sidecars were correctly
 refused; a diagnosed preparation fix uses validated standalone backup. Second
 executionvtgs9 then found genuine schema drift against exact publishedaccounts0002.
 Live DB remained unchanged; schema-only diagnosis is next, before extending mapping.
-Legacy API archive saved privately outsideGit, mode0600 in0700directory; shape,
+Legacy API archive saved privately outsideGit, mode 0600 in0700directory; shape,
 identity/reference and repeated-payload checks passed. It is non-atomic and cannot
 prove complete legacyDB preservation. LEGACY_CUTOVER.md records the artifact and
 faithful importer/rollback prerequisites. Preserve records by default; do not infer
@@ -333,7 +350,7 @@ CI/image/rehearsal before deployment; staging7166813 remains verified/unchanged.
 
 Continuation checkpoint: source9de97ce was committed/pushed to main and
 CI36974717368 passed every release gate, with976APIpassed/1knownlegacylogoutxfail.
-The protected CloudBuild attempt for9de97ce stopped at shared-lock exit75 before
+The protected CloudBuild attempt for9de97ce stopped at shared-lock exit 75 before
 any cloudcommand/archive/build began; `/tmp/st-cloud-build-9de97ce.log` preserves
 the blocker. No unchanged retry or lock bypass. Staging still serves verified7166813.
 The private legacy API archive now also has a no-overwrite versioned GCS copy;
@@ -383,7 +400,7 @@ show30unknown and foreign-owner0. Bundle upload is exclusive, private and
 SHA256-roundtrip verified. See LEGACY_IMPORT_PLAN.md for curated hashes/location;
 private mappings/content remain outside Git and hosted memory.
 
-The protected c2812f4 serving-image build returned exit75 before Cloud Build
+The protected c2812f4 serving-image build returned exit 75 before Cloud Build
 began. Do not retry unchanged or bypass the shared lock. Fresh service metadata
 at09:00:48UTC confirmed native00006-cjv/staging00001-7kx/legacy00018-t58 each
 Ready at 100% of its service. No production or staging routing/config changed.
@@ -420,7 +437,7 @@ real provider calls were added. Accounts login keeps its prior transaction polic
 passcode login purges only owner rows past database absolute expiry, preserving
 adopted-owner accounts idle policy. V1 cookies need one new sign-in on release.
 
-The protected `881a2af` build stopped with exit75 before Cloud Build; log
+The protected `881a2af` build stopped with exit 75 before Cloud Build; log
 `/tmp/st-release-881a2af-build.log`. No new image, deployment or traffic mutation
 occurred. Fresh service metadata at 09:31:52 UTC confirmed the native, staging
 and legacy serving revisions remain Ready at 100% of their respective services.

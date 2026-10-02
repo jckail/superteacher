@@ -16,16 +16,54 @@ acceptance evidence below records the earlier production observations. Read
 lineage and email-delivery blockers; they do not establish acceptance of this
 overhaul against the live database.
 
-Reviewed Reports Summary freshness source `6cad257` is committed and pushed to
-main and the working branch. Exact-source CI is
-[37020532918](https://github.com/jckail/superteacher/actions/runs/37020532918),
-currently running. Fifteen new mounted cases cover dated refresh, retained
-old results/recovery, edited parent drafts and pending generation. Independent
-specification/quality review and root's fresh 78-test compatibility set, types
-and focused lint passed. Exact combined-source CI and deployment remain pending.
-The branch also integrates the shared main changes for SMTP delivery resilience
-and its release checkpoint; two substantiated breaker issues are being addressed
-before the next combined candidate is released.
+Exact release candidate `23f5ed0ff3ab2c7eddc88a027baaa5729231647c` passed all seven exact-source jobs in
+[CI37022756475](https://github.com/jckail/superteacher/actions/runs/37022756475): 1350 API tests, 225 web tests, four browser tests,
+84 E2E tests, lint/types/build, Docker/auth smoke and informational benchmark.
+The actual Docker-runtime compatibility set passed 259 cases. Reports Summary
+freshness is independently reviewed and CI verified: server-cutoff labeling,
+scoped forward-day refresh, retained old results/recovery and preservation of
+edited parent drafts and pending generation. The combined source also contains
+reviewed SMTP breaker corrections and merged theme/copy-feedback/accessibility
+changes. Synthetic mail tests passed in the API CI; real SMTP/provider delivery
+has not been verified.
+
+Earlier [CI37020532918](https://github.com/jckail/superteacher/actions/runs/37020532918)
+failed the Gradebook keyboard test after reload while its last serial score
+save was still unconfirmed. The corrected E2E test awaits three distinct successful
+assessment/student/points PUT responses before reload, preserving all original
+focus, Escape and persisted-value assertions; corrected exact CI passed.
+
+The first operator artifact build `e866d260-390c-4fbb-90d5-c35688966f11` succeeded
+at 14:57:45 UTC from immutable archive SHA256
+`00f7cf2eb77557a486fcdef2f8cb4c0f4b4dfe0f02d6f2ec809508135b421af1`, producing
+`gcr.io/portfolio-383615/superteacher@sha256:66df34171a6ee17ae027840f7945f056471ddcaf01a0e15fea608af96f03a35d`.
+Owned staging revision `00008-6cj` failed startup on `/app/litestream.yml`
+permission denied: the operator context file had mode 0600. This is an artifact
+packaging failure, not failed source CI or an accepted source23 runtime. Failed
+image/prefix receipts are preserved; B5 `00007-9lq` remains Ready at 100% with
+fresh proof. No production traffic or domain change was made by this operator.
+
+Corrected context `context-b` uses the SAME archive bytes, regular modes 0644/0755,
+directories 0755 under private 0700 roots, and a separate `-b` image tag. Independent
+source review and 264-file/292-entry content/layout/mode comparisons passed.
+Root's protected corrected build session 7798 exited 75 when its queue wait expired.
+The helper never started: no build-b intent/proof or cloud call occurred. No corrected
+build, staging smoke, recovery or readback success is claimed. Do not retry unchanged after lock exit 75
+or bypass the shared wrapper.
+
+Dedicated runtime IAM permission probe passed separately; its protected rehearsal
+command exited 75 before the helper/service began. Full runtime acceptance remains
+pending; probe success is not a served rehearsal or production identity change.
+See [runtime IAM](plans/runtime_iam.md). Student/Insight freshness, draft provenance,
+full grading policies/terms/enrollment, real-provider/email evaluation and final
+production adoption/drain/rollback/domain cutover remain open.
+
+Remote main subsequently advanced to `3290cc3` (PR19) and `1cde1cc` (roadmap).
+Those later changes await root's read-only review/merge and new combined exact-source
+verification. The source23 CI result applies only to the pinned candidate above,
+not to those newer commits or an unverified combined checkout.
+
+### Latest verified serving staging release (B5)
 
 Source `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` is pushed to main and the
 working branch. Exact-source
@@ -68,10 +106,11 @@ legacy `00018-t58` and staging `00007-9lq` Ready at 100%. This operator did not 
 custom-domain mappings; both public Super Teacher domains were confirmed to
 route to `edutrack`. Final writer drain and zero-loss RPO remain unproven.
 
-Next: other date consumers (Student/Reports), AI snapshot/draft semantics,
+Next: Student/Insight date freshness and AI snapshot/draft semantics,
 full grading policies/terms/enrollment, permitted real-provider evaluation and
 final dataset/writer-drain/rollback/domain cutover remain open. Dedicated runtime
-IAM resources have been provisioned separately, but runtime acceptance is pending;
+IAM resources have been provisioned and a separate permission probe passed, but
+the protected rehearsal exited 75 before its helper began; runtime acceptance is pending;
 this release does not claim acceptance or production identity changes. The original
 unbudgeted overhaul goal remains active.
 
@@ -292,7 +331,7 @@ Exact-head [CI36989700391](https://github.com/jckail/superteacher/actions/runs/3
 passed every required gate and the informational benchmark at `881a2af`: 1113
 API tests with no remaining logout xfail, 119 web tests, 4 browser tests, 82 E2E
 tests, strict types/lint, frontend build and Docker build/auth smoke. The protected
-new-source image build stopped with shared-lock exit75 before Cloud Build began;
+new-source image build stopped with shared-lock exit 75 before Cloud Build began;
 log `/tmp/st-release-881a2af-build.log`. Do not retry unchanged or bypass the lock.
 The Git archive context hash is
 `600f37451344560c3419e1674c50f6ced98f1fb0c350b3d14eae9a839f0483b2`.
@@ -322,7 +361,7 @@ API tests plus one known passcode-logout xfail, 119 web tests, 4 browser tests,
 82 E2E tests, strict types/lint, frontend build, Docker build/auth smoke. A new
 serving image remains pending.
 
-The protected build of immutable source `c2812f4` stopped with exit75 before
+The protected build of immutable source `c2812f4` stopped with exit 75 before
 Cloud Build began when another session acquired the shared lock. Log:
 `/tmp/st-release-c2812f4-build.log`; do not retry the unchanged attempt or bypass
 the lock. The source context was exported from Git (archive SHA256
@@ -348,7 +387,7 @@ deployment cases. Earlier source `9de97ce` passed all gates with 976 API tests a
 adds exact pinned Litestream bookkeeping validation to the offline accounts
 adoption helper. Neither change alters teacher-facing routes or frontend behavior.
 
-The protected image build for this source stopped with exit75 at the shared
+The protected image build for this source stopped with exit 75 at the shared
 verification lock before any Cloud Build command/archive/image began. Log:
 `/tmp/st-cloud-build-9de97ce.log`. Do not repeatedly queue the unchanged attempt
 or bypass the lock. The deployed staging image below remains source `7166813`.
@@ -385,7 +424,7 @@ Health, readiness, actual login/calendar/version/SPA/logout passed. The reusable
 candidate check passed synthetic course/initial-section/student/assessment/note/
 attendance creation, exact raw 20.123456789/10, name edit, transfer/history,
 active-section averages, rosters and authenticated logout. Private credentials and
-receipts remain outside Git, mode0600; values are not included here.
+receipts remain outside Git, mode 0600; values are not included here.
 
 Recovery-only job `superteacher-overhaul-recovery-8e3a2ff4`, execution
 `superteacher-overhaul-recovery-8e3a2ff4-9jlsw`, restores the isolated prefix into a
@@ -428,7 +467,7 @@ The task restores the existing service replica into a private transient director
 prepares a standalone read-only backup and adopts only a clone. Independent checks
 confirm source0002/output0003, every non-version row preserved, unchanged source
 snapshot bytes, integrity and foreign keys. The structured Cloud Logging result
-was independently read and verified; a local mode0600 proof is retained at
+was independently read and verified; a local mode 0600 proof is retained at
 `/tmp/st-9de-production-copy-proof.json`. Limits: one task, no retries, 180 seconds,
 512Mi memory, 100-second restore deadline and 32Mi restored-file cap.
 
