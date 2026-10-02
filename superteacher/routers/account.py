@@ -1,18 +1,17 @@
 """Self-service account endpoints: full JSON export and hard delete (sessions + every owned row)."""
 
 import hmac
-import json
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .. import accounts
+from .. import account_export, accounts
 from ..accounts import CurrentUser
 from ..auth import clear_cookie, current_user
 from ..db import get_db
+from ..gradebook_export import ClosingStreamingResponse
 from ..models import (
     Assessment,
     AttendanceRecord,
@@ -35,102 +34,14 @@ class DeleteAccountIn(BaseModel):
     email: str = Field(max_length=320)  # must retype the account's own address
 
 
-def _iso(v):
-    return v.isoformat() if v is not None else None
-
-
 @router.get("/account/export")
-def export_account(db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
-    """Everything the user owns, as one JSON document."""
-    courses = db.scalars(select(Course).where(Course.owner_id == user.id).order_by(Course.name)).all()
-    out_courses = []
-    for c in courses:
-        sections = []
-        for sec in db.scalars(select(Section).where(Section.course_id == c.id).order_by(Section.name)):
-            assessments = db.scalars(
-                select(Assessment)
-                .where(Assessment.section_id == sec.id)
-                .order_by(Assessment.due_date, Assessment.title)
-            ).all()
-            students = []
-            for st in db.scalars(select(Student).where(Student.section_id == sec.id).order_by(Student.name)):
-                insight = db.get(InsightCache, st.id)
-                students.append(
-                    {
-                        "id": st.id,
-                        "name": st.name,
-                        "grade_level": st.grade_level,
-                        "scores": [
-                            {
-                                "id": score.id,
-                                "assessment_id": assessment.id,
-                                "points": score.points,
-                                "title": assessment.title,
-                                "kind": assessment.kind.value,
-                                "max_points": assessment.max_points,
-                                "due_date": assessment.due_date.isoformat(),
-                                "section_id": history_section.id,
-                                "section": history_section.name,
-                                "course_id": history_course.id,
-                                "course": history_course.name,
-                            }
-                            for score, assessment, history_section, history_course in db.execute(
-                                select(Score, Assessment, Section, Course)
-                                .join(Assessment, Score.assessment_id == Assessment.id)
-                                .join(Section, Assessment.section_id == Section.id)
-                                .join(Course, Section.course_id == Course.id)
-                                .where(Score.student_id == st.id, Course.owner_id == user.id)
-                                .order_by(Assessment.due_date, Assessment.id)
-                            )
-                        ],
-                        "attendance": [
-                            {"day": a.day.isoformat(), "status": a.status.value}
-                            for a in db.scalars(
-                                select(AttendanceRecord)
-                                .where(AttendanceRecord.student_id == st.id)
-                                .order_by(AttendanceRecord.day)
-                            )
-                        ],
-                        "notes": [
-                            {"id": n.id, "body": n.body, "created_at": _iso(n.created_at)}
-                            for n in db.scalars(select(Note).where(Note.student_id == st.id).order_by(Note.created_at))
-                        ],
-                        "insight": None
-                        if insight is None
-                        else {
-                            "model": insight.model,
-                            "payload": insight.payload,
-                            "created_at": _iso(insight.created_at),
-                        },
-                    }
-                )
-            sections.append(
-                {
-                    "id": sec.id,
-                    "name": sec.name,
-                    "course_id": c.id,
-                    "assessments": [
-                        {
-                            "id": a.id,
-                            "title": a.title,
-                            "kind": a.kind.value,
-                            "max_points": a.max_points,
-                            "due_date": a.due_date.isoformat(),
-                        }
-                        for a in assessments
-                    ],
-                    "students": students,
-                }
-            )
-        out_courses.append({"id": c.id, "name": c.name, "sections": sections})
-    row = db.get(User, user.id)
-    doc = {
-        "exported_at": datetime.now(UTC).isoformat(),
-        "account": {"email": user.email, "created_at": _iso(row.created_at if row else None)},
-        "courses": out_courses,
-    }
-    return Response(
-        json.dumps(doc, indent=2),
+def export_account(request: Request, user: CurrentUser = Depends(current_user)):
+    """Stream owned data with a source-owned session, independently of dependencies."""
+    factory = request.app.state.session_factory
+    with factory() as db:
+        metadata = account_export.read_metadata(db, user.id, user.email)
+    return ClosingStreamingResponse(
+        account_export.account_chunks(factory, user.id, metadata),
         media_type="application/json",
         headers={
             "Content-Disposition": 'attachment; filename="super-teacher-export.json"',
