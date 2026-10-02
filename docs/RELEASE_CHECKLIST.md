@@ -4,7 +4,32 @@ Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/supertea
 
 ## Current release checkpoint
 
-Reviewed source `c3277b4` serves isolated staging revision `00006-fl2`.
+Reviewed source `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` serves isolated
+staging revision `00007-9lq`.
+[CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634)
+passed all seven jobs: 1312 API without skips/xfails, 207 web, four browser and
+83 E2E cases, lint/types/build, Docker/auth smoke and informational benchmark.
+Overview captured `as_of` and scoped forward-day refresh passed independent
+backend/client review and focused checks. Native mean/order/top-eight retention
+remain unchanged. Actual Python 3.12.15 runtime compatibility evidence remains
+259 passing cases.
+
+Protected immutable Cloud Build `42d93f52-189c-43b6-a954-8e243690bda4` succeeded;
+image digest `719f06c8f9da2ec4f77dcf97141e88244f4a6bdc289256c46e3f227acf5248b5`
+and the fresh source-bound replica prefix are recorded in the deployment ledger.
+Synthetic Overview/cutoff/summary/history/precision, paging/exports/preflight and
+logout checks passed. Recovery-only execution
+`superteacher-overhaul-recovery-b5c1b8d-b7l4d` succeeded at 13:51:10 UTC with
+integrity/FKs/head `0003`, history and both raw-score proofs; structured recovery
+and staging receipt readback passed. Final-image runtime inventory matches all 39
+prior observed package resolutions. Production traffic/domains are unchanged;
+final drain and zero-loss RPO are not proved. Dedicated runtime IAM resources are
+provisioned separately, with runtime acceptance still pending. Other consumers'
+date freshness, full grading model and production cutover remain open.
+
+Previous verified Overview retention and runtime release:
+
+Reviewed source `c3277b4` previously served isolated staging revision `00006-fl2`.
 [CI37010699744](https://github.com/jckail/superteacher/actions/runs/37010699744)
 passed all gates: 1309 API without skips/xfails, 194 web, four browser and 83 E2E
 cases. Actual Python 3.12.15 image checks passed version/UID/imports/inventory,
@@ -31,8 +56,9 @@ succeeded at 12:56:40 UTC with integrity/FKs/head `0003`, transfer/history and b
 raw scores preserved. Structured proofs and staging receipt readback passed.
 This does not prove final production drain or zero-loss RPO. Exact artifact
 bindings and prior failure evidence are in [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md).
-Production traffic and custom-domain mappings remain unchanged. Further runtime,
-Overview retention, grading model and production acceptance work remains open.
+Production traffic and custom-domain mappings remain unchanged. At that checkpoint, runtime and
+Overview retention were pending; they subsequently shipped in `c3277b4`, and
+Overview date freshness in `b5c1b8d`. Broader model/production acceptance remains open.
 
 Previous verified release:
 
@@ -61,7 +87,7 @@ PostgreSQL integration cases skipped locally, then executed in exact-source
 1195 API tests without skips/xfails, 137 web tests, four browser tests and 83 E2E
 tests passed. All required lint/types/build/Docker gates and benchmark passed.
 Protected Cloud Build `3bc0704a-fe6a-4264-80b8-e1ef47ec0b8b` succeeded;
-the immutable digest is serving isolated staging revision `00002-jqp` with fresh
+the immutable digest previously served isolated staging revision `00002-jqp` with fresh
 storage, AI/demo disabled and max one instance. Synthetic writes/transfer/history,
 raw precision, cursor scope/counts, CSV/account exports and copied-cookie logout
 passed. Recovery-only execution `superteacher-overhaul-recovery-3e6629c-k4hx7`
@@ -142,9 +168,15 @@ The current workflow triggers on pushes to `main` and on pull requests. A releas
 
 Root will push the release branch and open a PR to start broad GitHub CI while the native shared verification lock is occupied. After merging newer origin/main source, preserve these release guards and use CI for the final merged candidate. Record the immutable release commit, PR URL, workflow run URL and successful job conclusions below before deploying its image. A run for a different commit does not satisfy this gate.
 
-- Latest verified source: `5113de89c4625e61b8e2ab5ff1aac6378bf116ff`
+- Current verified source: `b5c1b8d00294afce0ebb5228b3be1c3a423d6191`
+- Current CI: [37013321634, all seven jobs passed](https://github.com/jckail/superteacher/actions/runs/37013321634)
+- Current isolated staging: `00007-9lq`; exact artifact bindings above and in the deployment ledger.
+
+Historical PR15 checkpoint:
+
+- Then-verified source: `5113de89c4625e61b8e2ab5ff1aac6378bf116ff`
 - Pull request: [PR15, merged](https://github.com/jckail/superteacher/pull/15)
-- Latest CI: [36978867068, all gates passed](https://github.com/jckail/superteacher/actions/runs/36978867068)
+- Then-current CI: [36978867068, all gates passed](https://github.com/jckail/superteacher/actions/runs/36978867068)
 - Staged source7166813 image: `sha256:5d3c85dfb754bf5382ca7f196d86b108d878c2a85ccf2425702d22b0df7bcde6`
 - Latest9de97ce image: blocked before build; not deployed.
 

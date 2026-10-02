@@ -7,6 +7,56 @@ backup artifacts stay outside Git and hosted project memory.
 
 ## Current checkpoint and next action
 
+Source `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` is pushed to main and the
+working branch. Exact-source
+[CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634)
+passed all seven jobs: 1312 API tests without skips/xfails including real
+PostgreSQL, 207 web tests, four browser tests, 83 E2E tests, lint/types/build,
+Docker/auth smoke and the informational benchmark. Independent backend/client
+Overview freshness reviews and focused checks passed. The actual Python 3.12.15
+runtime compatibility set remains 259 passing cases.
+
+Overview now returns its captured server `as_of` on every envelope and displays
+that cutoff. Its ready-gated client refreshes the exact existing scope query on
+validated forward school-day changes, with bounded scope/day attempts, stale
+response rejection and explicit failure/manual recovery. Empty and unknown
+populations stay distinct. Native means, stable ordering, sentinel 101 and
+at most eight retained attention candidates remain unchanged; scalar mean storage
+is still O(N), with full population/history scans and existing batch histories.
+This does not imply snapshot isolation or immediate midnight freshness.
+
+Protected Cloud Build `42d93f52-189c-43b6-a954-8e243690bda4` succeeded at
+13:40:07 UTC from the immutable source archive.
+Image: `gcr.io/portfolio-383615/superteacher@sha256:719f06c8f9da2ec4f77dcf97141e88244f4a6bdc289256c46e3f227acf5248b5`.
+Ready staging revision `superteacher-overhaul-staging-00007-9lq` serves it at 100%,
+with full-SHA VERSION and a verified fresh replica prefix
+`overhaul-staging/b5c1b8d00294afce0ebb5228b3be1c3a423d6191-c4cc366433e9`.
+AI/demo disabled; max one instance, no minimum. Synthetic HTTP checks passed
+creation/transfer/history/raw precision, Overview counts/native precision/cutoff,
+class-summary statistics and Gradebook cutoff, scoped header continuations,
+Unicode/BOM/CRLF CSV, historical account JSON, parent-update section preflight
+and copied-cookie logout. Private credentials and receipts remain outside Git.
+Recovery-only execution `superteacher-overhaul-recovery-b5c1b8d-b7l4d`
+succeeded at 13:51:10 UTC. The exact image/prefix restored into fresh transient
+SQLite and verified integrity, foreign keys, native head `0003`, transfer history,
+notes, attendance and both raw extra-credit values. Structured restore proofs
+and subsequent staging receipt readback passed; the overridden entrypoint never
+starts a server or replica writer. Executed final-image inventory confirms Python
+3.12.15, OpenSSL 3.0.22, SQLite 3.40.1 and 40 distributions; all 39 prior observed
+package resolutions matched. Fresh service metadata confirms native `00006-cjv`,
+legacy `00018-t58` and staging `00007-9lq` Ready at 100%. Production services and
+custom-domain mappings remain unchanged; both public Super Teacher domains still
+route to `edutrack`. Final writer drain and zero-loss RPO remain unproven.
+
+Next: other date consumers (Student/Reports), AI snapshot/draft semantics,
+full grading policies/terms/enrollment, permitted real-provider evaluation and
+final dataset/writer-drain/rollback/domain cutover remain open. Dedicated runtime
+IAM resources have been provisioned separately, but runtime acceptance is pending;
+this release does not claim acceptance or production identity changes. The original
+unbudgeted overhaul goal remains active.
+
+### Previous verified Overview retention and runtime release
+
 Source `c3277b4ea55617f0adce5521a26422ec54e77b77` is pushed to main and the
 working branch. Exact-source
 [CI37010699744](https://github.com/jckail/superteacher/actions/runs/37010699744)
@@ -31,7 +81,7 @@ Protected Cloud Build `5ebbab7c-acbf-494d-95c3-9926180ff099` succeeded at
 13:14:12 UTC from an immutable Git archive (SHA256
 `e40d2e8fcc9cbec8c0c5926936ea10bb9d1cafce91319d39a0a6604b141b2b98`).
 Image: `gcr.io/portfolio-383615/superteacher@sha256:0618d422f3daa90b93c5760843d011a5dab29ddb4572e9cca837a664930a35d4`.
-Ready staging revision `superteacher-overhaul-staging-00006-fl2` serves it at 100%,
+Staging revision `superteacher-overhaul-staging-00006-fl2` previously served it at 100%,
 with full-SHA VERSION and a verified fresh replica prefix
 `overhaul-staging/c3277b4ea55617f0adce5521a26422ec54e77b77-9df38b9db3d4`.
 AI/demo disabled; max one instance, no minimum. Synthetic HTTP checks passed
@@ -50,12 +100,10 @@ Fresh metadata confirms native `00006-cjv` and legacy `00018-t58` remain Ready a
 100%; production traffic/domain mappings are unchanged. Final writer drain and
 zero-loss RPO remain unproven.
 
-Next: finish and independently review the Overview date-freshness slice, which
-is being implemented separately; this pinned artifact has no Overview
-cutoff or mounted school-day refresh. Other date consumers, dedicated runtime IAM,
-full grading policies/terms/enrollment, permitted real-provider evaluation and
-final dataset/writer-drain/rollback/domain cutover remain open. The original
-unbudgeted overhaul goal is active.
+At this checkpoint, Overview date freshness was a separate pending slice and
+was absent from this pinned artifact. It subsequently passed independent review,
+exact CI and staging/recovery verification in `b5c1b8d`, recorded above. Other date
+consumers and broader model/production acceptance remain open.
 
 ### Previous verified summary and Gradebook release
 

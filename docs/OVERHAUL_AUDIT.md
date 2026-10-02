@@ -10,18 +10,33 @@ Completion requires an integrated implementation, passing relevant checks, repre
 
 ## Verified implementation baseline
 
-Current release `c3277b4` passed every exact CI gate (1309 API, 194 web, four
-browser, 83 E2E tests) and serves isolated staging revision `00006-fl2`. It adds
-bounded Overview attention retention and digest-pinned Python 3.12.15 to the
-reviewed summary/cutoff/scope/picker/archive/container work. Actual-image checks
-passed version/UID/imports/inventory, 259 focused runtime cases and unchanged
-production dependency versions in the temporary test environment. Synthetic HTTP
-Overview/summary/cutoff, workflows/history/precision, exports and logout passed.
-Independent recovery-only execution `c3277b4-hlwcb` passed integrity/FKs/head
-`0003`, transfer/history/raw precision at 13:20:46 UTC. Executed final-image
-Python 3.12.15/inventory and subsequent staging receipt readback passed; all 39
-prior observed package resolutions matched. Previous `07974de` evidence is preserved. Production traffic and
-domains remain unchanged. See the deployment ledger for exact artifact bindings.
+Current release `b5c1b8d00294afce0ebb5228b3be1c3a423d6191` passed all seven
+exact CI jobs in [CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634):
+1312 API without skips/xfails, 207 web, four browser and 83 E2E cases. It serves
+isolated staging revision `00007-9lq` with Overview's captured server `as_of` and
+ready-gated scoped forward-day revalidation. Independent backend/client reviews
+passed. Native means/order/sentinel 101/top-eight retention remain unchanged;
+full population/history scans and O(N) scalar means still apply.
+
+Protected Cloud Build `42d93f52-189c-43b6-a954-8e243690bda4` built immutable digest
+`719f06c8f9da2ec4f77dcf97141e88244f4a6bdc289256c46e3f227acf5248b5`.
+Synthetic HTTP Overview/cutoff/summary, workflows/history/precision, exports,
+section preflight and copied-cookie logout passed. Recovery-only execution
+`b5c1b8d-b7l4d` succeeded at 13:51:10 UTC with integrity/FKs/head `0003`,
+transfer/history/raw precision; structured restore and staging readback passed.
+Actual Python 3.12.15 image inventory confirms OpenSSL 3.0.22, SQLite 3.40.1 and 40
+distributions; all 39 prior observed package resolutions match. The focused actual
+runtime compatibility set remains 259 passing cases. Prior `c3277b4` retention/runtime
+and `07974de` summary/Gradebook evidence is preserved in the deployment ledger.
+
+Fresh service metadata confirms native `00006-cjv`, legacy `00018-t58` and staging
+`00007-9lq` Ready at 100%. Production traffic and domains remain unchanged; both
+public Super Teacher domain mappings still route to `edutrack`. Dedicated runtime
+IAM resources are provisioned separately, but runtime acceptance is pending and
+no production identity change is claimed. Other consumers' date freshness,
+grading policies/terms/enrollment, real-provider evaluation and final production
+adoption/drain/rollback/cutover remain open. See the deployment ledger for exact
+source/image/prefix bindings and proof limitations.
 
 Earlier feature milestone through `c95d9f9`: independently reviewed roster API
 and client pagination, CSV streaming and account JSON streaming. Root verified
@@ -45,7 +60,7 @@ These statements describe inspected source, not a claim that every current check
 | Runtime safety | Public health in `main.py` now logs database failures privately and returns sanitized HTTP 503. API responses are no-store, unknown API paths return 404 instead of SPA HTML, and injected app database factories apply to REST. | Duplicate shadowed health/version handlers were removed; the public handlers are the sole definitions. |
 | Frontend reliability | Attendance captures section/day in mutation variables; reports bound extra-credit bar width; chat detaches stale socket handlers and bounds stored conversation history. Focus, mobile styles, and reduced-motion CSS exist. | Component regressions cover concurrent writes and private-session boundaries. Chromium browser workflow and WCAG checks are being verified; full screen-reader and production-release coverage remains open. |
 | Migrations | Alembic baseline `0001` and startup upgrade path exist. `tests/test_migrations.py` checks schema shape, metadata drift, repeat startup, and legacy data preservation. | Native chain is 0001 -> 0002 -> 0003. Independently published accounts0002 needs the explicit offline adoption bridge; it is separate from legacy EduTrack conversion. |
-| Delivery | Exact-source CI covers Python, strict frontend checks, browser workflows and restricted-directory Docker/auth smoke. Deployment binds an immutable digest and fresh isolated replica. | Sourcec3277b4 passed all gates:1309API/no skippedxfail,194web,4browser,83E2E and259actual-runtime focused cases. Staging00006-fl2 serves it; synthetic HTTP and independent restore/inventory/readback passed; integrity/FKs/head0003 and raw history preserved. Production unchanged. Production domain remains legacy. |
+| Delivery | Exact-source CI covers Python, strict frontend checks, browser workflows and restricted-directory Docker/auth smoke. Deployment binds an immutable digest and fresh isolated replica. | Source `b5c1b8d` passed all seven CI jobs: 1312 API/no skips or xfails, 207 web, four browser, 83 E2E; 259 actual-runtime focused cases remain passing. Staging `00007-9lq` serves it; Overview cutoff/forward-day refresh, synthetic HTTP and independent restore/inventory/readback passed. Integrity/FKs/head `0003` and raw history preserved. Runtime IAM resources provisioned, acceptance pending. Production unchanged; public domains remain on legacy edutrack. |
 
 ## Public deployment evidence
 
@@ -359,7 +374,7 @@ security boundary and awaited rendered state without weakening assertions.
 
 The exact private legacy archive converted to a new restricted bundle: 11
 courses, 33 sections, 30 students, disabled synthetic principal, all ownership
-chains/head0003/integrity checked, zero fabricated event/cache/auth/usage rows.
+chains/head `0003`/integrity checked, zero fabricated event/cache/auth/usage rows.
 Original bytes and every native row survive backup/restore. Read-only metrics
 show30unknown and foreign-owner0. Bundle upload is exclusive, private and
 SHA256-roundtrip verified. See LEGACY_IMPORT_PLAN.md for curated hashes/location;
@@ -368,7 +383,7 @@ private mappings/content remain outside Git and hosted memory.
 The protected c2812f4 serving-image build returned exit75 before Cloud Build
 began. Do not retry unchanged or bypass the shared lock. Fresh service metadata
 at09:00:48UTC confirmed native00006-cjv/staging00001-7kx/legacy00018-t58 each
-Ready at100% of its service. No production or staging routing/config changed.
+Ready at 100% of its service. No production or staging routing/config changed.
 Shared Graphify refresh passed (164478nodes); native corpus coverage remains
 absent, so code conclusions used verified live source. Agent Hub did not
 recognize this repository's memory scope; these committed documents are the

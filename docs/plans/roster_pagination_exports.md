@@ -6,7 +6,7 @@ Graphify CLI query returned no Superteacher runtime source coverage; findings
 were checked against live native source. No private data, tests, builds, browser,
 cloud calls, installs or graph refresh were used in this assessment.
 
-## Current bounds and remaining materialization
+## Pre-implementation bounds and remaining materialization (881a2af)
 
 | Surface | Verified behavior | Remaining cost |
 | --- | --- | --- |
@@ -282,14 +282,15 @@ the pure summary as an equality reference. Native metrics, exact assessment
 statistics, daily counters, ordering, future work and lifetime attendance parity
 passed focused regressions and real PostgreSQL nested-cursor acceptance. Exact CI
 passed 1294 API/no skips or xfails, 194 web, four browser and 83 E2E cases. Its
-immutable image serves isolated staging `00005-klh`; summary/cutoff, paging and
+immutable image previously served isolated staging `00005-klh`; summary/cutoff, paging and
 export HTTP checks passed. Independent read-only replica restore and subsequent
 staging receipt readback passed, including integrity/FKs/head `0003` and raw
 history precision; consult the deployment ledger for exact artifact bindings.
 
 Exact medians/scalar aggregates and the complete attention response still grow
 with student count; one student's attendance history and assessment width remain
-unbounded. Overview's top-eight retention is the next read-only team plan; student
+unbounded. At the `07974de` checkpoint Overview's top-eight retention was
+the next team plan; it subsequently shipped in `c3277b4`, recorded below. Student
 grade history, Gradebook/Attendance matrices and their mutation responses require
 separate later contracts. Gradebook now labels its server cutoff and revalidates
 on forward school days; it still returns a full matrix.
@@ -308,9 +309,30 @@ winners plus iteration temporaries. Complete native response/filter parity and
 95 focused regressions passed, with independent specification and quality reviews.
 No total memory/CPU/RSS or database snapshot guarantee follows.
 
-The next separate slice captures Overview's server `as_of`, displays that cutoff
-and revalidates mounted data on forward school days. Its plan is independently
-reviewed and implementation is in progress; it is not part of `c3277b4`. Preserve
-cache identity/readiness/cancellation, show failed refresh with manual recovery,
-and avoid browser-date fallback. Student and Reports refresh, AI snapshot/draft
-semantics and paging traversal stability require their own contracts.
+Overview date freshness subsequently shipped in source
+`b5c1b8d00294afce0ebb5228b3be1c3a423d6191`. Every Overview envelope includes its
+captured server `as_of`, explicitly passed to the existing iterator. The client
+displays that cutoff and refreshes the exact existing scope query on validated
+forward school days, preserving readiness, cache identity, cancellation and
+native reducer semantics. A bounded current-scope/day attempt resets across scope
+and readiness transitions; failures/stale successes retain labeled old evidence
+with manual recovery. Calendar failures never introduce a browser-date fallback.
+Independent backend/client review passed.
+
+[CI37013321634](https://github.com/jckail/superteacher/actions/runs/37013321634)
+passed all seven jobs: 1312 API without skips/xfails, 207 web, four browser and
+83 E2E cases. The actual Python 3.12.15 runtime compatibility set remains 259 passed.
+Protected build `42d93f52-189c-43b6-a954-8e243690bda4` produced digest
+`719f06c8f9da2ec4f77dcf97141e88244f4a6bdc289256c46e3f227acf5248b5`, serving isolated
+staging `00007-9lq` on a fresh source-bound prefix. Synthetic HTTP and independent
+recovery execution `b5c1b8d-b7l4d` (13:51:10 UTC), structured restore and subsequent
+staging receipt readback passed. Exact artifact/prefix bindings are in the
+[deployment ledger](../DEPLOYMENT_STATUS.md). Production services/domains are
+unchanged; public Super Teacher mappings remain on `edutrack`.
+
+Student and Reports freshness, AI snapshot/draft semantics and paging traversal
+stability require their own contracts. Roster cursors deliberately freeze the
+calculation date until restart. Full grading policies/terms/enrollment and final
+production adoption/drain/rollback/domain cutover remain open. Runtime IAM resources
+are separately provisioned with runtime acceptance pending. No total CPU/RSS
+bound, atomic snapshot, zero-loss RPO or immediate-midnight freshness is claimed.
