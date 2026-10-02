@@ -401,7 +401,8 @@ def request_link(body: RequestLinkBody, request: Request, background: Background
     st = _state(request)
     _csrf(request, st)
     _accounts_only(st)
-    if not mailer.email_available():
+    reservation = mailer.HEALTH.acquire()
+    if reservation is None:
         # Address-independent (the breaker watches the provider, not the user), so this leaks nothing about anyone.
         # Better an honest 503 than a "link is on its way" that is not coming.
         raise HTTPException(
@@ -409,37 +410,50 @@ def request_link(body: RequestLinkBody, request: Request, background: Background
             "Sign-in email is temporarily unavailable. Please try again in a few minutes.",
             headers={"Retry-After": "300"},
         )
-    s = st.settings
-    ip = _ip(request)
-    for window, key in ((st.link_ip, ip), (st.link_global, "*")):
-        if not window.allow(key):
-            wait = window.retry_after(key)
-            raise HTTPException(
-                429, "Too many sign-in requests. Please try again later.", headers={"Retry-After": str(wait)}
+    transferred = False
+    try:
+        s = st.settings
+        ip = _ip(request)
+        for window, key in ((st.link_ip, ip), (st.link_global, "*")):
+            if not window.allow(key):
+                wait = window.retry_after(key)
+                raise HTTPException(
+                    429, "Too many sign-in requests. Please try again later.", headers={"Retry-After": str(wait)}
+                )
+        email = accounts.normalize_email(body.email)
+        if email is None:
+            raise HTTPException(422, "Enter a valid email address.")
+        with request.app.state.session_factory() as db:
+            accounts.purge_expired(db)
+            accounts.reserve_link_request(db)
+            send = (
+                accounts.allowed_domain(s, email)
+                and accounts.recent_token_count(db, email) < s.accounts_link_per_email_hour
+                and (
+                    accounts.find_user(db, email) is not None
+                    or email == accounts.normalize_email(s.accounts_owner_email)
+                    or accounts.count_users(db) < s.accounts_max_users
+                )
             )
-    email = accounts.normalize_email(body.email)
-    if email is None:
-        raise HTTPException(422, "Enter a valid email address.")
-    with request.app.state.session_factory() as db:
-        accounts.purge_expired(db)
-        accounts.reserve_link_request(db)
-        send = (
-            accounts.allowed_domain(s, email)
-            and accounts.recent_token_count(db, email) < s.accounts_link_per_email_hour
-            and (
-                accounts.find_user(db, email) is not None
-                or email == accounts.normalize_email(s.accounts_owner_email)
-                or accounts.count_users(db) < s.accounts_max_users
-            )
-        )
-        # Same work either way (mint + hash + insert); a dropped request is simply rolled back.
-        raw = accounts.issue_login_token(db, s, email, accounts.hash_ip(st.key, ip))
+            # Same work either way (mint + hash + insert); a dropped request is simply rolled back.
+            raw = accounts.issue_login_token(db, s, email, accounts.hash_ip(st.key, ip))
+            if send:
+                db.commit()
+            else:
+                db.rollback()
         if send:
-            db.commit()
-            background.add_task(mailer.send_login_link, s, email, f"{_link_base(s)}/auth/verify#token={raw}")
-        else:
-            db.rollback()
-    return GENERIC_LINK_REPLY
+            background.add_task(
+                mailer.send_login_link,
+                s,
+                email,
+                f"{_link_base(s)}/auth/verify#token={raw}",
+                reservation=reservation,
+            )
+            transferred = True
+        return GENERIC_LINK_REPLY
+    finally:
+        if not transferred:
+            reservation.release()
 
 
 def _session_info(st: AuthState, db, user: CurrentUser) -> dict:

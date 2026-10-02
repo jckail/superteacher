@@ -5,17 +5,23 @@ way", and in accounts mode nobody could sign in. Now: the provider's reason is l
 breaker, and the sign-in endpoint answers 503 instead of a promise it cannot keep.
 """
 
+import asyncio
 import json
 import logging
 import smtplib
 import ssl
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from typing import ClassVar
 
 import httpx
 import pytest
+from fastapi import BackgroundTasks, HTTPException, Request
 
-from superteacher import mailer
+from superteacher import accounts, auth, mailer
 from superteacher.config import Settings
+from superteacher.models import LoginToken
 from tests.acct_util import build, request_link
 
 TO = "teacher@example.com"
@@ -233,3 +239,334 @@ def test_breaker_state_is_json_safe_and_public_config_shape_is_fixed(tmp_path):
     with build(tmp_path) as c:
         body = c.get("/api/auth/config").json()
         assert set(body) == {"auth_mode", "email_available"} and json.dumps(body)
+
+
+def half_open(monkeypatch):
+    clock = Clock()
+    health = mailer.DeliveryHealth(clock)
+    for _ in range(health.FAILURES):
+        health.record(False)
+    clock.t += health.COOLDOWN
+    monkeypatch.setattr(mailer, "HEALTH", health)
+    return health, clock
+
+
+def test_half_open_acquisition_is_atomic_and_config_reads_do_not_claim(monkeypatch):
+    health, _ = half_open(monkeypatch)
+    assert all(mailer.email_available() for _ in range(10))
+    barrier = threading.Barrier(8)
+
+    def acquire():
+        barrier.wait(timeout=5)
+        return health.acquire()
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        reservations = list(pool.map(lambda _: acquire(), range(8)))
+    (claim,) = [reservation for reservation in reservations if reservation is not None]
+    assert not health.available()
+    claim.release()
+    assert health.available() and health._consecutive == health.FAILURES
+
+
+@pytest.mark.parametrize("replace_first", [False, True])
+def test_expired_queued_sender_refuses_without_delivery_or_health_changes(monkeypatch, replace_first):
+    health, clock = half_open(monkeypatch)
+    old = health.acquire()
+    assert old is not None
+    clock.t += health.QUEUED_LEASE + 1
+    assert health.available()
+    replacement = health.acquire() if replace_first else None
+    seen = []
+    monkeypatch.setattr(mailer, "send", lambda *args: seen.append(args))
+    failures = health._consecutive
+    assert not mailer.send_login_link(smtp_settings(), TO, LINK, reservation=old)
+    old.finish(True)
+    old.release()
+    assert seen == [] and health._consecutive == failures
+    if replacement is None:
+        replacement = health.acquire()
+    assert replacement is not None and not health.available()
+    replacement.release()
+
+
+def test_started_probe_never_expires_and_closes_on_real_completion(monkeypatch):
+    health, clock = half_open(monkeypatch)
+    claim = health.acquire()
+    assert claim is not None and claim.start()
+    clock.t += health.QUEUED_LEASE + health.COOLDOWN + 1
+    assert not health.available() and health.acquire() is None
+    claim.finish(True)
+    assert health.available() and health._consecutive == 0
+    first, second = health.acquire(), health.acquire()
+    assert first is not None and second is not None
+    first.release()
+    second.release()
+
+
+def test_sender_start_racing_with_expiration_replacement_cannot_start_both(monkeypatch):
+    health, clock = half_open(monkeypatch)
+    old = health.acquire()
+    assert old is not None
+    barrier = threading.Barrier(2)
+
+    def start_old():
+        barrier.wait(timeout=5)
+        return old.start()
+
+    def replace():
+        barrier.wait(timeout=5)
+        clock.t += health.QUEUED_LEASE + 1
+        return health.acquire()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        started = pool.submit(start_old)
+        replacement = pool.submit(replace)
+        old_started, new = started.result(timeout=5), replacement.result(timeout=5)
+    if old_started:
+        assert new is None and health.acquire() is None
+        old.finish(False)
+        assert not health.available()
+    else:
+        assert new is not None and new.start()
+        old.finish(True)
+        old.release()
+        assert health.acquire() is None
+        new.finish(True)
+        assert health.available()
+
+
+def route_request(client):
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/auth/request-link",
+            "headers": [(b"x-requested-with", b"test"), (b"host", b"testserver")],
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+            "app": client.app,
+        }
+    )
+
+
+def test_actual_route_retains_deferred_claim_and_background_releases(tmp_path, monkeypatch):
+    with build(tmp_path) as client:
+        health, _ = half_open(monkeypatch)
+        request = route_request(client)
+        tasks = BackgroundTasks()
+        assert auth.request_link(auth.RequestLinkBody(email=TO), request, tasks) == auth.GENERIC_LINK_REPLY
+        assert len(tasks.tasks) == 1
+        assert auth.auth_config(request) == {"auth_mode": "accounts", "email_available": False}
+        with pytest.raises(HTTPException) as denied:
+            auth.request_link(auth.RequestLinkBody(email="other@example.org"), request, BackgroundTasks())
+        assert denied.value.status_code == 503
+        asyncio.run(tasks())
+        assert health.available() and health._consecutive == 0
+        assert len(list((tmp_path / "outbox").glob("*.json"))) == 1
+
+
+def test_actual_abandoned_route_task_cannot_send_or_clear_replacement(tmp_path, monkeypatch):
+    with build(tmp_path) as client:
+        health, clock = half_open(monkeypatch)
+        request = route_request(client)
+        abandoned, replacement = BackgroundTasks(), BackgroundTasks()
+        assert auth.request_link(auth.RequestLinkBody(email=TO), request, abandoned) == auth.GENERIC_LINK_REPLY
+        clock.t += health.QUEUED_LEASE + 1
+        assert auth.auth_config(request)["email_available"] is True
+        assert (
+            auth.request_link(auth.RequestLinkBody(email="replacement@example.org"), request, replacement)
+            == auth.GENERIC_LINK_REPLY
+        )
+        asyncio.run(abandoned())
+        assert not health.available() and health._consecutive == health.FAILURES
+        assert not list((tmp_path / "outbox").glob("*.json"))
+        asyncio.run(replacement())
+        assert health.available() and health._consecutive == 0
+        (path,) = (tmp_path / "outbox").glob("*.json")
+        assert json.loads(path.read_text())["to"] == "replacement@example.org"
+
+
+def test_session_exit_failure_releases_before_scheduling_and_preserves_commit(tmp_path, monkeypatch):
+    with build(tmp_path) as client:
+        health, _ = half_open(monkeypatch)
+        original_factory = client.app.state.session_factory
+        with original_factory() as db:
+            before_tokens = db.query(LoginToken).count()
+
+        @contextmanager
+        def failing_exit():
+            with original_factory() as db:
+                yield db
+            raise RuntimeError("synthetic session exit failure")
+
+        monkeypatch.setattr(client.app.state, "session_factory", failing_exit)
+        tasks = BackgroundTasks()
+        with pytest.raises(RuntimeError, match="synthetic session exit failure"):
+            auth.request_link(auth.RequestLinkBody(email=TO), route_request(client), tasks)
+        assert tasks.tasks == [] and health.available() and health._consecutive == health.FAILURES
+        claim = health.acquire()
+        assert claim is not None
+        claim.release()
+        assert not list((tmp_path / "outbox").glob("*.json"))
+        with original_factory() as db:
+            assert db.query(LoginToken).count() == before_tokens + 1
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "quota",
+        "invalid",
+        "domain",
+        "email_cap",
+        "user_cap",
+        "db_error",
+        "token_error",
+        "commit_error",
+        "schedule_error",
+    ],
+)
+def test_actual_route_no_send_exits_release_without_marking_provider_healthy(tmp_path, monkeypatch, reason):
+    options = {"accounts_email_allowlist_domains": "school.org"} if reason == "domain" else {}
+    with build(tmp_path, **options) as client:
+        health, _ = half_open(monkeypatch)
+        with client.app.state.session_factory() as db:
+            before_tokens = db.query(LoginToken).count()
+        if reason == "quota":
+            monkeypatch.setattr(client.app.state.auth.link_ip, "allow", lambda _: False)
+        elif reason == "email_cap":
+            monkeypatch.setattr(accounts, "recent_token_count", lambda *args: 10_000)
+        elif reason == "user_cap":
+            monkeypatch.setattr(accounts, "count_users", lambda *args: 10_000)
+        elif reason in {"db_error", "token_error", "commit_error", "schedule_error"}:
+
+            def fail(*args, **kwargs):
+                raise RuntimeError("synthetic failure")
+
+            if reason == "db_error":
+                monkeypatch.setattr(accounts, "reserve_link_request", fail)
+            elif reason == "token_error":
+                monkeypatch.setattr(accounts, "issue_login_token", fail)
+            elif reason == "commit_error":
+                monkeypatch.setattr(client.app.state.session_factory.class_, "commit", fail)
+            else:
+                monkeypatch.setattr(BackgroundTasks, "add_task", fail)
+        if reason in {"db_error", "token_error", "commit_error", "schedule_error"}:
+            with pytest.raises(RuntimeError, match="synthetic failure"):
+                request_link(client, TO)
+        else:
+            response = request_link(client, "not-an-email" if reason == "invalid" else TO)
+            expected = {"quota": 429, "invalid": 422}.get(reason, 202)
+            assert response.status_code == expected
+            if expected == 202:
+                assert response.json() == auth.GENERIC_LINK_REPLY
+        assert health.available() and health._consecutive == health.FAILURES
+        claim = health.acquire()
+        assert claim is not None
+        claim.release()
+        assert not list((tmp_path / "outbox").glob("*.json"))
+        if reason != "schedule_error":
+            with client.app.state.session_factory() as db:
+                assert db.query(LoginToken).count() == before_tokens
+
+
+def test_running_sender_is_exclusive_after_queued_lease_elapsed(monkeypatch):
+    health, clock = half_open(monkeypatch)
+    seen = []
+
+    def deliver(*args):
+        clock.t += health.QUEUED_LEASE + health.COOLDOWN
+        assert health.acquire() is None and not mailer.email_available()
+        assert mailer.send_login_link(smtp_settings(), "other@example.org", LINK) is False
+        seen.append(True)
+
+    monkeypatch.setattr(mailer, "send", deliver)
+    assert mailer.send_login_link(smtp_settings(), TO, LINK)
+    assert seen == [True] and health.available()
+
+
+def test_duplicate_sender_cannot_release_an_already_started_probe(monkeypatch):
+    health, _ = half_open(monkeypatch)
+    claim = health.acquire()
+    assert claim is not None and claim.start()
+    seen = []
+    monkeypatch.setattr(mailer, "send", lambda *args: seen.append(args))
+    assert not mailer.send_login_link(smtp_settings(), TO, LINK, reservation=claim)
+    assert seen == [] and health.acquire() is None and not health.available()
+    claim.finish(True)
+    assert health.available()
+
+
+def test_closed_state_queued_callback_and_old_result_cannot_bypass_new_probe(monkeypatch):
+    clock = Clock()
+    health = mailer.DeliveryHealth(clock)
+    monkeypatch.setattr(mailer, "HEALTH", health)
+    queued, started = health.acquire(), health.acquire()
+    assert queued is not None and started is not None and started.start()
+    for _ in range(health.FAILURES):
+        health.record(False)
+    clock.t += health.COOLDOWN
+    probe = health.acquire()
+    assert probe is not None and probe.start()
+    seen = []
+    monkeypatch.setattr(mailer, "send", lambda *args: seen.append(args))
+    assert not mailer.send_login_link(smtp_settings(), TO, LINK, reservation=queued)
+    started.finish(True)
+    queued.release()
+    assert seen == [] and not health.available() and health._consecutive == health.FAILURES
+    probe.finish(True)
+    assert health.available()
+
+
+def test_sender_releases_probe_even_on_escaping_exception(monkeypatch):
+    health, _ = half_open(monkeypatch)
+    claim = health.acquire()
+
+    def interrupted(*args):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(mailer, "send", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        mailer.send_login_link(smtp_settings(), TO, LINK, reservation=claim)
+    assert health.available() and health._consecutive == health.FAILURES
+
+
+@pytest.mark.parametrize("recovering", [False, True])
+def test_recipient_refusal_does_not_lock_other_signins(fake_smtp, monkeypatch, caplog, recovering):
+    if recovering:
+        health, _ = half_open(monkeypatch)
+    else:
+        health = mailer.HEALTH
+
+    def refuse(self, message):
+        raise smtplib.SMTPRecipientsRefused({message["To"]: (550, b"secret-password SECRETTOKEN")})
+
+    monkeypatch.setattr(FakeSMTP, "send_message", refuse)
+    with caplog.at_level(logging.ERROR, logger="superteacher.mailer"):
+        for _ in range(health.FAILURES + 1):
+            assert mailer.send_login_link(smtp_settings(), TO, LINK) is False
+            assert health.available() and health._consecutive == 0
+    assert "SMTPRecipientsRefused" in caplog.text
+    assert TO not in caplog.text and "secret-password" not in caplog.text and "SECRETTOKEN" not in caplog.text
+
+
+def test_recipient_refusal_endpoint_stays_generic_and_auth_outage_still_opens(tmp_path, monkeypatch):
+    with build(tmp_path) as client:
+
+        def refuse(*args):
+            raise smtplib.SMTPRecipientsRefused({TO: (550, b"rejected")})
+
+        monkeypatch.setattr(mailer, "send", refuse)
+        for _ in range(mailer.DeliveryHealth.FAILURES + 1):
+            response = request_link(client, TO)
+            assert response.status_code == 202 and response.json() == auth.GENERIC_LINK_REPLY
+        assert mailer.email_available()
+
+        def authentication_failure(*args):
+            raise smtplib.SMTPAuthenticationError(535, b"secret-password")
+
+        monkeypatch.setattr(mailer, "send", authentication_failure)
+        for index in range(mailer.DeliveryHealth.FAILURES):
+            assert request_link(client, f"outage{index}@example.com").status_code == 202
+        assert request_link(client, "unrelated@example.org").status_code == 503

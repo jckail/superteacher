@@ -1,6 +1,7 @@
-"""Outbound sign-in email. Three backends, no new dependency (httpx is already required by the AI SDK).
+"""Outbound sign-in email. Four backends, no new dependency (httpx is already required by the AI SDK).
 
 * ``sendgrid``: HTTPS call to the v3 mail API. Key from ``SENDGRID_API_KEY``, sender from ``AUTH_EMAIL_FROM``.
+* ``smtp``: SMTP with mandatory verified TLS (STARTTLS or SSL), using ``SMTP_HOST`` and ``AUTH_EMAIL_FROM``.
 * ``console``: logs a REDACTED notice only (never the link or the address). For local development.
 * ``file``: writes the full message (including the link) to ``AUTH_EMAIL_OUTBOX_DIR``. For tests and e2e only.
 
@@ -42,6 +43,25 @@ class MailerConfigError(RuntimeError):
     pass
 
 
+@dataclass(eq=False)
+class DeliveryReservation:
+    health: DeliveryHealth
+    generation: int
+    queued_at: float
+    probe: bool
+    started: bool = False
+    released: bool = False
+
+    def start(self) -> bool:
+        return self.health.start(self)
+
+    def finish(self, ok: bool) -> None:
+        self.health.finish(self, ok)
+
+    def release(self) -> None:
+        self.health.release(self)
+
+
 class DeliveryHealth:
     """Circuit breaker over sign-in email delivery.
 
@@ -54,31 +74,104 @@ class DeliveryHealth:
 
     FAILURES = 3
     COOLDOWN = 300.0
+    QUEUED_LEASE = 30.0
 
     def __init__(self, clock=time.monotonic):
         self._clock = clock
         self._lock = threading.Lock()
         self._consecutive = 0
         self._last_failure = 0.0
+        self._generation = 0
+        self._probe: DeliveryReservation | None = None
+
+    def _record(self, ok: bool) -> None:
+        was_open = self._consecutive >= self.FAILURES
+        if ok:
+            self._consecutive = 0
+            if was_open:
+                self._generation += 1
+        else:
+            self._consecutive += 1
+            self._last_failure = self._clock()
+            if not was_open and self._consecutive >= self.FAILURES:
+                self._generation += 1
 
     def record(self, ok: bool) -> None:
         with self._lock:
-            if ok:
-                self._consecutive = 0
-            else:
-                self._consecutive += 1
-                self._last_failure = self._clock()
+            self._record(ok)
+
+    def _queued_expired(self, claim: DeliveryReservation) -> bool:
+        return not claim.started and self._clock() - claim.queued_at >= self.QUEUED_LEASE
+
+    def _expire_probe(self) -> None:
+        if self._probe is not None and self._queued_expired(self._probe):
+            self._probe.released = True
+            self._probe = None
 
     def available(self) -> bool:
+        """Nonreserving public read; an expired queued probe is eligible again."""
         with self._lock:
+            if self._probe is not None and not self._queued_expired(self._probe):
+                return False
             if self._consecutive < self.FAILURES:
                 return True
-            return self._clock() - self._last_failure >= self.COOLDOWN  # half-open: let one probe through
+            return self._clock() - self._last_failure >= self.COOLDOWN
+
+    def acquire(self) -> DeliveryReservation | None:
+        with self._lock:
+            self._expire_probe()
+            if self._probe is not None:
+                return None
+            probe = self._consecutive >= self.FAILURES
+            if probe and self._clock() - self._last_failure < self.COOLDOWN:
+                return None
+            claim = DeliveryReservation(self, self._generation, self._clock(), probe)
+            if probe:
+                self._probe = claim
+            return claim
+
+    def start(self, claim: DeliveryReservation) -> bool:
+        with self._lock:
+            if claim.health is not self or claim.released or claim.started or claim.generation != self._generation:
+                return False
+            if claim.probe:
+                if self._probe is not claim:
+                    return False
+                if self._queued_expired(claim):
+                    claim.released = True
+                    self._probe = None
+                    return False
+            elif self._probe is not None or self._consecutive >= self.FAILURES:
+                return False
+            claim.started = True
+            return True
+
+    def finish(self, claim: DeliveryReservation, ok: bool) -> None:
+        with self._lock:
+            if claim.health is not self or claim.released or not claim.started:
+                return
+            current = (
+                self._probe is claim if claim.probe else (self._probe is None and claim.generation == self._generation)
+            )
+            if current:
+                if claim.probe:
+                    self._probe = None
+                self._record(ok)
+            claim.released = True
+
+    def release(self, claim: DeliveryReservation) -> None:
+        with self._lock:
+            if claim.health is self:
+                if self._probe is claim:
+                    self._probe = None
+                claim.released = True
 
     def reset(self) -> None:
         with self._lock:
             self._consecutive = 0
             self._last_failure = 0.0
+            self._generation += 1
+            self._probe = None
 
 
 HEALTH = DeliveryHealth()
@@ -206,14 +299,26 @@ def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None
             raise RuntimeError(f"sendgrid returned HTTP {r.status_code}" + (f": {reason}" if reason else ""))
 
 
-def send_login_link(settings: Settings, to: str, link: str, transport: httpx.BaseTransport | None = None) -> bool:
+def send_login_link(
+    settings: Settings,
+    to: str,
+    link: str,
+    transport: httpx.BaseTransport | None = None,
+    *,
+    reservation: DeliveryReservation | None = None,
+) -> bool:
     """Never raises; returns whether the provider accepted the message."""
+    claim = reservation if reservation is not None else HEALTH.acquire()
+    if claim is None or not claim.start():
+        return False
     try:
         send(settings, build_login_message(to, link, settings.login_token_ttl_minutes), transport)
-        HEALTH.record(True)
+        claim.finish(True)
         return True
     except Exception as e:
-        HEALTH.record(False)
+        # SMTP reached RCPT and refused this recipient: transport/auth are working.
+        # Keep returning false, without making unrelated recipients unavailable.
+        claim.finish(isinstance(e, smtplib.SMTPRecipientsRefused))
         # The exception type always; the provider's own (bounded, redacted) reason when we have one, because
         # "401" alone sent us looking at the wrong thing: the real cause was "Maximum credits exceeded".
         detail = ""
@@ -223,6 +328,8 @@ def send_login_link(settings: Settings, to: str, link: str, transport: httpx.Bas
             detail = observability.redact(str(e), tuple(x for x in secrets_in_play if x))
         log.error("sign-in email failed: %s%s", type(e).__name__, f" ({detail[:200]})" if detail else "")
         return False
+    finally:
+        claim.release()
 
 
 async def send_login_link_async(settings: Settings, to: str, link: str) -> bool:
