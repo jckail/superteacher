@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.requests import HTTPConnection
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -604,6 +604,9 @@ async def metrics_auth(conn: HTTPConnection) -> None:
         return
     from . import auth
 
+    if auth.settings_of(conn).auth_mode == "accounts":
+        # Process-wide counters are an operator tool: with many accounts, "any signed-in user" is too broad.
+        raise HTTPException(401, "Metrics need the METRICS_TOKEN bearer token")
     await auth.require_auth(conn)
 
 

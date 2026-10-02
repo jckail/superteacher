@@ -142,3 +142,12 @@ def test_response_timing_does_not_separate_known_unknown_and_dropped(tmp_path):
         dropped = median(lambda i: f"x{i}@other.org")  # no email is sent on this path
         slowest, fastest = max(known, unknown, dropped), min(known, unknown, dropped)
         assert slowest / fastest < 5, (known, unknown, dropped)
+
+
+def test_metrics_is_bearer_only_in_accounts_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv("METRICS_TOKEN", "metrics-token-for-tests")
+    with build(tmp_path) as c:
+        sign_in(c, tmp_path, "a@example.com")
+        assert c.get("/api/metrics").status_code == 401  # a signed-in user is not an operator
+        ok = c.get("/api/metrics", headers={"Authorization": "Bearer metrics-token-for-tests"})
+        assert ok.status_code == 200
