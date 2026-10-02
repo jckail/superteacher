@@ -103,3 +103,46 @@ test('native conference print excludes an actual accounts dialog portal and leav
   await expect(dialog).not.toBeVisible();
   expect(writes).toEqual([]);
 });
+
+for (const width of [1280, 390]) test(`conference chat preserves the selected student and stays out of print at ${width}px`, async ({ page }, info) => {
+  const question = 'Private teacher question for this conference';
+  const answer = 'Private synthetic assistant transcript';
+  const messages: { student_id?: string; content: string }[] = [];
+  await page.setViewportSize({ width, height: 844 });
+  await page.route('**/api/calendar', route => route.fulfill({ json: { timezone: 'UTC', today: student.as_of } }));
+  await page.route(`**/api/students/${student.id}`, route => route.fulfill({ json: student }));
+  // Mock the real Chat transport without connecting it to a server/provider.
+  await page.routeWebSocket('**/api/chat/ws', socket => {
+    socket.onMessage(message => {
+      messages.push(JSON.parse(message.toString()));
+      socket.send(JSON.stringify({ type: 'delta', text: answer }));
+      socket.send(JSON.stringify({ type: 'done' }));
+    });
+  });
+  await page.goto(`/students/${student.id}/conference`);
+  await expect(page.getByRole('button', { name: 'Print conference sheet' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Ask AI' }).click();
+  const assistant = page.getByRole(width <= 1100 ? 'dialog' : 'complementary', { name: 'Super Teacher assistant' });
+  await expect(assistant).toBeVisible();
+  await expect(assistant).toContainText('Focused on this student');
+  await assistant.getByRole('textbox', { name: 'Message' }).fill(question);
+  await assistant.getByRole('button', { name: 'Send' }).click();
+  await expect(assistant.getByText(answer, { exact: true })).toBeVisible();
+  expect(messages).toEqual([{ content: question, student_id: student.id, tool_events: true }]);
+  if (width <= 1100) await expect(page.locator('body > .chat')).toBeVisible();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.chat')).toBeHidden();
+  const printedText = await page.locator('body').innerText();
+  expect(printedText).toContain(student.name);
+  expect(printedText).not.toContain(question);
+  expect(printedText).not.toContain(answer);
+  expect(printedText).not.toContain('Ask Super Teacher');
+  const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
+  expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
+  await info.attach(`conference-open-chat-${width}.pdf`, { body: pdf, contentType: 'application/pdf' });
+  await page.emulateMedia({ media: 'screen' });
+  await expect(assistant).toBeVisible();
+  await expect(assistant.getByText(answer, { exact: true })).toBeVisible();
+  await assistant.getByRole('button', { name: 'Close assistant' }).click();
+  await expect(assistant).not.toBeVisible();
+});

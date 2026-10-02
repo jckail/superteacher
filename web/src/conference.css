@@ -20,6 +20,7 @@
   body:has(.conference-page) .shell { display: block; min-height: 0; }
   body:has(.conference-page) .shell > :not(.main),
   body:has(.conference-page) .main > :not(.conference-page),
+  body:has(.conference-page) .chat,
   body:has(.conference-page) .scrim,
   body:has(.conference-page) .toasts,
   body:has(.conference-page) .conference-controls { display: none !important; }

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ConferenceSheet from '../pages/ConferenceSheet';
+import App from '../App';
 import { api } from '../api';
 import type { StudentDetail } from '../types';
 vi.mock('../api', async original => ({ ...(await original<typeof import('../api')>()), api: vi.fn() }));
@@ -110,4 +111,14 @@ it('requires renewed consent after query-client session replacement', async () =
   await loaded();
   expect(screen.getByRole('checkbox', { name: 'Private observation' })).not.toBeChecked();
   expect(paper().queryByText('Private observation')).not.toBeInTheDocument();
+});
+
+it('passes the conference student context through the actual Shell to the assistant', async () => {
+  vi.mocked(api).mockImplementation(async path => path === '/courses' ? [] : path === '/calendar' ? { today: base.as_of, timezone: 'UTC' } : base);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/students/s1/conference']}><App /></MemoryRouter></QueryClientProvider>);
+  await screen.findByRole('heading', { name: 'Conference sheet', level: 1 });
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Ask AI' }));
+  expect(await screen.findByText('Focused on this student')).toBeInTheDocument();
+  expect(screen.queryByText('Looking at your whole roster')).not.toBeInTheDocument();
 });

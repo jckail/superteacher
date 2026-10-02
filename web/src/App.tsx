@@ -55,6 +55,7 @@ function Shell() {
   const [dark, toggleTheme] = useTheme();
   const { authRequired, logout, mode } = useAuth();
   const studentMatch = useMatch('/students/:id');
+  const conferenceMatch = useMatch('/students/:id/conference');
   const main = useRef<HTMLElement>(null);
   const pathname = useRouteAnnouncer(main);
   return (
@@ -90,7 +91,7 @@ function Shell() {
         </ErrorBoundary>
         <DemoNoticeLink />
       </main>
-      {chatOpen && <Suspense fallback={<div className="chat"><Loading /></div>}><Chat studentId={studentMatch?.params.id} onClose={() => setChatOpen(false)} /></Suspense>}
+      {chatOpen && <Suspense fallback={<div className="chat"><Loading /></div>}><Chat studentId={studentMatch?.params.id ?? conferenceMatch?.params.id} onClose={() => setChatOpen(false)} /></Suspense>}
     </div>
   );
 }
