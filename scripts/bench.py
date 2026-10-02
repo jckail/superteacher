@@ -249,7 +249,7 @@ def measure(
         size = fn()
         times.append((time.perf_counter() - t0) * 1000)
         cpus.append((time.process_time() - c0) * 1000)
-        stmts = counter.n
+        stmts = max(stmts, counter.n)
         if after:
             after()
     peak = None
@@ -257,7 +257,9 @@ def measure(
         if before:
             before()
         tracemalloc.start()
+        counter.n = 0
         fn()
+        stmts = max(stmts, counter.n)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         if after:

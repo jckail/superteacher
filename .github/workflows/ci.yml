@@ -213,9 +213,8 @@ jobs:
             e2e/test-results/
           retention-days: 7
   bench-smoke:
-    # Non-blocking: records scale numbers (no pass/fail thresholds yet) so regressions are visible in the artifact.
+    # Enforce every endpoint's latency, maximum SQL count and Python-memory budget.
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -223,10 +222,14 @@ jobs:
         with: { python-version: '3.12', cache: pip, cache-dependency-path: requirements-dev.txt }
       - run: pip install -r requirements-dev.txt
       - run: python scripts/bench.py --sizes 1000 --runs 15 --json bench-1k.json --markdown bench-1k.md
-      - run: cat bench-1k.md >> "$GITHUB_STEP_SUMMARY"
+      - run: python scripts/check_bench_budgets.py bench-1k.json
+      - run: if [ -f bench-1k.md ]; then cat bench-1k.md >> "$GITHUB_STEP_SUMMARY"; fi
+        if: always()
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: bench-1k
+          if-no-files-found: error
           path: |
             bench-1k.json
             bench-1k.md

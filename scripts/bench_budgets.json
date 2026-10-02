@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "size": 1000,
+  "minimum_runs": 15,
+  "dataset": {
+    "students": 1000,
+    "sections": 41,
+    "assessments": 820,
+    "scores": 20000,
+    "attendance": 103953,
+    "notes": 92,
+    "courses": 8
+  },
+  "tolerance": {
+    "p95_ms": 0.5,
+    "sql_statements": 0,
+    "peak_mem_mb": 0.25
+  },
+  "calibration": {
+    "commit": "45482a709bbce27663f03f3dcec2cc76a3c4de4c",
+    "run_url": "https://github.com/jckail/superteacher/actions/runs/37056428667",
+    "artifact_id": 11248398702,
+    "report_sha256": "18b9799a92f663256047afb9636da67e81aeef156bdbe90c44a451dc01a97bb8"
+  },
+  "cases": {
+    "GET /overview (all)": {
+      "p95_ms": 800,
+      "sql_statements": 11,
+      "peak_mem_mb": 4.0
+    },
+    "GET /overview?course_id": {
+      "p95_ms": 200,
+      "sql_statements": 3,
+      "peak_mem_mb": 2.5
+    },
+    "GET /students (all)": {
+      "p95_ms": 800,
+      "sql_statements": 11,
+      "peak_mem_mb": 5.5
+    },
+    "GET /students?section_id": {
+      "p95_ms": 100,
+      "sql_statements": 3,
+      "peak_mem_mb": 1.0
+    },
+    "GET /students?q=nguyen": {
+      "p95_ms": 200,
+      "sql_statements": 3,
+      "peak_mem_mb": 2.0
+    },
+    "GET /students?risk=at_risk": {
+      "p95_ms": 800,
+      "sql_statements": 11,
+      "peak_mem_mb": 4.0
+    },
+    "GET /sections/{id}/gradebook": {
+      "p95_ms": 100,
+      "sql_statements": 5,
+      "peak_mem_mb": 1.0
+    },
+    "GET /students/{id}": {
+      "p95_ms": 100,
+      "sql_statements": 5,
+      "peak_mem_mb": 0.5
+    },
+    "GET /reports/sections/{id}/summary": {
+      "p95_ms": 100,
+      "sql_statements": 7,
+      "peak_mem_mb": 1.0
+    },
+    "GET /reports/.../gradebook.csv": {
+      "p95_ms": 100,
+      "sql_statements": 5,
+      "peak_mem_mb": 0.5
+    },
+    "POST /sections/{id}/import (1000 rows)": {
+      "p95_ms": 1950,
+      "sql_statements": 24,
+      "peak_mem_mb": 74.5
+    },
+    "PUT /sections/{id}/attendance": {
+      "p95_ms": 100,
+      "sql_statements": 5,
+      "peak_mem_mb": 0.5
+    },
+    "ai.build_context_parts": {
+      "p95_ms": 800,
+      "sql_statements": 16,
+      "peak_mem_mb": 4.0
+    },
+    "ai_tools find_students": {
+      "p95_ms": 750,
+      "sql_statements": 11,
+      "peak_mem_mb": 4.0
+    },
+    "ai_tools class_stats": {
+      "p95_ms": 750,
+      "sql_statements": 11,
+      "peak_mem_mb": 4.0
+    }
+  }
+}

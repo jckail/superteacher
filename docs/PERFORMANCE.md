@@ -35,6 +35,63 @@ The baseline reproduces the previous eager ORM read path and calls the public to
 Regression tests compare column metrics against ORM metrics, compare bounded ranking against an independent full-sort oracle, verify metric equality at historical cutoffs, assert scoped history parameter sets and query counts, verify no history ORM hydration, and cap note and ambiguity reads. They assert data boundaries and deterministic results rather than brittle wall-clock thresholds.
 
 
+## CI budgets and artifact validation
+
+`scripts/bench_budgets.json` defines a budget for all 15 cases in the synthetic
+1,000-student benchmark. The calibration is the artifact from
+[CI37056428667](https://github.com/jckail/superteacher/actions/runs/37056428667)
+at `45482a709bbce27663f03f3dcec2cc76a3c4de4c`; its SHA256 and artifact ID are
+recorded in the policy. Historical tables below are not used to set current limits.
+
+Validate an existing report without importing the app, creating a database or
+running a benchmark:
+
+```sh
+python scripts/check_bench_budgets.py bench-1k.json
+```
+
+The `bench-smoke` CI job runs this checker after the existing benchmark. It no
+longer permits job failures; reports and the Markdown summary are retained on
+failure when available, so exceeding a budget fails CI with reviewable evidence.
+
+Every case must provide finite, nonnegative p95 milliseconds, integer SQL
+statements and peak Python memory in decimal MB, with at least 15 measured runs.
+The report must contain exactly the budgeted dataset and all budgeted cases;
+missing memory measurements, skipped cases, duplicate keys/cases, an undersized
+dataset or invalid numbers refuse qualification. Exit status is 0 for a pass,
+1 for an exceeded budget and 2 for invalid evidence or policy.
+
+Latency bases round 125% of the observed p95 up to the next 50 ms, with a 100 ms
+floor for short requests. A further 50% tolerance accommodates hosted-runner
+pauses. Memory bases round 125% of the observed peak up to the next 0.5 MB, with
+25% tolerance. SQL budgets use observed counts with zero tolerance; measurements
+retain the maximum count across timed calls and the memory call. This makes an
+earlier query spike visible even when the last sample is small. These initial
+limits detect regressions in a fixed synthetic workload; they do not establish
+production latency, server memory or concurrency guarantees.
+
+Changing a limit requires a reviewed explanation and a qualified current report;
+never refresh the policy automatically to make a regression pass. A benchmark
+timeout or missing report is a failed qualification, not a successful budget
+check. Local full benchmarks remain subject to the shared resource gate.
+
+### Overview caching evaluation
+
+`superteacher/routers/system.py:overview` aggregates records for the authenticated
+owner, course/section filters and current school date. Attendance, scores,
+assessments, imports, enrollment and the school-day boundary can change its
+result. `superteacher/main.py:security_headers` currently sets API responses to
+`Cache-Control: no-store`.
+
+An ETag computed after aggregation could save response bytes, but would still
+perform the expensive reads and aggregation. A short TTL could avoid that work,
+but would introduce stale dashboard values after edits. It must key by owner,
+filters and school date, invalidate on every relevant mutation and account for
+session/tenant changes before it can replace the current policy. The current
+decision is to keep `no-store` and enforce the computation budgets; a cache needs
+a separately reviewed invalidation design and freshness tests. No runtime cache
+or HTTP freshness behavior changes are part of this budget work.
+
 # Historical scale investigation from PR 11
 
 The material below records measurements and patch sketches against the older eager-loading
