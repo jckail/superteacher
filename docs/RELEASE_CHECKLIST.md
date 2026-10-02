@@ -2,44 +2,57 @@
 
 Updated 2026-10-02. Scope: the native checkout at `/home/jkail/projects/superteacher`, excluding `.superdesign`. Current release evidence is below; older iteration checks remain historical. This release operator has not performed production custom-domain cutover.
 
-## Note, demo and administration integration (2026-10-02)
+## Reports, evaluation and keyboard focus integration (2026-10-02)
 
-The local combined source `68f2fa2` integrates note draft settlement (`6567a9e`,
-original isolated `42c01dc`), reviewed demo notice PR67 (`77218e0`), and reviewed
-account administration PR68 (`3b7e403`). Root reproduced note draft loss before
-implementation: the unchanged control passed and two edited-draft cases failed.
-Revision-aware settlement now preserves every later raw draft, including changes
-away and back to the submitted text; captured student/client and keyed lifecycle
-keep late completion isolated. Independent task and complete-branch reviews
-approved the fix. Combined focused verification passed 102 tests across ten files
-in 9.76s, TypeScript, focused ESLint and diff checks. Exact combined CI, immutable
-build and runtime acceptance remain pending for this source; earlier f423 evidence
-below accepts only that earlier source.
+Reviewed Reports draft settlement is integrated locally as `890658e` (isolated
+`47f5b4f`). Root established RED: unchanged control passed, pending teacher edits
+were overwritten. The fix retains current raw subject/message/source and presents
+one generated alternative for explicit review, replacement or discard. Copy/email
+use the current draft; explicit actions return keyboard focus to Subject. Late
+request completion leaves focus alone and cannot reach a new student/tone/section
+or authenticated lifecycle. Independent task and complete-branch reviews approve
+SPEC/QUALITY. Root final focused checks passed 71 tests across five files in
+8.26s, types/lint/diff; combined integration passed 40 tests across three files
+in 8.31s and TypeScript. Exact combined CI and runtime acceptance remain pending.
 
-PR67 adds a static public synthetic-demo/data-use notice and accessible links
-without private API calls. PR68 adds local filesystem-authorized account
-administration with scoped session/link revocation and durable private audit;
-it does not establish a web administrator role. Both individual heads passed
-independent review and all seven CI jobs. Combined-source acceptance remains a
-separate gate. No real account database was modified by this release operator.
+Reviewed PR69 offline evaluator (`90a849f`) and PR70 export focus (`241939f`) are
+also integrated locally. Each head passed independent review and all seven CI
+jobs. The evaluator's bounded lexical replay and private hashed reports require
+human semantic review; no real-model acceptance is claimed. Root ran the checked-in
+synthetic example successfully without database/provider calls. Account export
+restores focus synchronously before closing its popover, with no late completion
+focus theft; root's two component tests passed. Broader real assistive-technology
+and provider/privacy/factuality acceptance remain open.
 
-The current shared staging snapshot is `00009-bcw` on `fe2cd01`. Curated receipts
-agree with that snapshot; its original feature smoke failed and later read-only
-continuation/restore/readback are qualified evidence, not a complete successful
-feature run or acceptance of this combined candidate. Preserve that service and
-all historical failures. The next runtime phase is a separate create-only private
-candidate with a fresh synthetic replica prefix, after exact CI/build and actual
-invocation/identity preflight. Its source-only design creates no resource or token.
-Do not retry an unchanged protected-lock timeout or deploy through stale guards.
+Earlier published notes/demo/admin candidate `1f783001b81899e42ccdc388eb0a65f1bb20e2c7`
+passed exact [CI37040671313](https://github.com/jckail/superteacher/actions/runs/37040671313):
+1382 API tests in 194.32s, 309 web tests across 25 files, four browser tests in
+14.4s, 84 E2E tests in 2.1 minutes, and 259 locked Docker cases in 36.73s;
+lint/types/build/benchmark passed. Its immutable archive/context/build helper
+was independently approved and actual CI proof captured; no Cloud Build or
+runtime deployment was executed for that intermediate source. Build the settled
+latest combined candidate after its own exact CI instead.
 
-Newly audited follow-ups: Reports Regenerate can overwrite subject/message edited
-while its request is pending (mounted RED regression pending); Attendance writes
-miss scoped Insight/report-summary invalidation; Insight and generated parent
-artifacts need independent input-day, timestamp and prompt-contract provenance.
-Account CLI list pagination/output bounds are a lower-priority refinement. Full
-grading policy, native production schema adoption, writer drain/rollback/domain
-cutover, dedicated runtime IAM acceptance and real provider/email acceptance remain
-open. Source verification does not establish any of those runtime/product outcomes.
+Current shared staging remains the observed fe2 `00009-bcw`, preserved with its
+qualified receipts/original feature failure. A separate create-only private
+candidate is being prepared. Root read-only preflight established operator
+create/read/invoke permissions, exact runtime actAs, no project public invocation
+binding, no parent reported by project GET, and a usable user developer ID-token
+route. Exact-SA ID-token mint permission was not returned; no IAM grant was added.
+The developer token is not established as service-audience-restricted. Actual
+new-service no-token denial/token handshake, configuration, synthetic workflows
+and restore still require execution. No candidate service was created by these
+probes. Preserve all prior queue75 and failure receipts without unchanged retries.
+
+Shared Graphify refreshed successfully (164506 nodes) but excludes native
+Superteacher source. Exact code-context catalog confirms absent indexes; earlier
+notes index75 was not retried; live text discovery works, semantic/LSP MCP tools
+are absent in this session. Agent Hub has no configured project scope; AgentMon
+is not exposed here. Curated local/Git checkpoints preserve these gaps.
+Remaining priorities: Attendance scoped Insight/summary invalidation; independent
+artifact input-day/timestamps/prompt versions; full grading policies; native
+production adoption/drain/rollback/domain cutover; dedicated IAM and real
+provider/email acceptance; bounded account CLI list output.
 
 ## Current release checkpoint
 
