@@ -75,6 +75,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Reproduce private release archive directory permissions
+        run: find superteacher alembic -type d -exec chmod 0700 {} +
       - run: docker build -t superteacher:ci .
       - name: Smoke test the image (auth on, health public, API gated)
         run: |
