@@ -99,7 +99,8 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "section": {"type": "string", "description": "Case-insensitive substring of a section or course name."},
-                "risk": {"type": "string", "enum": ["on_track", "watch", "at_risk"]},
+                "risk": {"type": "string", "enum": ["unknown", "on_track", "watch", "at_risk"],
+                         "description": "Unknown: insufficient evidence. Attention flags: watch/at_risk."},
                 "name_contains": {"type": "string"},
                 "max_average": {"type": "number", "description": "Only students with average <= this (0-100)."},
                 "min_average": {"type": "number"},
@@ -129,7 +130,8 @@ TOOLS: list[dict[str, Any]] = [
         "name": "class_stats",
         "description": (
             "Aggregate statistics (average, attendance, homework, risk counts, letter-grade distribution) "
-            "for the whole class, or one section/course when `section` is given."
+            "for the whole class, or one section/course when `section` is given. "
+            "Unknown is insufficient evidence, separate from watch/at_risk attention flags."
         ),
         "input_schema": {"type": "object", "properties": {"section": {"type": "string"}}},
     },
@@ -139,7 +141,7 @@ TOOL_NAMES = {t["name"] for t in TOOLS}
 
 class FindStudentsArgs(BaseModel):
     section: str | None = Field(None, max_length=80)
-    risk: Literal["on_track", "watch", "at_risk"] | None = None
+    risk: Literal["unknown", "on_track", "watch", "at_risk"] | None = None
     name_contains: str | None = Field(None, max_length=80)
     max_average: float | None = None
     min_average: float | None = None
@@ -259,7 +261,8 @@ class _Mean:
 def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]], a: ClassStatsArgs) -> dict[str, Any]:
     averages, attendance, homework = _Mean(), _Mean(), _Mean()
     count = missing = 0
-    statuses, letters = Counter(), Counter()
+    statuses = Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})
+    letters = Counter()
     sections = {}
     for s, m in summaries:
         if not _in_section(s, a.section):
@@ -274,11 +277,11 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
         if not a.section:
             label = section_label(s)
             if label not in sections:
-                sections[label] = [0, _Mean(), 0]
+                sections[label] = [0, _Mean(), Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})]
             sec = sections[label]
             sec[0] += 1
             sec[1].add(m.average)
-            sec[2] += m.risk == "at_risk"
+            sec[2][m.risk] += 1
     if not count:
         return {"error": "No students in that section."}
     out = {
@@ -292,7 +295,8 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
     }
     if not a.section:
         out["sections"] = [
-            {"section": label, "students": sec[0], "average": sec[1].value(), "at_risk": sec[2]}
+            {"section": label, "students": sec[0], "average": sec[1].value(), "at_risk": sec[2]["at_risk"],
+             "unknown": sec[2]["unknown"], "status_counts": dict(sec[2])}
             for label, sec in sorted(sections.items())
         ]
     return out

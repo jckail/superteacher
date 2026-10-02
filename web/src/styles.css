@@ -71,7 +71,7 @@ label.field { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
 .chip.on_track, .chip.good { background: var(--good-soft); color: var(--good); }
 .chip.watch, .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .chip.at_risk, .chip.bad { background: var(--bad-soft); color: var(--bad); }
-.chip.neutral { background: var(--surface-2); color: var(--muted); }
+.chip.unknown, .chip.neutral { background: var(--surface-2); color: var(--muted); }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
 .skeleton { height: 18px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: sh 1.2s infinite; }
 @keyframes sh { to { background-position: -200% 0; } }

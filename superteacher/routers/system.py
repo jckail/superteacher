@@ -25,9 +25,9 @@ def overview(
     for _, m in computed:
         if m.letter:
             bands[m.letter[0]] += 1
-    order = {"at_risk": 0, "watch": 1, "on_track": 2}
+    order = {"at_risk": 0, "watch": 1}
     flagged = sorted(
-        (c for c in computed if c[1].risk != "on_track"),
+        (c for c in computed if c[1].risk in ("watch", "at_risk")),
         key=lambda c: (order[c[1].risk], c[1].average if c[1].average is not None else 101),
     )
     return schemas.Overview(
@@ -37,6 +37,8 @@ def overview(
         homework_rate=metrics.mean_of(m.homework_rate for _, m in computed),
         at_risk=sum(1 for _, m in computed if m.risk == "at_risk"),
         watch=sum(1 for _, m in computed if m.risk == "watch"),
+        on_track=sum(1 for _, m in computed if m.risk == "on_track"),
+        unknown=sum(1 for _, m in computed if m.risk == "unknown"),
         distribution=bands,
         attention=[summarize(s, m) for s, m in flagged[:8]],
     )

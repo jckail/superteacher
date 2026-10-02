@@ -1,5 +1,6 @@
 import type { AssessmentStat, AttendanceDay, ClassSummary, ParentUpdateOut, Section, StudentSummary, Tone } from '../types';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
@@ -79,6 +80,7 @@ function Summary({ section }: { section: Section }) {
         <Stat label="Class average" value={fmt(s.average, '%')} />
         <Stat label="Attendance" value={fmt(s.attendance_rate, '%')} />
         <Stat label="Need attention" value={s.attention.length} />
+        <Stat label="Not enough data" value={s.unknown} hint="Work or attendance evidence needed" />
       </div>
       <div className="rep-grid">
         <section className="card" aria-labelledby="rep-assess">
@@ -111,7 +113,8 @@ function Summary({ section }: { section: Section }) {
         </section>
         <section className="card" aria-labelledby="rep-attn">
           <h2 id="rep-attn">Students needing attention</h2>
-          {s.attention.length === 0 ? <p className="muted">Nobody is flagged right now.</p> : (
+          {s.unknown > 0 && <p className="muted">{s.unknown} student{s.unknown === 1 ? '' : 's'} lack{s.unknown === 1 ? 's' : ''} enough data to assess progress. <Link to="/roster?status=unknown">Review records needing data</Link>.</p>}
+          {s.attention.length === 0 ? <p className="muted">{s.unknown === s.students ? 'Record work or attendance before assessing progress.' : s.unknown ? 'No attention flags among students with evidence.' : 'Nobody is flagged right now.'}</p> : (
             <ul className="rep-attn">
               {s.attention.map((a) => (
                 <li key={a.id}><RiskChip risk={a.risk} /><span><strong>{a.name}</strong> <span className="muted num">{fmt(a.average, '%')}</span></span>

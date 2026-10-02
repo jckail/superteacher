@@ -40,7 +40,7 @@ export async function api<T = unknown>(path: string, { method = 'GET', body, sig
   return data as T;
 }
 export const fmt = (v: number | null | undefined, suffix = '') => (v == null ? '—' : `${Math.round(v)}${suffix}`);
-export const RISK_LABEL: Record<Risk, string> = { on_track: 'On track', watch: 'Watch', at_risk: 'At risk' };
+export const RISK_LABEL: Record<Risk, string> = { unknown: 'Not enough data', on_track: 'On track', watch: 'Watch', at_risk: 'At risk' };
 
 
 /** Download only for the session that initiated the request. */

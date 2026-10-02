@@ -120,7 +120,7 @@ def list_students(
     q: str | None = Query(default=None, max_length=120),
     course_id: str | None = None,
     section_id: str | None = None,
-    risk: str | None = Query(default=None, pattern="^(on_track|watch|at_risk)$"),
+    risk: schemas.Risk | None = Query(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(current_user),
 ):

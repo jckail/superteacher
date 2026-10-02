@@ -20,7 +20,7 @@ export default function Overview() {
       <div className="topbar">
         <div>
           <h1>{hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'} 👋</h1>
-          <div className="page-sub">{o ? (o.students === 0 ? 'Build your classroom to get started.' : o.at_risk + o.watch ? `${o.at_risk + o.watch} students could use your attention.` : 'Everyone is on track.') : 'Loading your classroom…'}</div>
+          <div className="page-sub">{o ? (o.students === 0 ? 'Build your classroom to get started.' : o.at_risk + o.watch ? `${o.at_risk + o.watch} students could use your attention.` : o.unknown ? `${o.unknown} student${o.unknown === 1 ? '' : 's'} need${o.unknown === 1 ? 's' : ''} more data to assess progress.` : 'Everyone is on track.') : 'Loading your classroom…'}</div>
         </div>
         <ScopePicker />
       </div>
@@ -39,11 +39,13 @@ export default function Overview() {
             <Stat label="Attendance" value={fmt(o.attendance_rate, '%')} hint="Excused absences excluded" />
             <Stat label="Homework in" value={fmt(o.homework_rate, '%')} />
             <Stat label="At risk" value={o.at_risk} hint={`${o.watch} more on watch`} />
+            <Stat label="Not enough data" value={o.unknown} hint="Work or attendance evidence needed" />
           </div>
           <div className="grid two">
             <section className="card">
               <h2>Needs your attention</h2>
-              {o.attention.length === 0 ? <p className="muted">Nobody is flagged. 🎉</p> : (
+              {o.unknown > 0 && <p className="muted">{o.unknown} student{o.unknown === 1 ? '' : 's'} lack{o.unknown === 1 ? 's' : ''} enough data to assess progress. <Link to="/roster?status=unknown">Review records needing data</Link>.</p>}
+              {o.attention.length === 0 ? <p className="muted">{o.unknown === o.students ? 'Record work or attendance before assessing progress.' : o.unknown ? 'No attention flags among students with evidence.' : 'Nobody is flagged. 🎉'}</p> : (
                 <ul className="attention">
                   {o.attention.map((s) => (
                     <li key={s.id}>

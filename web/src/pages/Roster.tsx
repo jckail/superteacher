@@ -14,8 +14,8 @@ const COLS: readonly (readonly [SortKey, string, string?])[] = [
   ['name', 'Student'], ['section', 'Class', 'hide-sm'], ['average', 'Average'], ['trend', 'Trend', 'hide-sm'],
   ['attendance_rate', 'Attendance', 'hide-sm'], ['homework_rate', 'Homework', 'hide-sm'], ['risk', 'Status'],
 ];
-export const RISK_ORDER: Record<Risk, number> = { at_risk: 0, watch: 1, on_track: 2 };
-const FILTERS: readonly (readonly [Risk | '', string])[] = [['', 'All'], ['at_risk', 'At risk'], ['watch', 'Watch'], ['on_track', 'On track']];
+export const RISK_ORDER: Record<Risk, number> = { at_risk: 0, watch: 1, unknown: 2, on_track: 3 };
+const FILTERS: readonly (readonly [Risk | '', string])[] = [['', 'All'], ['at_risk', 'At risk'], ['watch', 'Watch'], ['unknown', 'Not enough data'], ['on_track', 'On track']];
 
 function Trend({ v }: { v: number | null }) {
   if (v == null) return <span className="muted">—</span>;

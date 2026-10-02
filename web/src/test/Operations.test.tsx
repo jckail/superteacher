@@ -6,9 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Attendance from '../pages/Attendance';
 import Reports from '../pages/Reports';
 import { ScoreCell } from '../pages/Gradebook';
-import type { AttendanceSheet, ParentUpdateOut, Section, StudentSummary } from '../types';
+import type { AttendanceSheet, ClassSummary, ParentUpdateOut, Section, StudentSummary } from '../types';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 const section: Section = { id: 'section-1', course_id: 'course-1', name: 'Class A' };
+const emptySummary: ClassSummary = { as_of: '2026-10-01', section_id: section.id, section: section.name, course: 'Math', students: 0, unknown: 0, on_track: 0, watch: 0, at_risk: 0, average: null, distribution: { A: 0, B: 0, C: 0, D: 0, F: 0 }, assessments: [], attention: [], attendance: [], attendance_rate: null };
 vi.mock('../api', async (load) => ({ ...await load<typeof import('../api')>(), api: request }));
 vi.mock('../scope', () => ({ useActiveSection: () => section, useScope: () => ({ isLoading: false }) }));
 vi.mock('../components/ScopePicker', () => ({ default: () => null }));
@@ -25,7 +26,7 @@ function mount(page: 'attendance' | 'reports') {
   return { client, user: userEvent.setup() };
 }
 function student(id: string, name: string): StudentSummary {
-  return { id, name, grade_level: 4, section_id: section.id, section: section.name, course_id: section.course_id, course: 'Math', average: null, letter: null, gpa: null, trend: null, attendance_rate: null, homework_rate: null, missing: 0, risk: 'on_track', risk_reasons: [] };
+  return { id, name, grade_level: 4, section_id: section.id, section: section.name, course_id: section.course_id, course: 'Math', average: null, letter: null, gpa: null, trend: null, attendance_rate: null, homework_rate: null, missing: 0, risk: 'unknown', risk_reasons: [] };
 }
 beforeEach(() => { request.mockReset(); });
 describe('operations request races', () => {
@@ -76,7 +77,7 @@ describe('operations request races', () => {
   it('discards a completed parent draft after the selected student changes', async () => {
     const pending = deferred<ParentUpdateOut>();
     request.mockImplementation((path: string) => {
-      if (path.endsWith('/summary')) return Promise.resolve({ students: 0 });
+      if (path.endsWith('/summary')) return Promise.resolve(emptySummary);
       if (path.startsWith('/students?')) return Promise.resolve([student('ada', 'Ada'), student('bob', 'Bob')]);
       if (path.endsWith('/parent-update')) return pending.promise;
       throw new Error(`Unexpected request: ${path}`);

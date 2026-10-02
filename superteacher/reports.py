@@ -26,6 +26,7 @@ from .ai_tools import clean
 from .calendar import school_today
 from .config import get_settings
 from .models import AssessmentKind, AttendanceStatus, Section, Student
+from .schemas import Risk
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class AttendanceDay(BaseModel):
 class AttentionItem(BaseModel):
     id: str
     name: str
-    risk: str
+    risk: Risk
     average: float | None
     reasons: list[str]
 
@@ -110,6 +111,10 @@ class ClassSummary(BaseModel):
     section: str
     course: str
     students: int
+    unknown: int
+    on_track: int
+    watch: int
+    at_risk: int
     average: float | None
     distribution: dict[str, int]
     assessments: list[AssessmentStat]
@@ -157,7 +162,7 @@ def class_summary(section: Section, students: list[Student], today: date | None 
 
     order = {"at_risk": 0, "watch": 1}
     flagged = sorted(
-        (c for c in computed if c[1].risk != "on_track"),
+        (c for c in computed if c[1].risk in ("watch", "at_risk")),
         key=lambda c: (order[c[1].risk], c[1].average if c[1].average is not None else 101),
     )
     attention = [
@@ -187,6 +192,10 @@ def class_summary(section: Section, students: list[Student], today: date | None 
         as_of=today,
         section_id=section.id, section=section.name, course=section.course.name, students=len(students),
         average=_pct(mean(avgs)) if avgs else None, distribution=bands, assessments=stats,
+        unknown=sum(m.risk == "unknown" for _, m in computed),
+        on_track=sum(m.risk == "on_track" for _, m in computed),
+        watch=sum(m.risk == "watch" for _, m in computed),
+        at_risk=sum(m.risk == "at_risk" for _, m in computed),
         attention=attention, attendance=attendance,
         attendance_rate=_pct(mean(rates)) if rates else None,
     )  # fmt: skip

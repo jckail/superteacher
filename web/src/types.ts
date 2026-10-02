@@ -1,5 +1,5 @@
 /** API DTOs mirror the FastAPI response schemas. Dates are ISO strings on the wire. */
-export type Risk = 'on_track' | 'watch' | 'at_risk';
+export type Risk = 'unknown' | 'on_track' | 'watch' | 'at_risk';
 export type AssessmentKind = 'test' | 'quiz' | 'homework' | 'project';
 export type AttendanceStatus = 'present' | 'absent' | 'tardy' | 'excused';
 export interface SectionOut { id: string; name: string; course_id: string }
@@ -25,7 +25,7 @@ export interface ScoreEntry { student_id: string; points: number | null }
 export interface AttendanceMark { student_id: string; status: AttendanceStatus }
 export interface AttendanceSheetRow { student_id: string; name: string; status: AttendanceStatus | null }
 export interface AttendanceSheet { section: SectionOut; day: string; rows: AttendanceSheetRow[] }
-export interface Overview { students: number; average: number | null; attendance_rate: number | null; homework_rate: number | null; at_risk: number; watch: number; distribution: Record<string, number>; attention: StudentSummary[] }
+export interface Overview { students: number; average: number | null; attendance_rate: number | null; homework_rate: number | null; at_risk: number; watch: number; on_track: number; unknown: number; distribution: Record<string, number>; attention: StudentSummary[] }
 export interface Insight { headline: string; strengths: string[]; concerns: string[]; actions: string[]; source: 'ai' | 'rules'; model: string | null; generated_at: string | null }
 export interface ImportResult { created: number; skipped: string[] }
 export type AuthMode = 'passcode' | 'accounts';
@@ -34,7 +34,7 @@ export interface AuthMe { authenticated: true; auth_required: boolean; email?: s
 export interface AssessmentStat { id: string; title: string; kind: AssessmentKind; due_date: string; max_points: number; graded: number; average: number | null; median: number | null; min: number | null; max: number | null; missing_pct: number | null }
 export interface AttendanceDay { day: string; rate: number | null; marked: number; absent: number }
 export interface AttentionItem { id: string; name: string; risk: Risk; average: number | null; reasons: string[] }
-export interface ClassSummary { as_of: string; section_id: string; section: string; course: string; students: number; average: number | null; distribution: Record<string, number>; assessments: AssessmentStat[]; attention: AttentionItem[]; attendance: AttendanceDay[]; attendance_rate: number | null }
+export interface ClassSummary { as_of: string; section_id: string; section: string; course: string; students: number; unknown: number; on_track: number; watch: number; at_risk: number; average: number | null; distribution: Record<string, number>; assessments: AssessmentStat[]; attention: AttentionItem[]; attendance: AttendanceDay[]; attendance_rate: number | null }
 export type Tone = 'warm' | 'neutral' | 'concerned';
 export interface ParentUpdateOut { subject: string; body: string; source: 'ai' | 'template' }
 

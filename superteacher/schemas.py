@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import unicodedata
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
 from .calendar import school_today
 from .models import AssessmentKind, AttendanceStatus
 
-Risk = str  # on_track | watch | at_risk
+Risk = Literal["unknown", "on_track", "watch", "at_risk"]
 
 
 class CalendarOut(BaseModel):
@@ -264,6 +264,8 @@ class Overview(BaseModel):
     homework_rate: float | None
     at_risk: int
     watch: int
+    on_track: int
+    unknown: int
     distribution: dict[str, int]  # letter band -> count
     attention: list[StudentSummary]
 

@@ -68,7 +68,7 @@ class StudentMetrics:
     tardies: int = 0
     homework_rate: float | None = None  # 0-100, of homework already due
     missing: int = 0
-    risk: str = "on_track"  # on_track | watch | at_risk
+    risk: str = "unknown"  # unknown | on_track | watch | at_risk
     risk_reasons: list[str] = field(default_factory=list)
     scores: list[ScorePoint] = field(default_factory=list)
 
@@ -147,6 +147,10 @@ def compute_from(
 
 
 def _assess_risk(m: StudentMetrics) -> None:
+    if all(v is None for v in (m.average, m.attendance_rate, m.homework_rate, m.trend)):
+        m.risk = "unknown"
+        m.risk_reasons = []
+        return
     points, why = 0, []
     if m.average is not None:
         if m.average < 65:

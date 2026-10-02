@@ -15,7 +15,7 @@ import Roster from '../pages/Roster';
 import { ToastProvider } from '../components/Toast';
 
 const S = (id: string, name: string, risk: Risk, average: number | null, extra: Partial<StudentSummary> = {}): StudentSummary => ({ id, name, risk, average, letter: 'B', grade_level: 9, course_id: 'algebra', section_id: 'p1', course: 'Algebra', section: 'P1', gpa: null, missing: 0, risk_reasons: [], trend: 0, attendance_rate: 95, homework_rate: 90, ...extra });
-const DATA = [S('1', 'Cara', 'on_track', 91), S('2', 'Ben', 'at_risk', 55), S('3', 'Abe', 'watch', 72), S('4', 'Dee', 'on_track', null)];
+const DATA = [S('1', 'Cara', 'on_track', 91), S('2', 'Ben', 'at_risk', 55), S('3', 'Abe', 'watch', 72), S('4', 'Dee', 'unknown', null, { letter: null, trend: null, attendance_rate: null, homework_rate: null })];
 
 const Loc = () => { const l = useLocation(); return <output data-testid="loc">{l.search}</output>; };
 const renderRoster = (url = '/roster') => render(
@@ -31,7 +31,7 @@ describe('Roster', () => {
   it('lists students sorted by risk (at risk first) with real links', async () => {
     renderRoster();
     await screen.findByText('Cara');
-    expect(names()).toEqual(['Ben', 'Abe', 'Cara', 'Dee']);
+    expect(names()).toEqual(['Ben', 'Abe', 'Dee', 'Cara']);
     expect(screen.getByRole('link', { name: 'Ben' })).toHaveAttribute('href', '/students/2');
   });
 
@@ -64,12 +64,22 @@ describe('Roster', () => {
 
   it('restores filters from the URL and can clear them', async () => {
     const user = userEvent.setup();
-    renderRoster('/roster?status=on_track&q=de');
+    renderRoster('/roster?status=unknown&q=de');
     await screen.findByText('Dee');
     expect(names()).toEqual(['Dee']);
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(names()).toHaveLength(4);
     expect(screen.getByTestId('loc')).toHaveTextContent(/^$/);
+  });
+
+  it('filters missing evidence separately with a neutral label', async () => {
+    const user = userEvent.setup();
+    renderRoster();
+    await screen.findByText('Dee');
+    await user.click(screen.getByRole('button', { name: 'Not enough data' }));
+    expect(names()).toEqual(['Dee']);
+    expect(screen.getByTestId('loc')).toHaveTextContent('status=unknown');
+    expect(screen.getByRole('row', { name: /Dee/ }).querySelector('.chip')).toHaveClass('unknown');
   });
 
   it('shows a call to action when the roster is empty', async () => {
