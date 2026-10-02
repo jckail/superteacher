@@ -1285,3 +1285,20 @@ A future continuation must preserve the failed attempt and qualify a new proof
 producer; the old exclusive-intent helper cannot simply be rerun. SMTP/provider,
 domain and human acceptance work remains open. Production has not been promoted
 by this release operator.
+
+## Policy endpoint diagnostic (2026-10-02)
+
+A new diagnostic helper passed 14 inert tests and independent source review after
+an owned-handle cleanup fix. One protected execution (session25384, exit0) made
+exactly one read-only project-policy request. It returned HTTP200 at
+`2026-10-02T22:20:58.226975Z` and matched the original policy and no-public-binding
+guard. Root and an independent reviewer verified the private intent/result,
+source/helper bindings and endpoint-only acceptance flags. No resource mutation
+or automatic retry occurred; the previous failed continuation remains unchanged.
+
+This qualifies the policy endpoint read, not general rate-limit clearance or
+candidate acceptance. A new unique read-only continuation producer and newly
+pinned synthetic/feature consumers are being prepared for review and testing.
+No accepted continuation, synthetic, recovery or production proof exists. The
+successful source5bad image remains built; production promotion is still pending
+the lineage, drain, persistence and rollback gates above.
