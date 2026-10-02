@@ -42,10 +42,10 @@ python -m superteacher.evaluate_ai \
 
 Use a protected results directory that already exists. The output file must be new:
 the runner publishes a complete `0600` report without replacing a previous report or
-symlink. Reports contain timestamps, rubric/classroom/bundle hashes, per-answer hashes,
+symlink. Reports contain timestamps, scorer/rubric/classroom/bundle hashes, per-answer hashes,
 case IDs and finding codes, **not answer text or source paths**. Keep captures private
 too, and retain reports under the actual approved policy. Comparing reports with the
-same rubric/classroom hashes makes regressions visible; changed hashes indicate a
+same scorer/rubric/classroom hashes makes regressions visible; changed hashes indicate a
 different evaluation, rather than an improvement on the same gold set.
 
 A replay input must contain exactly `provenance` (`synthetic` or `unverified_capture`)
@@ -66,7 +66,8 @@ real credentials and an enforced budget outside this offline tool.
 The checks require case-specific fact phrases and cover numeric tokens only inside
 explicit gold value groups. An added number cannot pass merely because that value
 appears elsewhere in the gold record. Common spelled numbers/ordinals and Unicode
-digit forms are checked conservatively. Known peer names/private markers are forbidden;
+digit forms are checked conservatively; ASCII and typographic apostrophes are normalized
+equivalently. Known peer names/private markers are forbidden;
 disclosures produce finding codes without copying the disclosed content into reports.
 
 **Every report requires human review**, even if all lexical checks pass. These narrow
