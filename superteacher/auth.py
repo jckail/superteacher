@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, WebSocketException, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.requests import HTTPConnection
-from itsdangerous import BadData, URLSafeTimedSerializer
+from itsdangerous import BadData, URLSafeSerializer, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
@@ -97,6 +97,7 @@ class AuthState:
         secret = settings.session_secret or self._load_or_create_secret(secret_dir)
         key = hmac.new(secret.encode(), (settings.auth_password or "").encode(), hashlib.sha256).hexdigest()
         self.serializer = URLSafeTimedSerializer(key, salt="superteacher-session")
+        self._roster_cursor_serializer = URLSafeSerializer(key, salt="superteacher-roster-page-v1")
         self.key = hmac.new(secret.encode(), b"accounts-ip-hash", hashlib.sha256).digest()
         self.link_ip = accounts.SlidingWindow(settings.accounts_link_per_ip_hour)
         self.link_global = accounts.SlidingWindow(settings.accounts_link_global_hour)
@@ -134,6 +135,10 @@ class AuthState:
             return secrets.token_urlsafe(48)
 
     # --- sessions ---
+    def roster_cursor_serializer(self) -> URLSafeSerializer:
+        """Sign roster continuations with a purpose distinct from authentication."""
+        return self._roster_cursor_serializer
+
     def issue(self) -> str:
         """Sign a unique v2 cookie. Only a matching live DB row grants access."""
         return self.serializer.dumps({"v": 2, "mode": "passcode", "nonce": accounts.new_secret()})

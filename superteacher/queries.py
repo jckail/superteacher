@@ -128,7 +128,7 @@ def summaries_for(
     today = today or school_today()
     ids = [s.id for s in students]
     points: dict[str, list[metrics.ScorePoint]] = {}
-    for sid, aid, title, kind, due, mx, pts in db.execute(
+    with db.execute(
         select(
             Score.student_id,
             Assessment.id,
@@ -142,15 +142,17 @@ def summaries_for(
         .join(Student, Student.id == Score.student_id)
         .where(Score.student_id.in_(ids), Assessment.section_id == Student.section_id)
         .execution_options(yield_per=1000)
-    ):
-        points.setdefault(sid, []).append(metrics.make_point(aid, title, kind, due, mx, pts))
+    ) as result:
+        for sid, aid, title, kind, due, mx, pts in result:
+            points.setdefault(sid, []).append(metrics.make_point(aid, title, kind, due, mx, pts))
     statuses: dict[str, list] = {}
-    for sid, status in db.execute(
+    with db.execute(
         select(AttendanceRecord.student_id, AttendanceRecord.status)
         .where(AttendanceRecord.student_id.in_(ids), AttendanceRecord.day <= today)
         .execution_options(yield_per=1000)
-    ):
-        statuses.setdefault(sid, []).append(status)
+    ) as result:
+        for sid, status in result:
+            statuses.setdefault(sid, []).append(status)
     for s in students:
         m = metrics.compute_from(points.pop(s.id, []), statuses.pop(s.id, []), today)
         if not retain_scores:
@@ -178,8 +180,12 @@ def iter_summaries(
         .execution_options(yield_per=batch_size),
         filters,
     )
-    for students in db.scalars(q).partitions(batch_size):
-        yield from summaries_for(db, students, retain_scores=retain_scores, today=today, owner_id=owner_id)
+    result = db.scalars(q)
+    try:
+        for students in result.partitions(batch_size):
+            yield from summaries_for(db, students, retain_scores=retain_scores, today=today, owner_id=owner_id)
+    finally:
+        result.close()
 
 
 def load_summaries(db: Session, owner_id: str = OWNER_ID, **filters) -> list[tuple[Student, metrics.StudentMetrics]]:
@@ -222,3 +228,37 @@ def load_grade_history(db: Session, student_id: str, active_section_id: str, *, 
         point = metrics.make_point(aid, title, kind, due, maximum, points)
         sections[sid]["scores"].append(vars(point))
     return list(sections.values())
+
+
+def roster_page(db: Session, owner_id: str, query, today: date, after=None):
+    """Scan scoped metrics, retaining <= limit+1 candidates. Histories remain batch sized."""
+    from .roster_pagination import compare, comparison_key
+
+    retained = []
+    total_scoped = total_matches = 0
+    rows = iter_summaries(
+        db, owner_id, retain_scores=False, today=today, course_id=query.course_id, section_id=query.section_id
+    )
+    try:
+        for student, metric in rows:
+            total_scoped += 1
+            if query.q.strip().lower() not in student.name.lower() or (query.risk and metric.risk != query.risk):
+                continue
+            total_matches += 1
+            key = comparison_key(student, metric, query.sort)
+            if after is not None and compare(key, after, query.direction) <= 0:
+                continue
+            lo, hi = 0, len(retained)
+            while lo < hi:
+                mid = (lo + hi) // 2
+                if compare(retained[mid][0], key, query.direction) < 0:
+                    lo = mid + 1
+                else:
+                    hi = mid
+            if lo < query.limit + 1:
+                if len(retained) == query.limit + 1:
+                    retained.pop()
+                retained.insert(lo, (key, student, metric))
+    finally:
+        rows.close()
+    return retained, total_matches, total_scoped

@@ -10,6 +10,8 @@ from .calendar import school_today
 from .models import AssessmentKind, AttendanceStatus
 
 Risk = Literal["unknown", "on_track", "watch", "at_risk"]
+RosterSort = Literal["name", "section", "average", "trend", "attendance_rate", "homework_rate", "risk"]
+RosterDirection = Literal["asc", "desc"]
 
 
 class CalendarOut(BaseModel):
@@ -129,6 +131,14 @@ class StudentSummary(BaseModel):
     missing: int
     risk: Risk
     risk_reasons: list[str]
+
+
+class StudentPage(BaseModel):
+    items: list[StudentSummary]
+    next_cursor: str | None
+    as_of: date
+    total_matches: int
+    total_scoped: int
 
 
 class ScoreOut(BaseModel):

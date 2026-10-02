@@ -2,7 +2,7 @@ import csv
 import io
 import unicodedata
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -13,7 +13,16 @@ from ..auth import current_user
 from ..calendar import school_today
 from ..db import get_db
 from ..models import Assessment, Course, Note, Score, Section, Student
-from ..queries import STUDENT_LOAD, iter_summaries, load_grade_history, owned_course, owned_section, owned_student
+from ..queries import (
+    STUDENT_LOAD,
+    iter_summaries,
+    load_grade_history,
+    owned_course,
+    owned_section,
+    owned_student,
+    roster_page,
+)
+from ..roster_pagination import PageQuery, decode_cursor, encode_cursor
 
 router = APIRouter(tags=["roster"])
 
@@ -126,6 +135,45 @@ def list_students(
 ):
     rows = iter_summaries(db, user.id, retain_scores=False, q=q, course_id=course_id, section_id=section_id)
     return [summarize(s, m) for s, m in rows if not risk or m.risk == risk]
+
+
+@router.get("/students/page", response_model=schemas.StudentPage)
+def list_students_page(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = Header(default=None, alias="X-Roster-Cursor"),
+    q: str | None = Query(default=None, max_length=120),
+    course_id: schemas.Id | None = None,
+    section_id: schemas.Id | None = None,
+    risk: schemas.Risk | None = None,
+    sort: schemas.RosterSort = "risk",
+    dir: schemas.RosterDirection = "asc",
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    """Live fixed-calendar pages; Python lower search, raw name/id ties.
+
+    Signed cursors contain readable names; keep out of shareable URLs and logs.
+    """
+    query = PageQuery(q or "", course_id, section_id, risk, sort, dir, limit)
+    serializer = request.app.state.auth.roster_cursor_serializer()
+    as_of, after = school_today(), None
+    if cursor is not None:
+        try:
+            as_of, after = decode_cursor(serializer, cursor, user.id, query)
+        except ValueError:
+            raise HTTPException(400, "Invalid continuation") from None
+    rows, matches, scoped = roster_page(db, user.id, query, as_of, after)
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = encode_cursor(serializer, user.id, query, as_of, rows[-1][0]) if has_more else None
+    return schemas.StudentPage(
+        items=[summarize(s, m) for _, s, m in rows],
+        next_cursor=next_cursor,
+        as_of=as_of,
+        total_matches=matches,
+        total_scoped=scoped,
+    )
 
 
 @router.post("/students", response_model=schemas.StudentDetail, status_code=201)

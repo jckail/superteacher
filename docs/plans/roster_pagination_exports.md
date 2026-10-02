@@ -50,7 +50,8 @@ Implement a single backend slice: authenticated GET `/students/page`, registered
 before `/students/{student_id}`. Existing array endpoints and all clients stay
 compatible. No claim of improved UI pagination until the client actually uses it.
 
-Contract inputs: limit default 50, range 1..200; cursor; q max 120; course_id;
+Contract inputs: limit default 50, range 1..200; cursor in the
+`X-Roster-Cursor` request header; q max 120; course_id;
 section_id; existing four-state risk; sort name/section/average/trend/
 attendance_rate/homework_rate/risk; dir asc/desc. Envelope: items,
 next_cursor|null, as_of, total_matches, total_scoped. Items retain StudentSummary
@@ -79,8 +80,12 @@ name, ID). ID alone or ordinal is insufficient. Use the already-installed
 itsdangerous signing mechanism with a dedicated purpose/salt and application-held
 key. Coordinate any narrow AuthState signing accessor with root; do not read
 secret files, reuse cookie payloads, add infrastructure, config or dependencies.
-Signing is not encryption: tokens can carry owned names, so keep them out of
-logs/analytics/shareable URLs. Live SQL scope is always authoritative.
+Signing is not encryption: tokens can carry owned names. Put continuation in
+`X-Roster-Cursor`, never a query parameter, next URL, browser history or persistent
+storage. Application access logging omits raw queries, but Cloud Logging
+[HttpRequest.requestUrl](https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry)
+includes the query portion. A header avoids adding cursor names to platform URL
+logs. Do not echo/log the header. Live SQL scope is always authoritative.
 
 Bound encoded size before parsing; validate signature/version/purpose, owner,
 filters/sort/limit, date/key types and finite numeric values. Generic 400 invalid
@@ -222,7 +227,26 @@ guarantee; do not silently lose that check. AbortSignal addition requires caller
 ownership and cancellation tests. No PDF runtime is established; revisit only
 if a real existing requirement/path appears, rather than add a PDF feature here.
 
-Next implementation: after root's current auth work, recheck live source/ownership,
-review Task 1 interface/comparator/signing preflight and implement that backend
-slice. Client migration, other full HTTP representations and export work remain
-explicitly outstanding; pagination alone does not finish large-export memory.
+## Execution checkpoint (2026-10-02)
+
+The additive backend is implemented locally: 47 new pagination cases and 110
+existing focused cases pass, with independent spec/quality approval. Follow-up
+acceptance is adding varied metric/section ordering and changed-metric live reads.
+CSV streaming is implemented locally: eight streaming cases and earlier 28
+streaming/legacy report cases pass. Independent review reproduced cancellation
+during an active synchronous fetch racing generator closure; the implementation
+is being corrected and will receive scoped re-review before publication. These
+are local focused results, not broad CI or deployed behavior.
+
+Client navigation decision: migrate the roster to Previous/Next with a transient
+in-memory cursor stack. Preserve scope/filter/sort URLs; normalize a legacy
+numbered `page` link to the first page with an explicit restart notice. Refresh
+starts a new traversal. Do not walk all preceding pages, preload the roster,
+persist cursors, or put them in URLs. Reset traversal after relevant mutations
+and scope/filter/order changes, abort superseded requests, and retain only the
+active page data rather than every downloaded page. This deliberately changes
+numbered-page deep-link behavior; existing student links and filter URLs remain.
+
+Client implementation, account JSON streaming, other full HTTP representations,
+broader integration and deployment remain outstanding. Pagination alone does not
+finish large-export memory or remove full metric/history scan costs.
