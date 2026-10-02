@@ -1,3 +1,5 @@
+import math
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -62,6 +64,32 @@ def create_assessment(
     return build_gradebook(db, user.id, section)
 
 
+@router.patch("/assessments/{assessment_id}", response_model=schemas.Gradebook)
+def update_assessment(
+    assessment_id: str,
+    body: schemas.AssessmentPatch,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    """Edit metadata, preserving raw scores when the maximum changes.
+
+    Gradebook and student metrics use the new maximum immediately; points are never rescaled.
+    """
+    assessment = owned_assessment(db, user.id, assessment_id)
+    if not assessment:
+        raise HTTPException(404, "Assessment not found")
+    changes = body.model_dump(exclude_unset=True)
+    if "max_points" in changes:
+        maximum = changes["max_points"]
+        points = db.scalars(select(Score.points).where(Score.assessment_id == assessment.id, Score.points.is_not(None)))
+        if any(not math.isfinite(value / maximum * 100) for value in points):
+            raise HTTPException(422, "This maximum would make an existing score percentage too large to calculate")
+    for key, value in changes.items():
+        setattr(assessment, key, value)
+    db.commit()
+    return build_gradebook(db, user.id, _section(db, user.id, assessment.section_id))
+
+
 @router.put("/assessments/{assessment_id}/scores", response_model=schemas.Gradebook)
 def put_scores(
     assessment_id: str,
@@ -79,8 +107,8 @@ def put_scores(
     for entry in latest.values():
         if entry.student_id not in enrolled:
             raise HTTPException(422, f"Student {entry.student_id} is not in this section")
-        if entry.points is not None and entry.points > a.max_points * 1.5:
-            raise HTTPException(422, f"{entry.points} is far above the {a.max_points:g}-point maximum")
+        if entry.points is not None and not math.isfinite(entry.points / a.max_points * 100):
+            raise HTTPException(422, "This score percentage is too large to calculate")
     for entry in latest.values():
         sc = by_student.get(entry.student_id)
         if sc:

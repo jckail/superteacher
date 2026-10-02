@@ -71,26 +71,109 @@ def run_migrations(eng: Engine) -> None:
 
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic"))
-    sqlite = eng.dialect.name == "sqlite"
     with eng.connect() as conn:
-        if sqlite:
-            # Batch migrations recreate tables; with FKs on, DROP TABLE would cascade-delete child rows.
-            # The pragma is a no-op inside a transaction, so it is switched off before one starts.
+        # SQLite batch migrations recreate parent tables. Disable cascades before
+        # any transaction, otherwise dropping the old table would delete child rows.
+        sqlite_fk = None
+        if eng.dialect.name == "sqlite":
+            sqlite_fk = conn.exec_driver_sql("PRAGMA foreign_keys").scalar()
             conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
             conn.commit()
         try:
             with conn.begin():
                 cfg.attributes["connection"] = conn
                 tables = set(inspect(conn).get_table_names())
+                validate_revision_identity(conn)
                 if "alembic_version" not in tables and tables & set(Base.metadata.tables):
+                    _validate_legacy_schema(conn)
                     command.stamp(cfg, BASELINE_REVISION)
                 command.upgrade(cfg, "head")
-                if sqlite and conn.exec_driver_sql("PRAGMA foreign_key_check").first():
-                    raise RuntimeError("Migration left foreign key violations; rolled back.")
+                if sqlite_fk is not None and conn.exec_driver_sql("PRAGMA foreign_key_check").first() is not None:
+                    raise RuntimeError("Migration found foreign key violations; refusing to accept the database.")
         finally:
-            if sqlite:
-                conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+            if sqlite_fk is not None:
+                conn.exec_driver_sql(f"PRAGMA foreign_keys={int(sqlite_fk)}")
                 conn.commit()
 
 
 BASELINE_REVISION = "0001"
+
+
+def validate_revision_identity(conn) -> None:
+    """Reject the independently published accounts 0002 before any migration DDL.
+
+    Native 0002 means integrity constraints; accounts 0002 has a different schema.
+    Its adoption requires a verified backup and an explicit separate migration.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(conn)
+    tables = set(inspector.get_table_names())
+    if "alembic_version" not in tables:
+        return
+    revisions = set(conn.execute(text("SELECT version_num FROM alembic_version")).scalars())
+    if "0002" not in revisions:
+        return
+    account_tables = {"users", "sessions", "login_tokens", "usage_counters", "ai_budget"}
+    owner_column = "courses" in tables and any(
+        column["name"] == "owner_id" for column in inspector.get_columns("courses")
+    )
+    required = {
+        "students": {"ck_students_grade_level"},
+        "assessments": {"ck_assessments_max_points", "ck_assessments_kind"},
+        "scores": {"ck_scores_points"},
+        "attendance": {"ck_attendance_status"},
+    }
+    integrity_present = all(
+        table in tables and names <= {check["name"] for check in inspector.get_check_constraints(table)}
+        for table, names in required.items()
+    )
+    if tables & account_tables or owner_column or not integrity_present:
+        raise RuntimeError(
+            "Ambiguous revision 0002: this database does not match native integrity 0002. "
+            "The independently published accounts 0002 requires an explicit backup/adoption migration; "
+            "refusing to migrate or stamp it. Existing data has not been changed."
+        )
+
+
+def _validate_legacy_schema(conn) -> None:
+    """Only adopt a complete supported legacy schema; stamping must never conceal drift.
+
+    Unrelated tables may coexist; app tables, columns and constraints must match.
+    """
+    from alembic.autogenerate import compare_metadata
+    from alembic.config import Config
+    from alembic.migration import MigrationContext
+    from sqlalchemy import DateTime, Enum, MetaData
+
+    # Derive the frozen baseline from revision 0001 itself, independently of the
+    # evolving models. This keeps adoption correct as later revisions are added.
+    from alembic import command
+
+    baseline = MetaData()
+    baseline_engine = create_engine("sqlite://")
+    try:
+        cfg = Config(str(ROOT / "alembic.ini"))
+        cfg.set_main_option("script_location", str(ROOT / "alembic"))
+        with baseline_engine.begin() as baseline_conn:
+            cfg.attributes["connection"] = baseline_conn
+            command.upgrade(cfg, BASELINE_REVISION)
+            baseline.reflect(baseline_conn, only=lambda name, _: name != "alembic_version")
+    finally:
+        baseline_engine.dispose()
+    # SQLite reflection yields VARCHAR for enum columns. Retain the exact native
+    # enum definitions from 0001 when comparing against PostgreSQL legacy DBs.
+    baseline.tables["assessments"].c.kind.type = Enum("test", "quiz", "homework", "project", name="assessmentkind")
+    baseline.tables["attendance"].c.status.type = Enum("present", "tardy", "absent", "excused", name="attendancestatus")
+    for table in ("notes", "insights"):
+        baseline.tables[table].c.created_at.type = DateTime(timezone=True)
+
+    def include_object(obj, name, kind, reflected, compare_to):
+        return kind != "table" or name in baseline.tables
+
+    context = MigrationContext.configure(conn, opts={"compare_type": True, "include_object": include_object})
+    if compare_metadata(context, baseline):
+        raise RuntimeError(
+            "Legacy database schema does not match the supported baseline; refusing to stamp it. "
+            "Review the schema and restore or migrate the database explicitly. Existing data has not been changed."
+        )

@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-extend-exclude = ["web", "alembic/versions"]
+extend-exclude = ["web", "alembic/versions", ".superdesign"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "B", "UP", "I", "SIM", "C4", "RUF"]

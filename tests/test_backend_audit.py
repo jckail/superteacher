@@ -1,12 +1,13 @@
 """Regression tests from the backend audit (validation, cascades, sections, CSV, perf paths)."""
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
+from superteacher.calendar import school_today
 from tests.test_api import mk_class, mk_student
 
-PAST = (date.today() - timedelta(days=3)).isoformat()
+PAST = (school_today() - timedelta(days=3)).isoformat()
 
 
 def mk_assessment(client, sec, title="HW1", kind="homework", due=PAST, mx=10):
@@ -51,16 +52,18 @@ def test_new_student_gets_missing_scores_for_existing_assessments(client):
     assert len(gb["rows"]) == 2
 
 
-def test_moving_student_between_sections_swaps_scores(client):
+def test_moving_ungraded_student_between_sections_swaps_empty_scores(client):
     course, sec1 = mk_class(client)
     sec2 = client.post("/api/sections", json={"course_id": course["id"], "name": "P2"}).json()
     a1 = mk_assessment(client, sec1, "A1")
     a2 = mk_assessment(client, sec2, "B1")
     s = mk_student(client, sec1)
-    client.put(f"/api/assessments/{a1}/scores", json={"scores": [{"student_id": s["id"], "points": 9}]})
     d = client.patch(f"/api/students/{s['id']}", json={"section_id": sec2["id"]}).json()
-    assert [p["assessment_id"] for p in d["scores"]] == [a2]  # old section's grade must not leak
+    assert [p["assessment_id"] for p in d["scores"]] == [a2]  # old section's assignments must not leak
     assert d["missing"] == 1 and d["average"] is None
+    history = client.get(f"/api/students/{s['id']}/grade-history").json()
+    assert history["sections"][0]["scores"][0]["assessment_id"] == a1
+    assert history["sections"][0]["scores"][0]["points"] is None
     # and the old section's gradebook no longer lists them
     assert client.get(f"/api/sections/{sec1['id']}/gradebook").json()["rows"] == []
     # old section can't be graded for them any more
@@ -109,7 +112,7 @@ def test_attendance_is_scoped_to_section(client):
     course, sec1 = mk_class(client)
     sec2 = client.post("/api/sections", json={"course_id": course["id"], "name": "P2"}).json()
     a, b = mk_student(client, sec1, "A"), mk_student(client, sec2, "B")
-    day = date.today().isoformat()
+    day = school_today().isoformat()
     client.put(
         f"/api/sections/{sec2['id']}/attendance",
         json={"day": day, "marks": [{"student_id": b["id"], "status": "absent"}]},
@@ -171,7 +174,7 @@ def test_csv_import_edge_cases(client):
 def test_gradebook_future_assessment_not_counted(client):
     _, sec = mk_class(client)
     s = mk_student(client, sec)
-    future = (date.today() + timedelta(days=5)).isoformat()
+    future = (school_today() + timedelta(days=5)).isoformat()
     aid = mk_assessment(client, sec, "Future", "test", future, 100)
     client.put(f"/api/assessments/{aid}/scores", json={"scores": [{"student_id": s["id"], "points": 10}]})
     d = client.get(f"/api/students/{s['id']}").json()
@@ -210,3 +213,49 @@ def test_listing_query_count_is_constant(seeded, engine, path):
     event.listen(engine, "before_cursor_execute", lambda *a: n.append(1))
     seeded.get(path)
     assert len(n) <= 8
+
+
+def test_app_database_factory_applies_without_test_overrides(engine, session_factory):
+    from fastapi.testclient import TestClient
+
+    from superteacher.config import Settings
+    from superteacher.main import create_app
+
+    app = create_app(engine=engine, session_factory=session_factory, seed=False, settings=Settings(auth_disabled=True))
+    with TestClient(app) as c:
+        _, sec = mk_class(c)
+        student = mk_student(c, sec)
+        assert c.get("/api/students").json()[0]["id"] == student["id"]
+
+
+def test_unknown_api_path_does_not_return_spa_html(engine, session_factory, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from superteacher.config import Settings
+    from superteacher.main import create_app
+
+    (tmp_path / "index.html").write_text("<html>app</html>")
+    app = create_app(
+        engine=engine,
+        session_factory=session_factory,
+        seed=False,
+        settings=Settings(auth_disabled=True, static_dir=str(tmp_path)),
+    )
+    with TestClient(app) as c:
+        assert c.get("/roster").status_code == 200
+        response = c.get("/api/missing")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+
+
+def test_database_failure_reports_unhealthy_status(client):
+    from superteacher.db import get_db
+
+    class BrokenSession:
+        def execute(self, _):
+            raise RuntimeError("private database connection details")
+
+    client.app.dependency_overrides[get_db] = lambda: BrokenSession()
+    response = client.get("/api/health")
+    assert response.status_code == 503
+    assert response.json() == {"status": "unhealthy", "database": "error", "ai": False}

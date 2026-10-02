@@ -21,3 +21,15 @@ web/node_modules/
 web/dist/
 tests/
 docs/
+
+*.db-*
+*.sqlite*
+web/test-results/
+web/playwright-report/
+
+infra/
+
+.superdesign/
+
+# Independent browser harness is not a runtime image input.
+e2e/

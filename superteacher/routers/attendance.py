@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..accounts import CurrentUser
 from ..auth import current_user
+from ..calendar import school_today
 from ..db import get_db
 from ..models import AttendanceRecord, Section, Student
 from ..queries import owned_section
@@ -41,7 +42,7 @@ def get_sheet(
     section = owned_section(db, user.id, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
-    return _sheet(db, section, day or date.today())
+    return _sheet(db, section, day or school_today())
 
 
 @router.put("/sections/{section_id}/attendance", response_model=schemas.AttendanceSheet)

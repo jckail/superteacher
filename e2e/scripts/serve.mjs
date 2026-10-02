@@ -24,24 +24,44 @@ const env = {
   DATABASE_URL: `sqlite:///${join(dir, 'e2e.db')}`,
   SEED_DEMO_DATA: seed,
   AUTH_DISABLED: 'false',
-  ...(accounts ? {
-    AUTH_MODE: 'accounts',
-    AUTH_EMAIL_BACKEND: 'file',
-    AUTH_EMAIL_OUTBOX_DIR: outbox,
-    PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
-    CORS_ORIGINS: `["http://127.0.0.1:${port}"]`,
-  } : {}),
+  ANTHROPIC_API_KEY: '', // Explicitly override configuration instead of permitting a .env fallback.
+  SCHOOL_TIMEZONE: 'UTC',
+  COOKIE_SECURE: 'false',
+  ENABLE_DOCS: 'false',
+  CORS_ORIGINS: JSON.stringify([`http://127.0.0.1:${port}`]),
+  STATIC_DIR: join(root, 'web', 'dist'),
+  PYTHONPATH: root,
+  AUTH_MODE: accounts ? 'accounts' : 'passcode',
+  AUTH_EMAIL_BACKEND: accounts ? 'file' : 'console',
+  AUTH_EMAIL_OUTBOX_DIR: outbox,
+  PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
   TZ: 'UTC', // match Cloud Run + the browser project (timezoneId UTC); see FINDINGS.md on UTC-vs-local "today"
 };
-delete env.ANTHROPIC_API_KEY;
-delete env.K_SERVICE; // the file mailer is refused on Cloud Run; e2e never runs there // the "AI not configured" paths are part of what we test
+delete env.K_SERVICE;
+for (const name of Object.keys(env)) if (name.startsWith('LITESTREAM_')) delete env[name];
+
 const py = process.env.E2E_PYTHON ?? 'python';
-const child = spawn(py, ['-m', 'uvicorn', 'superteacher.main:app', '--host', '127.0.0.1', '--port', port, '--log-level', 'warning'], {
-  cwd: root, env, stdio: 'inherit',
+const executable = py.includes('/') ? resolve(root, py) : py;
+const child = spawn(executable, ['-m', 'uvicorn', 'superteacher.main:app', '--host', '127.0.0.1', '--port', port, '--log-level', 'warning'], {
+  // The empty temporary working directory prevents Settings from loading the repository's .env.
+  cwd: dir, env, stdio: 'inherit',
 });
+let stopping = false;
+let requestedCode = 0;
+let killTimer;
 const stop = (code = 0) => {
+  if (stopping) return;
+  stopping = true;
+  requestedCode = code;
   child.kill('SIGTERM');
-  setTimeout(() => { rmSync(dir, { recursive: true, force: true }); process.exit(code); }, 300);
+  killTimer = setTimeout(() => child.kill('SIGKILL'), 8_000);
 };
 ['SIGINT', 'SIGTERM'].forEach((s) => process.on(s, () => stop(0)));
-child.on('exit', (code) => { rmSync(dir, { recursive: true, force: true }); process.exit(code ?? 0); });
+child.on('error', (error) => { console.error(`Could not start browser test server: ${error.message}`); requestedCode = 1; });
+child.on('close', (code) => {
+  clearTimeout(killTimer);
+  // Only remove the database after the process and its stdio have closed.
+  rmSync(dir, { recursive: true, force: true });
+  rmSync(outbox, { recursive: true, force: true });
+  process.exit(stopping || requestedCode ? requestedCode : (code ?? 1));
+});

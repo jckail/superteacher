@@ -24,9 +24,8 @@ test('modal: focus is trapped in both directions and Esc closes', async ({ page,
   await expect(dialog).toBeHidden();
 });
 
-// Known app bug (FINDINGS.md #1): Modal captures the opener in an effect, after a child's autoFocus already moved focus.
-// test.fail() keeps the suite green today and turns red ("unexpectedly passed") the moment the bug is fixed.
-test.fail('modal: focus returns to the opener after Esc [FINDINGS #1]', async ({ page, api }) => {
+// Regression coverage for the repaired opener restoration (FINDINGS.md #1).
+test('modal: focus returns to the opener after Esc [FINDINGS #1]', async ({ page, api }) => {
   await api.classroom();
   await page.goto('/roster');
   const opener = page.getByRole('button', { name: '+ Student' });
@@ -38,7 +37,7 @@ test.fail('modal: focus returns to the opener after Esc [FINDINGS #1]', async ({
   await expect(opener).toBeFocused({ timeout: 2000 });
 });
 
-test.fail('confirm dialog is an alertdialog and restores focus on Esc [FINDINGS #1]', async ({ page, api }) => {
+test('confirm dialog is an alertdialog and restores focus on Esc [FINDINGS #1]', async ({ page, api }) => {
   const c = await api.classroom({ studentNames: ['Focus Tester'] });
   await page.goto(`/students/${c.students[0].id}`);
   const opener = page.getByRole('button', { name: 'Remove student' });

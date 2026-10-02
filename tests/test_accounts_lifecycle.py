@@ -2,8 +2,9 @@
 
 from sqlalchemy import func, select, text
 
-from superteacher import ai
+from superteacher import accounts, ai
 from superteacher.db import Base
+from superteacher.models import Student
 from tests.acct_util import H, build, second_client, sign_in
 from tests.ai_fakes import FakeAI
 
@@ -20,6 +21,10 @@ def populate(c, monkeypatch):
         ai, "client", lambda: FakeAI(creates=['{"headline":"h","strengths":[],"concerns":[],"suggestions":[]}'])
     )
     assert c.get(f"/api/students/{sid}/insight").status_code == 200  # creates insights + usage_counters rows
+    # Exercise deletion of durable counters independently of AI cache/metering.
+    with c.app.state.session_factory() as db:
+        owner_id = db.get(Student, sid).section.course.owner_id
+        accounts.consume_quota(db, c.app.state.auth.settings, owner_id, "chat")
     return sid
 
 
@@ -115,3 +120,56 @@ def test_export_contains_the_users_data_and_nothing_else(tmp_path, monkeypatch):
 def test_export_requires_a_session(tmp_path):
     with build(tmp_path) as c:
         assert c.get("/api/account/export").status_code == 401
+
+
+def test_export_retains_grade_history_after_a_section_transfer(tmp_path):
+    from superteacher.models import Course, Score, Section, Student
+
+    with build(tmp_path) as c:
+        sign_in(c, tmp_path, "history@example.com")
+        sid = c.get("/api/students").json()[0]["id"]
+        with c.app.state.session_factory() as db:
+            student = db.get(Student, sid)
+            previous = db.get(Section, student.section_id)
+            original_course = db.get(Course, previous.course_id)
+            original_section_id, original_course_id = previous.id, original_course.id
+            moved = db.scalar(select(Section).where(Section.id != previous.id))
+            student.section_id = moved.id
+            expected_scores = db.scalar(select(func.count()).select_from(Score).where(Score.student_id == sid))
+            db.commit()
+        doc = c.get("/api/account/export").json()
+        exported = next(
+            s for co in doc["courses"] for section in co["sections"] for s in section["students"] if s["id"] == sid
+        )
+        assert len(exported["scores"]) == expected_scores
+        assert all(score["section_id"] == original_section_id for score in exported["scores"])
+        assert all(score["course_id"] == original_course_id for score in exported["scores"])
+        assert all(score["title"] and score["max_points"] > 0 and score["due_date"] for score in exported["scores"])
+
+
+def test_export_does_not_disclose_foreign_assessment_metadata(tmp_path):
+    from superteacher.models import Assessment, Course, Score, Section, Student, User
+
+    with build(tmp_path) as c:
+        sign_in(c, tmp_path, "mine@example.com")
+        sid = c.get("/api/students").json()[0]["id"]
+        with c.app.state.session_factory() as db:
+            other = User(email="foreign@example.com")
+            db.add(other)
+            db.flush()
+            course = Course(name="Private foreign course", owner_id=other.id)
+            db.add(course)
+            db.flush()
+            section = Section(name="Private foreign section", course_id=course.id)
+            db.add(section)
+            db.flush()
+            assessment = Assessment(title="Private foreign assessment", section_id=section.id)
+            db.add(assessment)
+            db.flush()
+            # A malformed legacy relationship must not reveal a different tenant.
+            db.add(Score(student_id=db.get(Student, sid).id, assessment_id=assessment.id, points=50))
+            foreign_id = assessment.id
+            db.commit()
+        response = c.get("/api/account/export")
+        assert response.status_code == 200
+        assert "Private foreign" not in response.text and foreign_id not in response.text

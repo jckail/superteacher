@@ -101,7 +101,11 @@ def test_html_escapes_the_link():
 
 @pytest.mark.parametrize("backend", ["console", "file"])
 def test_insecure_backends_refused_in_production(monkeypatch, tmp_path, backend):
+    from superteacher import main
+
     monkeypatch.setenv("K_SERVICE", "superteacher")
+    # Isolate the email guard from the independent production durability guard.
+    monkeypatch.setattr(main, "_replicated_sqlite", lambda _engine: True)
     kw = {"auth_email_backend": backend, "auth_email_outbox_dir": str(tmp_path)}
     with pytest.raises(mailer.MailerConfigError, match="production"):
         mailer.validate_settings(settings(**kw))

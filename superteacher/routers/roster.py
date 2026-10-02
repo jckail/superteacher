@@ -3,16 +3,17 @@ import io
 import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from .. import metrics, schemas
 from ..accounts import CurrentUser
 from ..auth import current_user
+from ..calendar import school_today
 from ..db import get_db
 from ..models import Assessment, Course, Note, Score, Section, Student
-from ..queries import STUDENT_LOAD, load_summaries, owned_course, owned_section, owned_student
+from ..queries import STUDENT_LOAD, iter_summaries, load_grade_history, owned_course, owned_section, owned_student
 
 router = APIRouter(tags=["roster"])
 
@@ -32,9 +33,11 @@ def summarize(s: Student, m: metrics.StudentMetrics | None = None) -> schemas.St
 
 
 def detail(s: Student) -> schemas.StudentDetail:
-    m = metrics.compute(s)
+    as_of = school_today()
+    m = metrics.compute(s, as_of)
     return schemas.StudentDetail(
         **summarize(s, m).model_dump(),
+        as_of=as_of,
         scores=[schemas.ScoreOut(**vars(p)) for p in m.scores],
         attendance=[schemas.AttendanceOut.model_validate(a) for a in s.attendance],
         absences=m.absences, tardies=m.tardies,
@@ -43,18 +46,8 @@ def detail(s: Student) -> schemas.StudentDetail:
 
 
 def sync_scores(db: Session, student: Student) -> None:
-    """Make a student's score rows match their section's assessments (no more, no fewer).
-
-    Drops scores for other sections' assessments (after a move) and adds explicit empty rows for
-    assessments the student has no row for yet (so they show up as missing, not silently absent).
-    """
+    """Add missing active-section score rows while preserving all previously recorded history."""
     db.flush()
-    db.execute(
-        delete(Score).where(
-            Score.student_id == student.id,
-            Score.assessment_id.in_(select(Assessment.id).where(Assessment.section_id != student.section_id)),
-        )
-    )
     have = set(db.scalars(select(Score.assessment_id).where(Score.student_id == student.id)))
     for aid in db.scalars(select(Assessment.id).where(Assessment.section_id == student.section_id)):
         if aid not in have:
@@ -91,11 +84,17 @@ def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: C
     if _name_taken(db, Course, body.name, owner_id=user.id):
         raise HTTPException(409, "A course with that name already exists")
     course = Course(name=body.name, owner_id=user.id)
+    if body.initial_section_name is not None:
+        course.sections.append(Section(name=body.initial_section_name))
     db.add(course)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
+        if body.initial_section_name is not None:
+            raise HTTPException(
+                409, "The course and initial section could not be created. No changes were saved."
+            ) from None
         raise HTTPException(409, "A course with that name already exists") from None
     return course
 
@@ -125,7 +124,7 @@ def list_students(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(current_user),
 ):
-    rows = load_summaries(db, user.id, q=q, course_id=course_id, section_id=section_id)
+    rows = iter_summaries(db, user.id, retain_scores=False, q=q, course_id=course_id, section_id=section_id)
     return [summarize(s, m) for s, m in rows if not risk or m.risk == risk]
 
 
@@ -143,6 +142,18 @@ def create_student(body: schemas.StudentIn, db: Session = Depends(get_db), user:
 @router.get("/students/{student_id}", response_model=schemas.StudentDetail)
 def get_student(student_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
     return detail(get_student_or_404(db, user.id, student_id))
+
+
+@router.get("/students/{student_id}/grade-history", response_model=schemas.GradeHistory)
+def get_grade_history(student_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
+    student = owned_student(db, user.id, student_id, selectinload(Student.section))
+    if student is None:
+        raise HTTPException(404, "Student not found")
+    return schemas.GradeHistory(
+        student_id=student.id,
+        active_section_id=student.section_id,
+        sections=load_grade_history(db, student.id, student.section_id, owner_id=user.id),
+    )
 
 
 @router.patch("/students/{student_id}", response_model=schemas.StudentDetail)
@@ -182,6 +193,38 @@ def add_note(
     db.add(note)
     db.commit()
     return note
+
+
+def _student_note_or_404(db: Session, owner_id: str, student_id: str, note_id: str) -> Note:
+    if owned_student(db, owner_id, student_id, selectinload(Student.section)) is None:
+        raise HTTPException(404, "Note not found")
+    note = db.scalar(select(Note).where(Note.id == note_id, Note.student_id == student_id))
+    if not note:
+        raise HTTPException(404, "Note not found")
+    return note
+
+
+@router.patch("/students/{student_id}/notes/{note_id}", response_model=schemas.NoteOut)
+def update_note(
+    student_id: str,
+    note_id: str,
+    body: schemas.NoteIn,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+):
+    note = _student_note_or_404(db, user.id, student_id, note_id)
+    note.body = body.body
+    db.commit()
+    return note
+
+
+@router.delete("/students/{student_id}/notes/{note_id}", status_code=204)
+def delete_note(
+    student_id: str, note_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)
+):
+    db.delete(_student_note_or_404(db, user.id, student_id, note_id))
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/sections/{section_id}/import", response_model=schemas.ImportResult)

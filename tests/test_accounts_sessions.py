@@ -15,11 +15,11 @@ def _sessions(c) -> int:
 
 
 def test_cookie_flags_and_opacity(tmp_path):
-    with build(tmp_path) as c:
+    with build(tmp_path, cookie_secure=True) as c:
         request_link(c, "a@example.com")
         from tests.acct_util import outbox, token_from, verify
 
-        r = verify(c, token_from(outbox(tmp_path)[-1]), **{"X-Forwarded-Proto": "https"})
+        r = verify(c, token_from(outbox(tmp_path)[-1]))
         cookie = r.headers["set-cookie"].lower()
         assert "httponly" in cookie and "samesite=lax" in cookie and "path=/" in cookie and "secure" in cookie
         assert "max-age=" in cookie
@@ -178,3 +178,41 @@ def test_accounts_endpoints_are_404_in_passcode_mode():
         assert request_link(c, "a@example.com").status_code == 404
         assert c.post("/api/auth/verify", json={"token": "x" * 30}, headers=H).status_code == 404
         assert c.get("/api/auth/config").json() == {"auth_mode": "passcode"}
+
+
+def test_readonly_session_polling_does_not_extend_idle_expiry(tmp_path, monkeypatch):
+    with build(tmp_path, accounts_session_idle_hours=1) as c:
+        sign_in(c, tmp_path, "poll@example.com")
+        raw = c.cookies.get("st_session")
+        settings = c.app.state.auth.settings
+        with c.app.state.session_factory() as db:
+            started = accounts.aware(db.get(AuthSession, accounts.hash_secret(raw)).last_seen_at)
+        for minutes in (10, 30, 50, 59):
+            monkeypatch.setattr(accounts, "now", lambda minutes=minutes: started + timedelta(minutes=minutes))
+            with c.app.state.session_factory() as db:
+                assert accounts.resolve_session(db, settings, raw, touch=False) is not None
+                seen = accounts.aware(db.get(AuthSession, accounts.hash_secret(raw)).last_seen_at)
+                assert seen == started and not db.dirty
+        monkeypatch.setattr(accounts, "now", lambda: started + timedelta(minutes=61))
+        with c.app.state.session_factory() as db:
+            assert accounts.resolve_session(db, settings, raw, touch=False) is None
+
+
+def test_user_action_refreshes_idle_expiry_but_following_polls_do_not(tmp_path, monkeypatch):
+    with build(tmp_path, accounts_session_idle_hours=1) as c:
+        sign_in(c, tmp_path, "active@example.com")
+        raw = c.cookies.get("st_session")
+        settings = c.app.state.auth.settings
+        with c.app.state.session_factory() as db:
+            started = accounts.aware(db.get(AuthSession, accounts.hash_secret(raw)).last_seen_at)
+        action_at = started + timedelta(minutes=50)
+        monkeypatch.setattr(accounts, "now", lambda: action_at)
+        with c.app.state.session_factory() as db:
+            assert accounts.resolve_session(db, settings, raw, touch=True) is not None
+        monkeypatch.setattr(accounts, "now", lambda: started + timedelta(minutes=109))
+        with c.app.state.session_factory() as db:
+            assert accounts.resolve_session(db, settings, raw, touch=False) is not None
+            assert accounts.aware(db.get(AuthSession, accounts.hash_secret(raw)).last_seen_at) == action_at
+        monkeypatch.setattr(accounts, "now", lambda: started + timedelta(minutes=111))
+        with c.app.state.session_factory() as db:
+            assert accounts.resolve_session(db, settings, raw, touch=False) is None

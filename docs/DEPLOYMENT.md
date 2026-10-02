@@ -92,7 +92,11 @@ message and reset time (`detail.code = "quota_exceeded"`; chat sends an error fr
 | `AI_GLOBAL_DAILY_BUDGET` | off | Cap on all metered AI calls per UTC day across users. |
 | `ENABLE_DOCS` | `false` | Serve Swagger at `/api/docs` (protected only by being unlinked; keep off in prod). |
 | `DATABASE_URL` | `sqlite:///./data/superteacher.db` (image: `sqlite:////data/superteacher.db`) | |
+| `SCHOOL_TIMEZONE` | `UTC` | IANA zone for school-day defaults and academic cutoffs; see [School calendar](SCHOOL_CALENDAR.md). Cloud Build accepts `_SCHOOL_TIMEZONE`. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL` | | AI features; optional. |
+| `AI_MAX_CONCURRENT_REQUESTS` | `8` | Shared fail-fast provider budget per server worker across chat, insights and drafts. |
+| `AI_CHAT_TIMEOUT_SECONDS` | `90` | Total chat deadline, including tool rounds. |
+| `AI_INSIGHT_TIMEOUT_SECONDS`, `AI_PARENT_TIMEOUT_SECONDS` | `45` | Total generation deadlines; cleanup has a separate 5-second cap. |
 | `SEED_DEMO_DATA` | `true` | Set `false` in production. |
 | `STATIC_DIR` | `web/dist` | |
 | `PORT`, `VERSION` | `8080`, `dev` | |
@@ -110,59 +114,90 @@ python deployment_tests.py http://localhost:8080   # export AUTH_PASSWORD first
 ```
 
 Terminate TLS in front (Caddy, nginx, a load balancer) so the cookie is `Secure`; forward
-`X-Forwarded-Proto`. The image sets `FORWARDED_ALLOW_IPS=*` so uvicorn trusts `X-Forwarded-For`: without it every user appears to come
-from the proxy's address and the login lockout becomes global. That is safe when only your proxy can reach the
-container, as on Cloud Run; if the container is reachable directly, set it to your proxy's IP. The image runs as a non-root user (uid 10001), pins its base images, and its
+`X-Forwarded-Proto`. Set `FORWARDED_ALLOW_IPS` to your trusted proxy addresses so Uvicorn uses the forwarded client IP and scheme. Cloud Run configuration sets `*` because connections reach the container through its platform proxy; directly reachable local containers retain Uvicorn's restricted default. The image runs as a non-root user (uid 10001), pins its base images, and its
 healthcheck uses the public `/api/health`.
 
 ## Cloud Run
 
-```bash
-printf '%s' "$(openssl rand -base64 24)" | gcloud secrets create superteacher-auth-password --data-file=-
-printf '%s' "$(openssl rand -base64 48)" | gcloud secrets create superteacher-session-secret --data-file=-
-printf '%s' "$ANTHROPIC_API_KEY"         | gcloud secrets create anthropic-api-key --data-file=-
-# grant the service account roles/secretmanager.secretAccessor, then:
-gcloud builds submit --config cloudbuild.yaml
-```
+The accepted pilot uses SQLite replicated by pinned Litestream to the existing
+Cloud Storage bucket. No new paid Cloud SQL instance is needed for this release.
+See [current target/configuration evidence and the release sequence](DEPLOYMENT_STATUS.md).
+The direct `superteacher` service and custom domains currently serve different releases;
+choose the intended service explicitly.
 
-`cloudbuild.yaml` mounts those secrets as env vars. `--allow-unauthenticated` only means Cloud Run does not
-add its own login; the app enforces `AUTH_PASSWORD`. Alternatively drop that flag and use IAP.
-## Durable data on Cloud Run (Litestream → Cloud Storage)
-
-The container filesystem is ephemeral, so the image runs the app under [Litestream](https://litestream.io): it streams
-every SQLite change to a Cloud Storage bucket (about 1 s behind), and a new instance restores the database from
-that bucket before the app starts. Turn it on by setting `LITESTREAM_REPLICA_URL` (for example
-`gs://BUCKET/superteacher`); without it the app runs as before and data is **not** durable on Cloud Run.
-
-One-time setup (already done for project `portfolio-383615`):
+`cloudbuild.yaml` builds and pushes an image tagged with the immutable Cloud Build
+ID; it does not deploy or move traffic. The image includes that ID as its default
+`VERSION`. A release may also use the full source commit as the image tag and
+explicit runtime version. Existing auth/session/AI secrets should be reused by
+reviewed version, rather than recreated.
 
 ```bash
-B=PROJECT-superteacher-litestream
-gcloud storage buckets create gs://$B --location us-central1 --uniform-bucket-level-access --public-access-prevention
-gcloud storage buckets update gs://$B --versioning
-echo '{"rule":[{"action":{"type":"Delete"},"condition":{"daysSinceNoncurrentTime":14,"isLive":false}}]}' > lc.json
-gcloud storage buckets update gs://$B --lifecycle-file=lc.json
-gcloud storage buckets add-iam-policy-binding gs://$B --role=roles/storage.objectAdmin \
-  --member=serviceAccount:RUNTIME_SERVICE_ACCOUNT   # bucket-scoped, nothing project-wide
+gcloud builds submit --project=PROJECT --config=cloudbuild.yaml
+# Stage only: creates no deployment health-check instance and does not promote traffic.
+PROJECT=PROJECT SERVICE=superteacher RUNTIME_SERVICE_ACCOUNT=VERIFIED_ACCOUNT \
+  SCHOOL_TIMEZONE=UTC scripts/deploy_cloud_run.sh FULL_SOURCE_COMMIT
 ```
 
-Deploy with `PROJECT=... scripts/deploy_cloud_run.sh` (builds, deploys with no traffic, moves traffic, verifies, rolls
-back on failure). **Do not** use `gcloud run deploy` with traffic and **do not** open the `--no-traffic` candidate URL
-while the old revision is live: two instances writing to one replica fork its history. Keep `--max-instances 1`
-(SQLite is a single-writer database).
+The script defaults to stage-only: `--no-traffic --no-deploy-health-check`, minimum
+zero, maximum one, explicit runtime identity, pinned secret versions, and
+`LITESTREAM_REPLICA_URL=gs://PROJECT-superteacher-litestream/SERVICE`. Override
+`REPLICA_PREFIX` only deliberately. A candidate using the live prefix must remain
+uninvoked until the previous writer has drained; opening a tagged URL can start
+another writer. Test a separate staging service with an isolated prefix first.
+Cloud Run's default deployment health check also starts a container despite
+`--no-traffic`, which is why both flags are required.
 
-Behaviour to know:
-* **Fail closed.** If the restore fails for any reason other than "no replica yet", the container exits instead of
-  starting an empty database. A revision that cannot read the bucket will not go healthy; Cloud Run keeps serving the
-  previous one.
-* **RPO** is about a second while an instance is running, and a SIGTERM (scale-in or deploy) triggers a final sync.
-  A hard crash can lose the last second or two. Restore takes a couple of seconds for a small database.
-* **Cold starts** include the restore (`--cpu-boost` is set to shorten them).
-* **Rollback** is a traffic shift to the previous revision (`gcloud run services update-traffic SERVICE
-  --to-revisions REV=100`); the bucket is untouched by it. Bucket versioning keeps overwritten objects for 14 days.
-* **Migrate to Postgres later** (Cloud SQL) when you need more than one instance: see `docs/adr/0001-persistence.md`.
-* Drill after any change to this path: write a record, force a new revision
-  (`gcloud run services update SERVICE --update-env-vars DRILL=$(date +%s)`), and check the record survived.
+Before promotion, preserve a consistent snapshot, rehearse migrations on a copy,
+stop new writes, close existing WebSockets, and observe the old writer drain and
+final replica sync. Revision maximum-one does not establish single-writer safety
+across rollout. The script requires the release operator's explicit precondition;
+it does not manufacture drain evidence:
+
+```bash
+PROJECT=PROJECT SERVICE=superteacher \
+  DRAINED_WRITER_CONFIRMED=yes DRAINED_WRITER_REVISION=OBSERVED_OLD_REVISION \
+  scripts/deploy_cloud_run.sh --promote NAMED_CANDIDATE_REVISION
+```
+
+Promotion checks the recorded previous revision still receives 100% traffic,
+then moves traffic to the named candidate. Verify health, expected version,
+protected 401 responses, authenticated workflows and persistence immediately.
+It never automatically shifts back after a failed check: drain the candidate
+writer and confirm database schema compatibility before rollback. The current
+old image knows only migration `0001`; a database upgraded to `0002` needs a
+compatible rollback image or a separate recovery replica.
+
+### Durable data on Cloud Run
+
+The image restores its absolute SQLite file before launching the application
+under Litestream. Restore errors fail closed. Only this entrypoint's successful
+restore path sets `LITESTREAM_RESTORE_VERIFIED=1`; do not set that marker in Cloud
+Run environment configuration. Managed SQLite also requires the matching file
+and a validated `gs://` replica URL. Local Docker still supports SQLite on a
+persistent volume without replication.
+
+The live bucket `portfolio-383615-superteacher-litestream` has versioning, uniform
+access, public-access prevention, 7-day soft delete and a 14-day noncurrent-object
+lifecycle. Verify these settings and runtime IAM before each release. A wrong
+prefix with no replica is treated as first boot: check the exact URI and preserve
+existing records before promotion. There is no public-data export in the release
+commands.
+
+Replication is asynchronous with a configured 1-second sync interval. Request-
+based CPU throttling and hard termination can extend data loss beyond that
+interval; it is not a guaranteed one-second RPO. Restore on cold start adds time.
+Rehearse restoration into a separate file and synthetic-data persistence across
+replacement, and alert on replication failures and backup age. Do not overlap
+writers or put the live SQLite database directly on Cloud Storage FUSE.
+
+### Optional PostgreSQL path
+
+PostgreSQL 17 support and focused integration checks remain available. Set
+`ST_TEST_POSTGRES_URL` to an isolated test server for `tests/test_postgres.py`.
+For a future multi-writer deployment, use the reviewed proposal in
+[CLOUD_SQL_PLAN.md](CLOUD_SQL_PLAN.md), provide the instance connection and a
+Psycopg database URL secret, and verify/import existing data before a traffic
+switch. The build-only YAML neither provisions nor requires Cloud SQL.
 
 ## Database migrations (Alembic)
 
@@ -175,7 +210,7 @@ foreign keys on. Take a snapshot/backup first. Rollback of the schema fails by d
 
 On startup file-based databases run `alembic upgrade head` (in-memory test DBs use `create_all`).
 Startup only ever adds/changes schema through migrations and never drops data. A database created
-before Alembic (tables, no `alembic_version`) is stamped at the baseline `0001` and then upgraded.
+before Alembic is validated against the frozen `0001` schema before stamping and upgrading. Revision `0002` adds database checks for grade levels, score ranges and enum values; invalid existing rows cause an explicit failure before schema changes. Back up first and correct invalid data deliberately.
 
 Creating a revision after editing `superteacher/models.py`:
 
@@ -189,6 +224,8 @@ python -m pytest tests/test_migrations.py   # fails if models and migrations dri
 Back up the DB before deploying a release that includes a migration.
 
 ## Backups
+
+See [the tested SQLite backup and recovery command](BACKUP_RECOVERY.md) for online snapshots and restore rehearsals into a new file.
 
 * SQLite lives in the `/data` volume. Snapshot the volume, or take a consistent copy with
   `sqlite3 /data/superteacher.db ".backup /backup/superteacher-$(date +%F).db"` (safe while running).

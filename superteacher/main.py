@@ -1,9 +1,9 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.exception_handlers import request_validation_exception_handler  # noqa: F401
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from . import auth, observability
 from . import db as database
+from .calendar import SchoolCalendarMiddleware, school_calendar
 from .config import Settings, get_settings
 from .routers import account, ai, attendance, gradebook, reports, roster, system
 from .seed import seed_demo
@@ -66,12 +67,31 @@ class BodyLimitMiddleware:
         return await self.app(scope, limited, send)
 
 
+def _replicated_sqlite(engine) -> bool:
+    """Accept managed SQLite only after the fail-closed container entrypoint restores it."""
+    database_path = engine.url.database
+    restored_path = os.environ.get("DB_FILE")
+    return bool(
+        database_path
+        and restored_path
+        and Path(database_path).is_absolute()
+        and Path(database_path).resolve() == Path(restored_path).resolve()
+        and os.environ.get("LITESTREAM_RESTORE_VERIFIED") == "1"
+        and os.environ.get("LITESTREAM_REPLICA_URL", "").startswith("gs://")
+    )
+
+
 def create_app(
     session_factory=None, engine=None, seed: bool | None = None, settings: Settings | None = None
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or database.SessionLocal
     engine = engine or database.engine
+    if os.environ.get("K_SERVICE") and engine.dialect.name == "sqlite" and not _replicated_sqlite(engine):
+        raise RuntimeError(
+            "Cloud Run requires a durable server database. Configure DATABASE_URL for PostgreSQL; "
+            "SQLite requires a verified Litestream restore and active GCS replication."
+        )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -79,7 +99,7 @@ def create_app(
 
         database.run_migrations(engine)  # additive only — existing data is never dropped
         if settings.auth_mode != "accounts" and (settings.seed_demo_data if seed is None else seed):
-            with session_factory() as s:  # accounts mode seeds a starter classroom per user instead
+            with session_factory() as s, school_calendar(settings.school_timezone):
                 seed_demo(s)
         yield
 
@@ -107,6 +127,14 @@ def create_app(
 
     app.state.session_factory = session_factory
     app.state.auth = auth_state
+    app.add_middleware(SchoolCalendarMiddleware, timezone=settings.school_timezone)
+
+    def app_db():
+        with session_factory() as session:
+            yield session
+
+    # REST requests and websocket snapshots must use the database supplied to this app.
+    app.dependency_overrides[database.get_db] = app_db
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -125,7 +153,6 @@ def create_app(
         return response
 
     # Public: health/version (for probes) and auth. Everything else, including the chat WebSocket, requires a session.
-    # (Registered first, so they shadow the identical routes inside routers/system.py, which are auth-protected.)
     @app.get("/api/health", tags=["system"])
     def health(db: Session = Depends(database.get_db)):
         try:
@@ -133,7 +160,7 @@ def create_app(
             return {"status": "healthy", "database": "ok", "ai": bool(settings.anthropic_api_key)}
         except Exception:
             logging.getLogger(__name__).exception("health check failed")
-            return {"status": "unhealthy", "database": "error", "ai": False}
+            return JSONResponse({"status": "unhealthy", "database": "error", "ai": False}, status_code=503)
 
     @app.get("/api/version", tags=["system"])
     def version():

@@ -1,3 +1,50 @@
+# Read-side performance
+
+AI tools previously hydrated every student, score, assessment and attendance record before applying a name or section filter. The optimized tool path filters student metadata in SQL, reads history as plain columns in batches of at most 200 students, and releases each batch after computing the shared metrics.
+
+- `get_student` reads one student's history, or at most ten ambiguity candidates, and at most five notes. One unique hit uses four SQL statements regardless of roster size.
+- `find_students` retains at most 25 ranked results, counts every matching student, and preserves stable name/id ordering, ties, unknown values last, and ascending/descending behavior. Name and section filters apply before reading history. SQLite tool matching uses a connection-local Python lowercase function to preserve Unicode substring behavior; `%`, `_` and backslashes are literal search characters.
+- `class_stats` streams exact means, counts and section totals. It scans all relevant history because weighted averages, deterministic recent-three trends and risk depend on that history. It uses one roster query plus two history queries per batch. This trades additional bounded queries for substantially smaller peak memory.
+- `iter_summaries(..., retain_scores=False)` preserves every aggregate metric while discarding detailed score lists once computed. `load_summaries` keeps its list return type and score detail for existing gradebook callers. Consumers that request a full list with score detail still retain those output values.
+
+Memory is bounded by one batch's history plus retained output, rather than the whole roster's history. It is not independent of history length: an unusually large individual student's history still requires processing and retaining that student's score points during metric computation. No schema or index migration is required.
+
+Metrics retain category weights, missing-score policy, same-day ordering and risk thresholds. A factual correction excludes attendance after the metric's as-of date, in both ORM and column paths. NULL scores for future assignments display `NOT YET DUE`; they do not count as missing. A missing assignment is an explicit NULL score row already due, consistent with roster synchronization and assessment creation.
+
+## Reproduce
+
+Run from the repository root with the project dependencies installed:
+
+```sh
+python -m tests.test_query_scale
+python -m pytest tests/test_query_scale.py tests/test_ai_tools_scale.py
+```
+
+The manual benchmark creates a separate in-memory SQLite database containing only deterministic synthetic records: 1,000 students across four sections, 40,000 scores and 60,000 attendance rows. Dataset creation is outside the timed region. Each operation uses a fresh ORM session and garbage collection before measurement. `tracemalloc` measures Python allocations during the operation; timings include its overhead. No student database or model provider is contacted.
+
+Observed on Python 3.12 in this workspace, 2026-10-01:
+
+| Operation | Eager access seconds | Scoped/batched seconds | Eager peak MiB | Scoped/batched peak MiB | SQL before → after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Get one student | 4.931 | 0.028 | 113.23 | 0.28 | 7 → 4 |
+| Find 25 by average in one section | 4.098 | 0.427 | 113.01 | 3.92 | 6 → 5 |
+| Whole-class statistics | 4.984 | 2.061 | 113.01 | 4.11 | 6 → 11 |
+
+The baseline reproduces the previous eager ORM read path and calls the public tool helpers; both sides use the current shared metrics and rendering. This isolates the actual database materialization cost. Every before/after returned result is asserted equal. These are representative local measurements, not production latency guarantees or database-server memory measurements.
+
+Regression tests compare column metrics against ORM metrics, compare bounded ranking against an independent full-sort oracle, verify metric equality at historical cutoffs, assert scoped history parameter sets and query counts, verify no history ORM hydration, and cap note and ambiguity reads. They assert data boundaries and deterministic results rather than brittle wall-clock thresholds.
+
+
+# Historical scale investigation from PR 11
+
+The material below records measurements and patch sketches against the older eager-loading
+main branch, imported from PR 11 head `6e7e3f123d150f53070b8b89cf6184a02994d19b`.
+It is historical evidence, not a description or benchmark of the current bounded implementation.
+The native results and contracts above take precedence. Attendance ordering and the report
+lookup fix are integrated; R1–R6 sketches below are not collectively applied. File-backed
+SQLite already uses WAL for Litestream. Current SQL counts intentionally grow by bounded
+200-student history batches. See [SCALE_INTEGRATION.md](SCALE_INTEGRATION.md) for compatibility.
+
 # Performance and scale
 
 How Super Teacher behaves as the school grows, how that was measured, and what to change. Everything below
@@ -215,7 +262,7 @@ index 82f3dc6..6d47c5f 100644
 +++ b/superteacher/metrics.py
 @@ -7,7 +7,8 @@ detail view, the overview and the AI context, so the numbers never disagree.
  from __future__ import annotations
- 
+
  import hashlib
 -from collections.abc import Iterable
 +from collections import Counter
@@ -224,8 +271,8 @@ index 82f3dc6..6d47c5f 100644
  from datetime import date
  from statistics import mean
 @@ -94,9 +95,15 @@ def compute(student: Student, today: date | None = None) -> StudentMetrics:
- 
- 
+
+
  def compute_from(
 -    points: list[ScorePoint], statuses: list[AttendanceStatus], today: date | None = None
 +    points: list[ScorePoint],
@@ -244,7 +291,7 @@ index 82f3dc6..6d47c5f 100644
 @@ -124,12 +131,12 @@ def compute_from(
      if hw_due:
          m.homework_rate = sum(1 for s in hw_due if s.points is not None) / len(hw_due) * 100
- 
+
 -    counted = [st for st in statuses if st is not AttendanceStatus.excused]
 +    present, tardy = att.get(AttendanceStatus.present, 0), att.get(AttendanceStatus.tardy, 0)
 +    counted = sum(att.values()) - att.get(AttendanceStatus.excused, 0)
@@ -256,7 +303,7 @@ index 82f3dc6..6d47c5f 100644
 +        m.attendance_rate = (present + tardy) / counted * 100
 +    m.absences = att.get(AttendanceStatus.absent, 0)
 +    m.tardies = tardy
- 
+
      _assess_risk(m)
      return m
 diff --git a/superteacher/queries.py b/superteacher/queries.py
@@ -266,11 +313,11 @@ index 31d7ba3..bf8f70a 100644
 @@ -3,7 +3,7 @@
  Lives below both layers: it depends only on ``models`` and ``metrics``, so a service never has to import a router.
  """
- 
+
 -from sqlalchemy import select
 +from sqlalchemy import func, select
  from sqlalchemy.orm import Session, joinedload, selectinload
- 
+
  from . import metrics
 @@ -58,9 +58,11 @@ def load_summaries(db: Session, **filters) -> list[tuple[Student, metrics.Studen
          .where(Score.student_id.in_(ids_q))
@@ -304,9 +351,9 @@ index e9710b5..fbf292c 100644
  from .models import InsightCache, Student
 -from .queries import load_students
 +from .queries import load_summaries
- 
+
  log = logging.getLogger(__name__)
- 
+
 @@ -96,8 +96,9 @@ def client() -> AsyncAnthropic | None:
  def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str, str]:
      """(roster snapshot, focus block). The roster part is stable across turns, so it carries the cache breakpoint."""
@@ -324,18 +371,18 @@ index 3d439b4..147c897 100644
 --- a/superteacher/ai_tools.py
 +++ b/superteacher/ai_tools.py
 @@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
- 
+
  from . import metrics
  from .models import Student
 -from .queries import load_students
 +from .queries import load_summaries
- 
+
  MAX_TOOL_RESULT_CHARS = 12_000
  _CTRL = re.compile(r"[\x00-\x1f\x7f]+")
 @@ -157,12 +157,11 @@ def _row(s: Student, m: metrics.StudentMetrics) -> dict[str, Any]:
      }  # fmt: skip
- 
- 
+
+
 -def find_students(students: list[Student], a: FindStudentsArgs) -> dict[str, Any]:
 +def find_students(pairs: list[tuple[Student, metrics.StudentMetrics]], a: FindStudentsArgs) -> dict[str, Any]:
      rows = []
@@ -349,8 +396,8 @@ index 3d439b4..147c897 100644
          if (a.max_average is not None and (m.average is None or m.average > a.max_average)) or (
 @@ -192,11 +191,11 @@ def find_students(students: list[Student], a: FindStudentsArgs) -> dict[str, Any
      }
- 
- 
+
+
 -def get_student(students: list[Student], a: GetStudentArgs) -> dict[str, Any] | str:
 +def get_student(pairs: list[tuple[Student, metrics.StudentMetrics]], a: GetStudentArgs) -> dict[str, Any] | str:
      if a.student_id:
@@ -373,15 +420,15 @@ index 3d439b4..147c897 100644
 -    return "<student_record>\n" + student_block(s, metrics.compute(s), max_scores=15) + "\n</student_record>"
 +    s, m = hits[0]
 +    return "<student_record>\n" + student_block(s, m, max_scores=15) + "\n</student_record>"
- 
- 
+
+
 -def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
 -    pool = [(s, metrics.compute(s)) for s in students if _in_section(s, a.section)]
 +def class_stats(pairs: list[tuple[Student, metrics.StudentMetrics]], a: ClassStatsArgs) -> dict[str, Any]:
 +    pool = [(s, m) for s, m in pairs if _in_section(s, a.section)]
      if not pool:
          return {"error": "No students in that section."}
- 
+
 @@ -266,7 +265,7 @@ def execute(db: Session, name: str, raw_input: object) -> str:
          raise ToolError(
              "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
@@ -403,16 +450,16 @@ index bf8f70a..369c857 100644
 @@ -3,7 +3,7 @@
  Lives below both layers: it depends only on ``models`` and ``metrics``, so a service never has to import a router.
  """
- 
+
 -from sqlalchemy import func, select
 +from sqlalchemy import func, select, tuple_
  from sqlalchemy.orm import Session, joinedload, selectinload
- 
+
  from . import metrics
 @@ -35,7 +35,13 @@ def load_students(db: Session, **filters) -> list[Student]:
      return list(db.scalars(q).unique())
- 
- 
+
+
 -def load_summaries(db: Session, **filters) -> list[tuple[Student, metrics.StudentMetrics]]:
 +def count_students(db: Session, **filters) -> int:
 +    return db.scalar(_filtered(select(func.count(Student.id)).join(Section), filters)) or 0
@@ -422,7 +469,7 @@ index bf8f70a..369c857 100644
 +    db: Session, *, limit: int | None = None, after: tuple[str, str] | None = None, **filters
 +) -> list[tuple[Student, metrics.StudentMetrics]]:
      """Students plus metrics for list/overview/gradebook views.
- 
+
      Scores and attendance are read as plain column tuples (two queries) instead of hydrating
 @@ -46,10 +52,15 @@ def load_summaries(db: Session, **filters) -> list[tuple[Student, metrics.Studen
          .order_by(Student.name, Student.id),
@@ -451,7 +498,7 @@ index 9f6a40c..766c350 100644
  import csv
  import io
 +import json
- 
+
  from fastapi import APIRouter, Depends, HTTPException, Query, Response
  from sqlalchemy import delete, func, select
 @@ -9,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
@@ -460,13 +507,13 @@ index 9f6a40c..766c350 100644
  from ..models import Assessment, Course, Note, Score, Section, Student
 -from ..queries import STUDENT_LOAD, load_summaries
 +from ..queries import STUDENT_LOAD, count_students, load_summaries
- 
+
  router = APIRouter(tags=["roster"])
- 
+
 @@ -109,16 +112,60 @@ def create_section(body: schemas.SectionIn, db: Session = Depends(get_db)):
      return section
- 
- 
+
+
 +def _decode_cursor(cursor: str | None) -> tuple[str, str] | None:
 +    if not cursor:
 +        return None
@@ -523,8 +570,8 @@ index 9f6a40c..766c350 100644
 +    if not after:
 +        response.headers["X-Total-Count"] = str(count_students(db, **filters))
 +    return [summarize(s, m) for s, m in page]
- 
- 
+
+
  @router.post("/students", response_model=schemas.StudentDetail, status_code=201)
 ```
 
@@ -542,15 +589,15 @@ index 4bf284d..c593958 100644
 +from fastapi import APIRouter, Depends, Request, Response
  from sqlalchemy import text
  from sqlalchemy.orm import Session
- 
+
 -from .. import metrics, schemas
 +from .. import dataversion, metrics, schemas
  from ..config import get_settings
  from ..db import get_db
  from ..queries import load_summaries
 @@ -26,7 +28,19 @@ def version():
- 
- 
+
+
  @router.get("/overview", response_model=schemas.Overview)
 -def overview(course_id: str | None = None, section_id: str | None = None, db: Session = Depends(get_db)):
 +def overview(
@@ -567,7 +614,7 @@ index 4bf284d..c593958 100644
 +        return Response(status_code=304, headers=headers)
 +    response.headers.update(headers)
      computed = load_summaries(db, course_id=course_id, section_id=section_id)
- 
+
      bands = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
 ```
 
@@ -580,19 +627,19 @@ index 766c350..aa72c80 100644
 +++ b/superteacher/routers/roster.py
 @@ -5,13 +5,13 @@ import io
  import json
- 
+
  from fastapi import APIRouter, Depends, HTTPException, Query, Response
 -from sqlalchemy import delete, func, select
 +from sqlalchemy import delete, func, insert, select
  from sqlalchemy.exc import IntegrityError
  from sqlalchemy.orm import Session, selectinload
- 
+
  from .. import metrics, schemas
  from ..db import get_db
 -from ..models import Assessment, Course, Note, Score, Section, Student
 +from ..models import Assessment, Course, Note, Score, Section, Student, _id
  from ..queries import STUDENT_LOAD, count_students, load_summaries
- 
+
  router = APIRouter(tags=["roster"])
 @@ -246,13 +246,14 @@ def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depen
              skipped.append(f"Row {i}: {name} is already in this section")

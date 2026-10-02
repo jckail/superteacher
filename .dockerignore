@@ -7,6 +7,11 @@ __pycache__/
 *.pyc
 .env
 .env.*
+.session_secret
+.venv/
+venv/
+env/
+ENV/
 *.db
 *.sqlite3
 data/
@@ -21,3 +26,13 @@ deploy.sh
 cloudbuild.yaml
 deployment_tests.py
 README.md
+
+*.db-*
+*.sqlite*
+web/test-results/
+web/playwright-report/
+web/coverage/
+
+infra/
+
+.superdesign/

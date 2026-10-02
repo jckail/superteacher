@@ -18,7 +18,9 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from .config import Settings
@@ -104,9 +106,11 @@ class SlidingWindow:
     def allow(self, key: str) -> bool:
         t = self.clock()
         with self._lock:
-            if len(self._hits) > self.max_keys:
+            if len(self._hits) >= self.max_keys:
                 for k in [k for k, q in self._hits.items() if not q or t - q[-1] >= self.window]:
                     del self._hits[k]
+                if key not in self._hits and len(self._hits) >= self.max_keys:
+                    return False
             q = self._hits.setdefault(key, deque())
             self._prune(q, t)
             if len(q) >= self.limit:
@@ -129,14 +133,38 @@ class SlidingWindow:
 class CurrentUser:
     id: str
     email: str
+    is_legacy: bool = False
+
+
+def _insert(db: Session, model):
+    return postgres_insert(model) if db.get_bind().dialect.name == "postgresql" else sqlite_insert(model)
+
+
+def _reserve_signups(db: Session) -> None:
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE"))
+    else:
+        db.execute(update(User).where(User.id == OWNER_ID).values(id=User.id))
+
+
+def reserve_link_request(db: Session) -> None:
+    """Serialize the per-email limit check and token issuance until commit."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("LOCK TABLE login_tokens IN SHARE ROW EXCLUSIVE MODE"))
+    else:
+        db.execute(update(LoginToken).where(LoginToken.token_hash == "").values(token_hash=LoginToken.token_hash))
 
 
 def ensure_owner(db: Session) -> str:
     """The implicit user behind passcode mode (and pre-accounts data). Idempotent."""
-    owner = db.get(User, OWNER_ID)
-    if owner is None:
-        db.add(User(id=OWNER_ID, email=OWNER_EMAIL, disabled=False))
-        db.commit()
+    if db.get(User, OWNER_ID) is not None:
+        return OWNER_ID
+    db.execute(
+        _insert(db, User)
+        .values(id=OWNER_ID, email=OWNER_EMAIL, disabled=False)
+        .on_conflict_do_nothing(index_elements=["id"])
+    )
+    db.commit()
     return OWNER_ID
 
 
@@ -155,20 +183,26 @@ def get_or_create_user(db: Session, settings: Settings, email: str) -> tuple[Use
     """
     from .seed import seed_starter
 
+    # SQLite reserves the writer before checking identity/cap, including when
+    # the legacy owner does not exist. Concurrent workers cannot both sign up
+    # past the cap or seed the same newly created account.
+    _reserve_signups(db)
     user = find_user(db, email)
     if user:
+        db.commit()
         return user, False
-    owner_email = (settings.accounts_owner_email or "").strip().lower()
+    owner_email = normalize_email(settings.accounts_owner_email or "")
     legacy = db.get(User, OWNER_ID)
     if owner_email and email == owner_email and legacy is not None and legacy.email == OWNER_EMAIL:
         legacy.email = email  # the deployment owner adopts the data created before accounts existed
         db.commit()
         return legacy, False
     if count_users(db) >= settings.accounts_max_users:
+        db.rollback()
         return None
     user = User(email=email, disabled=False)
     db.add(user)
-    db.commit()
+    db.flush()
     seed_starter(db, user.id)
     return user, True
 
@@ -244,7 +278,7 @@ def create_session(db: Session, settings: Settings, user: User) -> str:
     return raw
 
 
-def resolve_session(db: Session, settings: Settings, raw: str | None) -> CurrentUser | None:
+def resolve_session(db: Session, settings: Settings, raw: str | None, *, touch: bool = True) -> CurrentUser | None:
     """The user behind a cookie value, enforcing absolute + idle expiry and the disabled flag."""
     if not raw or len(raw) > 200:
         return None
@@ -260,7 +294,7 @@ def resolve_session(db: Session, settings: Settings, raw: str | None) -> Current
     user = db.get(User, row.user_id)
     if user is None or user.disabled:
         return None
-    if t - aware(row.last_seen_at) > TOUCH_EVERY:
+    if touch and t - aware(row.last_seen_at) > TOUCH_EVERY:
         row.last_seen_at = t
         db.commit()
     return CurrentUser(id=user.id, email=user.email)
@@ -323,32 +357,39 @@ def next_reset(today: date | None = None) -> datetime:
     return datetime.combine(d + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
 
 
-_quota_lock = threading.Lock()
-
-
 def consume_quota(db: Session, settings: Settings, user_id: str, kind: str) -> None:
     """Count one metered action or raise QuotaExceeded. Called BEFORE the model call, so failures cost quota
     (cheap to reason about, and it keeps retry loops from being free)."""
     today = now().date()
     limit = quota_limit(settings, kind)
     budget = settings.ai_global_daily_budget
-    with _quota_lock:  # single process; the DB rows are the durable record
-        row = db.get(UsageCounter, (user_id, today, kind))
-        used = row.count if row else 0
-        if used >= limit:
+    try:
+        db.execute(
+            _insert(db, UsageCounter).values(user_id=user_id, day=today, kind=kind, count=0).on_conflict_do_nothing()
+        )
+        spent = db.execute(
+            update(UsageCounter)
+            .where(
+                UsageCounter.user_id == user_id,
+                UsageCounter.day == today,
+                UsageCounter.kind == kind,
+                UsageCounter.count < limit,
+            )
+            .values(count=UsageCounter.count + 1)
+        )
+        if spent.rowcount != 1:
             raise QuotaExceeded(kind, limit, next_reset(today))
-        g = db.get(AiBudget, today)
-        if budget is not None and (g.count if g else 0) >= budget:
+        db.execute(_insert(db, AiBudget).values(day=today, count=0).on_conflict_do_nothing())
+        query = update(AiBudget).where(AiBudget.day == today)
+        if budget is not None:
+            query = query.where(AiBudget.count < budget)
+        spent = db.execute(query.values(count=AiBudget.count + 1))
+        if spent.rowcount != 1:
             raise QuotaExceeded(kind, budget, next_reset(today), scope="global")
-        if row:
-            row.count += 1
-        else:
-            db.add(UsageCounter(user_id=user_id, day=today, kind=kind, count=1))
-        if g:
-            g.count += 1
-        else:
-            db.add(AiBudget(day=today, count=1))
         db.commit()
+    except Exception:
+        db.rollback()  # A rejected global budget must not consume personal quota.
+        raise
 
 
 def usage_today(db: Session, settings: Settings, user_id: str) -> dict[str, dict[str, int | str]]:

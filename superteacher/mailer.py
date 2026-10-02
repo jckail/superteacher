@@ -94,8 +94,11 @@ def send(settings: Settings, msg: Message, transport: httpx.BaseTransport | None
         out.mkdir(parents=True, exist_ok=True)
         # Time-ordered names (then a random suffix) so "the newest message" is well defined for tests/e2e.
         path = out / f"{time.time_ns():020d}-{secrets.token_hex(4)}.json"
-        path.write_text(json.dumps({"to": msg.to, "subject": msg.subject, "text": msg.text, "html": msg.html}))
-        path.chmod(0o600)
+        # Create with private permissions: chmod after writing exposes the token
+        # briefly when the process has a permissive umask.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as stream:
+            json.dump({"to": msg.to, "subject": msg.subject, "text": msg.text, "html": msg.html}, stream)
     else:
         payload = {
             "personalizations": [{"to": [{"email": msg.to}]}],

@@ -49,6 +49,27 @@ MAX_FREE_ATTEMPTS = 5
 GLOBAL_MAX_ATTEMPTS = 50
 LOCK_BASE_SECONDS = 15
 LOCK_MAX_SECONDS = 15 * 60
+FAILURE_RESET_SECONDS = 30 * 60
+
+
+def _origin(value: str) -> tuple[str, str, int] | None:
+    """Parse a browser origin, rejecting credentials, paths and opaque origins."""
+    try:
+        parsed = urlparse(value)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.params
+            or parsed.query
+            or parsed.fragment
+        ):
+            return None
+        return parsed.scheme, parsed.hostname.lower(), parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        return None
 
 
 class AuthState:
@@ -78,7 +99,7 @@ class AuthState:
         self.verify_ip = accounts.SlidingWindow(30, window=600.0)
         self._owner_ready = False
         self.ttl = settings.session_ttl_hours * 3600
-        self.origins = {o.rstrip("/").lower() for o in settings.cors_origins}
+        self.origins = {origin for o in settings.cors_origins if (origin := _origin(o)) is not None}
         self._lock = threading.Lock()
         self._fails: dict[str, tuple[int, float]] = {}  # key -> (consecutive failures, last failure ts)
 
@@ -131,20 +152,25 @@ class AuthState:
         origin = conn.headers.get("origin")
         if origin is None:
             return True
-        origin = origin.rstrip("/").lower()
+        origin = _origin(origin)
+        if origin is None:
+            return False
         if origin in self.origins:
             return True
-        parsed = urlparse(origin)
-        host = (parsed.netloc or "").lower()
-        return parsed.scheme in ("http", "https") and bool(host) and host == (conn.headers.get("host") or "").lower()
+        scheme = conn.url.scheme
+        scheme = {"ws": "http", "wss": "https"}.get(scheme, scheme)
+        return origin == _origin(f"{scheme}://{conn.headers.get('host', '')}")
 
     # --- throttle ---
     def _lock_remaining(self, key: str) -> int:
         count, last = self._fails.get(key, (0, 0.0))
+        if time.monotonic() - last >= FAILURE_RESET_SECONDS:
+            self._fails.pop(key, None)
+            return 0
         limit = GLOBAL_MAX_ATTEMPTS if key == "*" else MAX_FREE_ATTEMPTS
         if count < limit:
             return 0
-        wait = min(LOCK_MAX_SECONDS, LOCK_BASE_SECONDS * 2 ** (count - limit))
+        wait = min(LOCK_MAX_SECONDS, LOCK_BASE_SECONDS * 2 ** min(count - limit, 6))
         return max(0, int(last + wait - time.monotonic()) + 1)
 
     def retry_after(self, client: str) -> int:
@@ -158,9 +184,13 @@ class AuthState:
                 return
             now = time.monotonic()
             for k in (client, "*"):
-                self._fails[k] = (self._fails.get(k, (0, 0.0))[0] + 1, now)
+                count, last = self._fails.get(k, (0, 0.0))
+                self._fails[k] = (1 if now - last >= FAILURE_RESET_SECONDS else count + 1, now)
             if len(self._fails) > 10_000:  # bound memory
-                self._fails = {k: v for k, v in self._fails.items() if now - v[1] < LOCK_MAX_SECONDS}
+                self._fails = {k: v for k, v in self._fails.items() if now - v[1] < FAILURE_RESET_SECONDS}
+                while len(self._fails) > 10_000:
+                    oldest = next(k for k in self._fails if k != "*")
+                    self._fails.pop(oldest)
 
 
 def _state(conn: HTTPConnection) -> AuthState:
@@ -170,9 +200,8 @@ def _state(conn: HTTPConnection) -> AuthState:
 def _secure(request: Request, st: AuthState) -> bool:
     if st.settings.cookie_secure is not None:
         return st.settings.cookie_secure
-    return (
-        request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
-    )
+    # Uvicorn's trusted-proxy middleware sets the scheme. Raw client headers cannot establish HTTPS.
+    return request.url.scheme == "https"
 
 
 def _owner(st: AuthState, factory) -> CurrentUser:
@@ -183,13 +212,13 @@ def _owner(st: AuthState, factory) -> CurrentUser:
             except IntegrityError:  # another worker created it first
                 db.rollback()
         st._owner_ready = True
-    return CurrentUser(OWNER_ID, OWNER_EMAIL)
+    return CurrentUser(OWNER_ID, OWNER_EMAIL, is_legacy=True)
 
 
-def _resolve(st: AuthState, factory, cookie: str | None) -> CurrentUser | None:
+def _resolve(st: AuthState, factory, cookie: str | None, *, touch: bool = True) -> CurrentUser | None:
     if st.accounts:
         with factory() as db:
-            return accounts.resolve_session(db, st.settings, cookie)
+            return accounts.resolve_session(db, st.settings, cookie, touch=touch)
     if st.disabled or st.valid(cookie):
         return _owner(st, factory)
     return None
@@ -216,13 +245,21 @@ async def current_user(conn: HTTPConnection) -> CurrentUser:
     return user
 
 
+async def ws_session_active(conn: HTTPConnection, user: CurrentUser, *, touch: bool = False) -> bool:
+    """Recheck the original connection cookie, including server revocation and account expiry."""
+    current = await run_in_threadpool(
+        _resolve, _state(conn), conn.app.state.session_factory, conn.cookies.get(COOKIE), touch=touch
+    )
+    return current is not None and current.id == user.id
+
+
 async def require_auth(conn: HTTPConnection) -> None:
     """Back-compat for callers that only need the gate (metrics)."""
     await current_user(conn)
 
 
 class LoginBody(BaseModel):
-    password: str
+    password: str = Field(max_length=1024)
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -319,10 +356,15 @@ def request_link(body: RequestLinkBody, request: Request, background: Background
         raise HTTPException(422, "Enter a valid email address.")
     with request.app.state.session_factory() as db:
         accounts.purge_expired(db)
+        accounts.reserve_link_request(db)
         send = (
             accounts.allowed_domain(s, email)
             and accounts.recent_token_count(db, email) < s.accounts_link_per_email_hour
-            and (accounts.find_user(db, email) is not None or accounts.count_users(db) < s.accounts_max_users)
+            and (
+                accounts.find_user(db, email) is not None
+                or email == accounts.normalize_email(s.accounts_owner_email)
+                or accounts.count_users(db) < s.accounts_max_users
+            )
         )
         # Same work either way (mint + hash + insert); a dropped request is simply rolled back.
         raw = accounts.issue_login_token(db, s, email, accounts.hash_ip(st.key, ip))

@@ -69,6 +69,7 @@ def test_long_message_and_binary_rejected(seeded, fake):
         ws.send_json({"content": "fine"})
         assert drain(ws)[-1]["type"] == "done"
     assert len(f.stream_calls) == 1
+    assert f.close_calls == 1
 
 
 def test_rate_limit_per_connection(seeded, fake, monkeypatch):
@@ -112,6 +113,50 @@ def test_disconnect_midstream_cancels_upstream(seeded, fake):
         while not f.streams[0].closed and time.time() < deadline:
             time.sleep(0.05)
     assert f.streams[0].closed
+    assert f.close_calls == 1
+
+
+def test_reader_bounds_pending_frames_and_preserves_disconnect():
+    class Flood:
+        closed = None
+
+        async def receive(self):
+            return {"type": "websocket.receive", "text": "hello"}
+
+        async def close(self, code, reason=""):
+            self.closed = code
+
+    async def check():
+        ws = Flood()
+        inbox = asyncio.Queue(maxsize=router.MAX_PENDING_FRAMES)
+        await router._read(ws, inbox)
+        assert ws.closed == 1008
+        assert inbox.qsize() == 1
+        assert await inbox.get() is None
+
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("binary", [False, True])
+def test_reader_rejects_oversized_frames_before_queueing(binary):
+    class Huge:
+        closed = None
+
+        async def receive(self):
+            key, raw = ("bytes", b"x") if binary else ("text", "x")
+            return {"type": "websocket.receive", key: raw * (router.MAX_FRAME_CHARS + 1)}
+
+        async def close(self, code):
+            self.closed = code
+
+    async def check():
+        ws = Huge()
+        inbox = asyncio.Queue(maxsize=router.MAX_PENDING_FRAMES)
+        await router._read(ws, inbox)
+        assert ws.closed == 1009
+        assert await inbox.get() is None
+
+    asyncio.run(check())
 
 
 def test_rate_limiter_window():

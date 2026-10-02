@@ -5,8 +5,8 @@ Two kinds of regression are cheap to catch here and expensive to find in product
 * a statement that stops using an index (``EXPLAIN QUERY PLAN`` shows a full ``SCAN`` of a big table);
 * an endpoint that starts issuing a statement per student (N+1), i.e. its SQL count grows with data.
 
-Datasets come from ``scripts/bench.py`` (the same generator the scale benchmark uses), at two sizes so
-"constant statement count" is proven by comparison rather than asserted against a magic number alone.
+Datasets come from ``scripts/bench.py`` at two sizes. Statement growth is bounded by the native
+200-student history batches, while scoped lookups and history parameters have explicit bounds.
 """
 
 from __future__ import annotations
@@ -132,9 +132,8 @@ def _actions(w: World) -> dict:
     }  # fmt: skip
 
 
-# Upper bound on statements per call, independent of data size. Observed values + small headroom; raise
-# deliberately (with a reason) rather than let an N+1 slip in. The "same at both sizes" test below is the
-# actual N+1 detector; these numbers catch a constant-factor blow-up.
+# Fixed statement overhead allowances. The native batch allowance is added below; these
+# numbers catch extra overhead while the small/large comparison rejects per-student growth.
 BUDGET = {
     "overview": 5,
     "overview_course": 5,
@@ -153,29 +152,36 @@ BUDGET = {
 }
 
 
-# Known defect (see docs/PERFORMANCE.md, recommendation R1): the AI paths call queries.load_students, whose
-# selectinload(...) chunks the IN (<all student ids>) list every 500 ids, so statements grow with roster size.
-# strict xfail: when the hot-file patch lands these XPASS and the marker must be deleted.
-AI_N_PLUS_ONE = pytest.mark.xfail(
-    strict=True, reason="load_students selectinload chunking: statements grow per 500 students"
-)
-
-
-def _p(name, *marks):
-    return pytest.param(name, marks=marks, id=name)
-
-
-@pytest.mark.parametrize("name", [_p(n, AI_N_PLUS_ONE) if n.startswith("ai_") else _p(n) for n in sorted(BUDGET)])
-def test_statement_count_is_constant_in_data_size(small, large, name):
+# Native summaries issue two history reads per batch of at most 200 students.
+# Growth by batch is intentional; these bounds reject per-student query growth.
+@pytest.mark.parametrize("name", sorted(BUDGET))
+def test_statement_count_is_bounded_by_history_batches(small, large, name):
     counts = []
     for w in (small, large):
         act = _actions(w)[name]
         if name.endswith("_put"):
-            act()  # first write changes rows (UPDATE); the steady-state call is what we count
-        counts.append(len(w.call(act)))
+            act()
+        statements = w.call(act)
+        counts.append(len(statements))
+        history_batches = (w.info["students"] + 199) // 200
+        assert len(statements) <= BUDGET[name] + 2 * history_batches, (name, len(statements))
+        # Streaming history must never contain an unbounded IN-list of roster IDs.
+        if name in {
+            "overview",
+            "overview_course",
+            "students",
+            "students_section",
+            "students_search",
+            "gradebook",
+            "ai_context",
+            "ai_find_students",
+            "ai_class_stats",
+        }:
+            for sql, params in statements:
+                if "FROM scores" in sql or "FROM attendance" in sql:
+                    assert len(params) <= 201, (name, sql, len(params))
     n_small, n_large = counts
-    assert n_small == n_large, f"{name}: {n_small} statements at {SMALL} students vs {n_large} at {LARGE} (N+1?)"
-    assert n_large <= BUDGET[name], f"{name}: {n_large} statements exceeds budget {BUDGET[name]}"
+    assert n_large - n_small <= 2 * ((LARGE + 199) // 200), (name, counts)
 
 
 def test_import_statement_count_does_not_scale_with_rows(large):
@@ -210,7 +216,8 @@ def _full_scans(plan_rows):
         if row.startswith("SCAN "):
             table = row.split()[1]
             # aliases from joinedload look like "sections_1"; only the big tables matter
-            if table in BIG_TABLES:
+            # Whole-school metadata reads and substring search legitimately scan students.
+            if table in BIG_TABLES - {"students"}:
                 scans.append(row)
     return scans
 
@@ -221,18 +228,7 @@ PLAN_ACTIONS = [
 ]  # fmt: skip
 
 
-PLAN_XFAIL = pytest.mark.xfail(
-    strict=True, reason="planner walks ix_attendance_day for the 500+-id IN list of load_students (R1)"
-)
-
-
-def _plan_marks(n):
-    if n in {"ai_context", "ai_find_students"}:
-        return _p(n, PLAN_XFAIL)
-    return _p(n)
-
-
-@pytest.mark.parametrize("name", [_plan_marks(n) for n in PLAN_ACTIONS])
+@pytest.mark.parametrize("name", PLAN_ACTIONS)
 def test_no_full_scan_of_big_tables(large, name):
     stmts = large.call(_actions(large)[name])
     assert stmts, "endpoint issued no SQL?"

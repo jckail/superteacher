@@ -7,6 +7,7 @@
 # corrupt replica) we exit non-zero. Starting with an empty database would fork the replica's history and later
 # overwrite real data.
 set -eu
+unset LITESTREAM_RESTORE_VERIFIED
 
 # Litestream's -exec wants ONE string that it splits itself, so re-quote any argument that needs it (spaces, quotes...).
 quote() {
@@ -46,4 +47,6 @@ if ! litestream restore -config "$CONFIG" -if-db-not-exists -if-replica-exists "
 fi
 
 log INFO litestream_replicate "starting replication and the app"
+# Only this successful restore path permits managed SQLite startup in the app.
+export LITESTREAM_RESTORE_VERIFIED=1
 exec litestream replicate -config "$CONFIG" -exec "$(join_args "$@")"

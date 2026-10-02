@@ -55,6 +55,7 @@ from superteacher import (  # noqa: E402
     schemas,
 )
 from superteacher import db as database  # noqa: E402
+from superteacher.calendar import school_today  # noqa: E402
 from superteacher.config import get_settings  # noqa: E402
 from superteacher.main import create_app  # noqa: E402
 from superteacher.models import OWNER_EMAIL, OWNER_ID  # noqa: E402
@@ -95,7 +96,7 @@ def build_dataset(
     engine = database.make_engine(f"sqlite:///{path}")
     database.run_migrations(engine)
     engine.dispose()
-    today = date.today()
+    today = school_today()
     con = sqlite3.connect(path)
     con.execute("PRAGMA synchronous=OFF")
     cur = con.cursor()
@@ -284,7 +285,7 @@ def dataset_info(path: str) -> dict:
     return {
         **n, "first_section": _id("s", 0), "first_course": _id("c", 0), "import_section": _id("s", sections),
         "first_student": _id("t", 0), "db_bytes": os.path.getsize(path),
-        "attendance_day": (date.today() - timedelta(days=5)).isoformat(),
+        "attendance_day": (school_today() - timedelta(days=5)).isoformat(),
     }  # fmt: skip
 
 

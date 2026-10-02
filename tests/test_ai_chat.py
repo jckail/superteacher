@@ -163,8 +163,8 @@ def test_injection_in_notes_is_defanged(seeded):
         db.add(Note(student_id=s.id, body=evil))
         db.commit()
         sid = s.id
-        roster, focus = ai.build_context_parts(db, OWNER_ID, sid)
-        tool = ai_tools.execute(db, OWNER_ID, "get_student", {"student_id": sid})
+        roster, focus = ai.build_context_parts(db, sid, owner_id=OWNER_ID)
+        tool = ai_tools.execute(db, "get_student", {"student_id": sid})
     for text in (focus, tool):
         assert text.count("</student_record>") == 1 and text.count("</note>") == text.count("<note ")
         assert "</roster>" not in text and "\n" not in text.split("<note")[-1].split("</note>")[0]
@@ -175,7 +175,7 @@ def test_injection_in_notes_is_defanged(seeded):
 def test_big_roster_is_summarised(seeded, monkeypatch):
     monkeypatch.setenv("CHAT_ROSTER_CAP", "5")
     with seeded.app.state.session_factory() as db:
-        roster, _ = ai.build_context_parts(db, OWNER_ID)
+        roster, _ = ai.build_context_parts(db, owner_id=OWNER_ID)
     assert "Large roster" in roster and "find_students" in roster
     assert roster.count("\n- ") < 45
 
@@ -184,8 +184,8 @@ def test_find_students_filters(seeded):
     with seeded.app.state.session_factory() as db:
         import json
 
-        out = json.loads(ai_tools.execute(db, OWNER_ID, "find_students", {"sort_by": "average", "limit": 5}))
+        out = json.loads(ai_tools.execute(db, "find_students", {"sort_by": "average", "limit": 5}))
         avgs = [s["average"] for s in out["students"] if s["average"] is not None]
         assert avgs == sorted(avgs) and out["returned"] == 5
-        stats = json.loads(ai_tools.execute(db, OWNER_ID, "class_stats", {}))
+        stats = json.loads(ai_tools.execute(db, "class_stats", {}))
         assert stats["students"] == 45 and stats["sections"]

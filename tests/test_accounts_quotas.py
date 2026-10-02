@@ -7,11 +7,19 @@ from sqlalchemy import func, select
 
 from superteacher import accounts, ai
 from superteacher import reports as svc
+from superteacher.config import get_settings
 from superteacher.models import OWNER_ID, Course, Student, User
 from tests.acct_util import H, build, second_client, sign_in
 from tests.ai_fakes import FakeAI, end_turn
 
 INSIGHT = '{"headline":"h","strengths":["s"],"concerns":["c"],"suggestions":["x"]}'
+
+
+@pytest.fixture(autouse=True)
+def configured_fake_provider(monkeypatch):
+    # Fake clients model an available provider, including its configured-key admission contract.
+    # All transport calls in these tests are replaced; this key never reaches a network.
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "offline-quota-test-key")
 
 
 def student_ids(c, n):
@@ -49,6 +57,7 @@ def test_cached_and_rule_based_insights_are_free(user, monkeypatch):
 
 
 def test_no_ai_configured_costs_no_quota(user, monkeypatch):
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", None)
     monkeypatch.setattr(ai, "client", lambda: None)
     for s in student_ids(user, 4):
         assert user.get(f"/api/students/{s}/insight").json()["source"] == "rules"

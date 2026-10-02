@@ -13,4 +13,4 @@
 .account-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
 .account-pop { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 50; display: grid; gap: 6px; padding: 10px; width: 230px; }
 .account-who { margin: 0 0 4px; font-size: .85rem; overflow-wrap: anywhere; }
-@media (max-width: 760px) { .account-menu { flex: 1 1 0; } .account-pop { position: fixed; left: 8px; right: 8px; bottom: 64px; width: auto; } }
+@media (max-width: 800px) { .account-menu { flex: 1 1 0; } .account-pop { position: fixed; left: 8px; right: 8px; bottom: calc(104px + env(safe-area-inset-bottom)); width: auto; max-height: calc(100dvh - 128px - env(safe-area-inset-bottom)); overflow: auto; } }

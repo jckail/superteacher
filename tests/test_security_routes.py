@@ -169,7 +169,7 @@ GOOD_ORIGINS = [
     "http://testserver/",
     "HTTP://TESTSERVER",
     "http://localhost:4000",
-    # TLS is terminated upstream, so an https Origin legitimately reaches the app with an http scope.
+    # HTTPS origins use an HTTPS request scope; trusted TLS proxy conversion is tested separately.
     "https://testserver",
 ]
 
@@ -217,8 +217,9 @@ def test_hostile_origin_blocked_for_every_verb(authed, origin):
 @pytest.mark.parametrize("origin", GOOD_ORIGINS)
 def test_legitimate_origins_work(authed, origin):
     c, _ = authed
-    assert c.get("/api/overview", headers={"Origin": origin}).status_code == 200
-    r = c.post("/api/courses", json={"name": f"ok-{abs(hash(origin))}"}, headers={**H, "Origin": origin})
+    base = "https://testserver" if origin == "https://testserver" else "http://testserver"
+    assert c.get(f"{base}/api/overview", headers={"Origin": origin}).status_code == 200
+    r = c.post(f"{base}/api/courses", json={"name": f"ok-{abs(hash(origin))}"}, headers={**H, "Origin": origin})
     assert r.status_code == 201
 
 
@@ -233,8 +234,28 @@ def test_websocket_handshake_blocks_hostile_origin(authed, origin):
 @pytest.mark.parametrize("origin", GOOD_ORIGINS)
 def test_websocket_handshake_allows_own_origin(authed, origin):
     c, _ = authed
-    with c.websocket_connect("/api/chat/ws", headers={"origin": origin}) as ws:
+    scheme = "wss" if origin == "https://testserver" else "ws"
+    with c.websocket_connect(f"{scheme}://testserver/api/chat/ws", headers={"origin": origin}) as ws:
         ws.send_json({"type": "reset"})
+
+
+@pytest.mark.parametrize("scheme,origin", [("http", "https://testserver"), ("https", "http://testserver")])
+def test_same_host_with_mismatched_scheme_is_rejected(authed, scheme, origin):
+    c, _ = authed
+    assert c.get(f"{scheme}://testserver/api/overview", headers={"Origin": origin}).status_code == 403
+    assert (
+        c.post(
+            f"{scheme}://testserver/api/courses", json={"name": "Blocked"}, headers={**H, "Origin": origin}
+        ).status_code
+        == 403
+    )
+    ws_scheme = "wss" if scheme == "https" else "ws"
+    with (
+        pytest.raises(WebSocketDisconnect) as exc,
+        c.websocket_connect(f"{ws_scheme}://testserver/api/chat/ws", headers={"origin": origin}),
+    ):
+        pass
+    assert exc.value.code == 1008
 
 
 def test_websocket_without_origin_still_needs_cookie(authed):

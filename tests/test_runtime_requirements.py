@@ -54,3 +54,7 @@ def test_runtime_imports_are_declared_in_requirements_txt():
 
 def test_httpx_is_a_declared_runtime_dependency():
     assert "httpx" in declared()  # superteacher/mailer.py sends mail with it
+
+
+def test_calendar_and_postgresql_runtime_dependencies_remain_declared():
+    assert {"tzdata", "psycopg"} <= declared()

@@ -40,9 +40,10 @@ def make_class(c, canary: str | None, note: str | None = None) -> dict:
         json={"day": TODAY, "marks": [{"student_id": s, "status": "absent"} for s in studs]},
         headers=H,
     )
+    note_id = None
     if note:
-        c.post(f"/api/students/{studs[-1]}/notes", json={"body": note}, headers=H)
-    return {"course": cid, "section": sid, "students": studs, "assessment": aid}
+        note_id = c.post(f"/api/students/{studs[-1]}/notes", json={"body": note}, headers=H).json()["id"]
+    return {"course": cid, "section": sid, "students": studs, "assessment": aid, "note": note_id}
 
 
 @pytest.fixture
@@ -106,8 +107,12 @@ def test_overlapping_names_are_allowed_per_owner_but_not_within_one(world):
 # ── every route that takes an id: 404 for foreign ids, nothing changes ──
 def _id_routes(ids):
     s, st, a, c = ids["section"], ids["students"][1], ids["assessment"], ids["course"]
+    note = ids["note"]
     return [
         ("GET", f"/api/students/{st}", None),
+        ("GET", f"/api/students/{st}/grade-history", None),
+        ("PATCH", f"/api/students/{st}/notes/{note}", {"body": "planted edit"}),
+        ("DELETE", f"/api/students/{st}/notes/{note}", None),
         ("PATCH", f"/api/students/{st}", {"name": "Hacked"}),
         ("DELETE", f"/api/students/{st}", None),
         ("POST", f"/api/students/{st}/notes", {"body": "planted"}),
@@ -119,6 +124,7 @@ def _id_routes(ids):
         ("POST", f"/api/sections/{s}/assessments", {"title": "Planted"}),
         ("POST", f"/api/sections/{s}/import", {"csv": "Planted Kid,9\n"}),
         ("PUT", f"/api/assessments/{a}/scores", {"scores": [{"student_id": st, "points": 0}]}),
+        ("PATCH", f"/api/assessments/{a}", {"max_points": 20, "title": "Planted edit"}),
         ("DELETE", f"/api/assessments/{a}", None),
         ("GET", f"/api/reports/sections/{s}/gradebook.csv", None),
         ("GET", f"/api/reports/sections/{s}/summary", None),

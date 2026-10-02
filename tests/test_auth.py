@@ -101,6 +101,44 @@ def test_cross_origin_rejected(c):
     assert c.get("/api/overview", headers={"Origin": "http://testserver"}).status_code == 200
 
 
+@pytest.mark.parametrize(
+    "origin",
+    ["https://testserver", "ftp://testserver", "http://user@testserver", "http://testserver/path", "null"],
+)
+def test_origin_requires_exact_scheme_and_valid_browser_origin(c, origin):
+    login(c)
+    assert c.get("/api/overview", headers={"Origin": origin}).status_code == 403
+
+
+def test_lockout_expires_after_inactivity(c, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(auth.time, "monotonic", lambda: now[0])
+    st = c.app.state.auth
+    for _ in range(auth.GLOBAL_MAX_ATTEMPTS):
+        st.record("attacker", False)
+    assert st.retry_after("another-client") > 0
+    now[0] += auth.FAILURE_RESET_SECONDS
+    assert st.retry_after("attacker") == 0
+    assert st.retry_after("another-client") == 0
+    st.record("attacker", False)
+    assert st._fails["attacker"][0] == 1
+
+
+def test_throttle_caps_exponential_and_memory(c, monkeypatch):
+    monkeypatch.setattr(auth.time, "monotonic", lambda: 100.0)
+    st = c.app.state.auth
+    st._fails["attacker"] = (100_000, 100.0)
+    assert st.retry_after("attacker") <= auth.LOCK_MAX_SECONDS + 1
+    for i in range(10_100):
+        st.record(str(i), False)
+    assert len(st._fails) <= 10_000
+    assert "*" in st._fails
+
+
+def test_login_payload_bounded(c):
+    assert login(c, "x" * 1025).status_code == 422
+
+
 def test_lockout_after_repeated_failures(c):
     for _ in range(auth.MAX_FREE_ATTEMPTS):
         assert login(c, "nope").status_code == 401
@@ -157,19 +195,17 @@ def _behind_tls_proxy(client: TestClient, trusted: bool) -> TestClient:
 BROWSER = {**H, "Origin": "https://testserver", "X-Forwarded-Proto": "https"}
 
 
-@pytest.mark.parametrize("trusted", [False, True])
-def test_https_browser_origin_accepted_when_app_sees_http(trusted):
-    # Guard: the same-origin check must not depend on the scheme the app sees, because TLS is terminated upstream and
-    # an https Origin arrives with an http scope. A scheme-strict check once broke browser logins/WebSockets this way.
-    with make() as base, _behind_tls_proxy(base, trusted) as proxied:
+def test_https_browser_origin_accepted_when_proxy_headers_are_trusted():
+    # The trusted platform proxy converts the scope to the browser scheme.
+    with make() as base, _behind_tls_proxy(base, trusted=True) as proxied:
         assert proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER).status_code == 200
 
 
 def test_websocket_with_https_origin_and_session_cookie():
-    with make() as base, _behind_tls_proxy(base, trusted=False) as proxied:
+    with make() as base, _behind_tls_proxy(base, trusted=True) as proxied:
         r = proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER)
         cookie = f"{auth.COOKIE}={r.cookies[auth.COOKIE]}"
-        headers = {"Origin": "https://testserver", "Cookie": cookie}
+        headers = {"Origin": "https://testserver", "X-Forwarded-Proto": "https", "Cookie": cookie}
         with proxied.websocket_connect("/api/chat/ws", headers=headers) as ws:
             ws.send_json({"content": "hi"})
             assert ws.receive_json()["type"] in {"delta", "error", "done"}
@@ -182,7 +218,7 @@ def test_cross_site_origin_still_rejected():
 
 
 def _attempt(client: TestClient, ip: str, pw: str):
-    return client.post("/api/auth/login", json={"password": pw}, headers={**BROWSER, "X-Forwarded-For": ip})
+    return client.post("/api/auth/login", json={"password": pw}, headers={**H, "X-Forwarded-For": ip})
 
 
 def test_lockout_is_per_client_when_proxy_headers_are_trusted():
@@ -200,3 +236,8 @@ def test_lockout_is_shared_when_proxy_headers_are_not_trusted():
         for _ in range(auth.MAX_FREE_ATTEMPTS + 1):
             _attempt(proxied, "203.0.113.7", "wrong")
         assert _attempt(proxied, "198.51.100.9", PW).status_code == 429  # why the image must set FORWARDED_ALLOW_IPS
+
+
+def test_untrusted_forwarded_proto_does_not_bypass_origin_scheme():
+    with make() as base, _behind_tls_proxy(base, trusted=False) as proxied:
+        assert proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER).status_code == 403

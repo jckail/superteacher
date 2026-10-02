@@ -46,7 +46,11 @@ class FakeAI:
     def __init__(self, turns=(), creates=()):
         self.turns, self.creates = list(turns), list(creates)
         self.stream_calls, self.create_calls, self.streams = [], [], []
+        self.close_calls = 0
         self.messages = self
+
+    async def close(self):
+        self.close_calls += 1
 
     def stream(self, **kw):
         self.stream_calls.append({**kw, "messages": [dict(m) for m in kw["messages"]]})

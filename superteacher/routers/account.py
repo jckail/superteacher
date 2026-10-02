@@ -61,9 +61,26 @@ def export_account(db: Session = Depends(get_db), user: CurrentUser = Depends(cu
                         "name": st.name,
                         "grade_level": st.grade_level,
                         "scores": [
-                            {"assessment_id": s.assessment_id, "points": s.points}
-                            for s in db.scalars(
-                                select(Score).where(Score.student_id == st.id).order_by(Score.assessment_id)
+                            {
+                                "id": score.id,
+                                "assessment_id": assessment.id,
+                                "points": score.points,
+                                "title": assessment.title,
+                                "kind": assessment.kind.value,
+                                "max_points": assessment.max_points,
+                                "due_date": assessment.due_date.isoformat(),
+                                "section_id": history_section.id,
+                                "section": history_section.name,
+                                "course_id": history_course.id,
+                                "course": history_course.name,
+                            }
+                            for score, assessment, history_section, history_course in db.execute(
+                                select(Score, Assessment, Section, Course)
+                                .join(Assessment, Score.assessment_id == Assessment.id)
+                                .join(Section, Assessment.section_id == Section.id)
+                                .join(Course, Section.course_id == Course.id)
+                                .where(Score.student_id == st.id, Course.owner_id == user.id)
+                                .order_by(Assessment.due_date, Assessment.id)
                             )
                         ],
                         "attendance": [
@@ -91,6 +108,7 @@ def export_account(db: Session = Depends(get_db), user: CurrentUser = Depends(cu
                 {
                     "id": sec.id,
                     "name": sec.name,
+                    "course_id": c.id,
                     "assessments": [
                         {
                             "id": a.id,

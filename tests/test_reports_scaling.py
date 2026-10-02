@@ -27,6 +27,7 @@ def _school(n_students: int, n_assessments: int):
     assessments = [
         SimpleNamespace(
             id=f"a{i}",
+            section_id="sec",
             title=f"Task {i}",
             kind=kinds[i % len(kinds)],
             due_date=TODAY - timedelta(days=n_assessments - i),
@@ -52,7 +53,9 @@ def _school(n_students: int, n_assessments: int):
             for d in range(10)
         ]
         students.append(
-            SimpleNamespace(id=f"s{j}", name=f"Student {j}", scores=scores, attendance=attendance, notes=[])
+            SimpleNamespace(
+                id=f"s{j}", name=f"Student {j}", section_id="sec", scores=scores, attendance=attendance, notes=[]
+            )
         )
     section = SimpleNamespace(
         id="sec", name="Period 1", course=SimpleNamespace(name="Algebra"), assessments=assessments
