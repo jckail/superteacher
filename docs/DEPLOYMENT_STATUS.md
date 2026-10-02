@@ -16,8 +16,15 @@ offline tests and focused Ruff checks. The first pytest launch failed before
 collection because repository warning configuration requires unavailable local
 SQLAlchemy; the standalone run used isolated pytest configuration and no conftest.
 Combined [CI37047594086](https://github.com/jckail/superteacher/actions/runs/37047594086)
-is running. A new exact-source artifact is being prepared; no build or deployment
-has executed for this source. Earlier112 build queue75 remains preserved, with no
+passed all seven jobs: 1403 API tests in 191.00s, four browser tests in 14.0s,
+84 E2E tests in 2.0 minutes and 259 locked Docker cases in 34.78s, plus web,
+lint/types/build and benchmark checks. Root captured private full logs and the
+CI-state SHA256 `d931db14dcf787651b977d27c74546e9ab50ad7d9d19e81832fb7a34c8814b85`.
+The exact archive SHA256 is `6a26a610fc7febc55fa3666b6db5f99ad24dc9ff202108ca5d97da9095a0191a`;
+independent review verified all 294 files/323 context entries and modes against
+Git. Root helper validation passed before execution. Protected build session81016
+was submitted to the shared gate; its outcome is pending. No deployment has
+executed for this source. Earlier112 build queue75 remains preserved, with no
 unchanged retry. The saved goal reports blocked; the user's resume instruction
 authorizes continuing the original scope without creating a replacement goal.
 
