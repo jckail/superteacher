@@ -1,11 +1,12 @@
-import type { AssessmentStat, AttendanceDay, ClassSummary, ParentUpdateOut, Section, StudentSummary, Tone } from '../types';
-import { useEffect, useRef, useState } from 'react';
+import type { AssessmentStat, AttendanceDay, ClassSummary, ParentUpdateIn, ParentUpdateOut, Section, Tone } from '../types';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { api, fmt } from '../api';
+import { useQuery } from '@tanstack/react-query';
+import { ApiError, api, fmt } from '../api';
 import { useActiveSection, useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
+import { useRosterPage } from '../useRosterPage';
 import { ErrorBox, Loading, RiskChip, Stat } from '../components/ui';
 import '../reports.css';
 
@@ -130,68 +131,141 @@ function Summary({ section }: { section: Section }) {
   );
 }
 
-function ParentComposer({ section }: { section: Section }) {
-  const students = useQuery({ queryKey: ['students', { section: section.id }], queryFn: ({ signal }) => api<StudentSummary[]>(`/students?section_id=${section.id}`, { signal }) });
-  const [studentId, setStudentId] = useState('');
+type SelectedStudent = { id: string; name: string; sectionId: string };
+type GenerationGate = { pending: boolean; start: (work: () => Promise<void>) => void };
+
+function ParentComposer({ section, generation }: { section: Section; generation: GenerationGate }) {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<SelectedStudent | null>(null);
   const [toneSel, setTone] = useState<Tone>('warm');
   const [draft, setDraft] = useState<ParentUpdateOut | null>(null);
+  const [generationError, setGenerationError] = useState<Error | null>(null);
   const [copied, setCopied] = useState(false);
-  const selected = useRef({ studentId, sectionId: section.id, tone: toneSel });
-  selected.current = { studentId, sectionId: section.id, tone: toneSel };
-  useEffect(() => { setStudentId(''); setDraft(null); setCopied(false); }, [section.id]);
-  const gen = useMutation({
-    mutationFn: (request: { studentId: string; sectionId: string; tone: Tone }) => api<ParentUpdateOut>(`/reports/students/${request.studentId}/parent-update`, { method: 'POST', body: { tone: request.tone } }),
-    onSuccess: (d, request) => { const current = selected.current; if (request.studentId === current.studentId && request.sectionId === current.sectionId && request.tone === current.tone) { setDraft(d); setCopied(false); } },
-  });
-  const list = students.data ?? [];
+  const lifecycle = useRef({ mounted: true, revision: 0, request: 0, draftRevision: 0, copyOperation: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined });
+  const clearCopied = useCallback(() => {
+    const state = lifecycle.current;
+    state.copyOperation += 1;
+    state.draftRevision += 1;
+    clearTimeout(state.timer);
+    state.timer = undefined;
+    setCopied(false);
+  }, []);
+  const reset = useCallback(() => {
+    lifecycle.current.revision += 1;
+    clearCopied();
+    setSelected(null);
+    setDraft(null);
+    setGenerationError(null);
+  }, [clearCopied]);
+  const students = useRosterPage({ enabled: true, sectionId: section.id, search, risk: '', sort: 'name', direction: 'asc' }, reset);
+  useEffect(() => {
+    const state = lifecycle.current;
+    state.mounted = true;
+    return () => { state.mounted = false; state.revision += 1; state.copyOperation += 1; clearTimeout(state.timer); };
+  }, []);
+  useEffect(() => { if (students.data?.total_scoped === 0) reset(); }, [students.data?.total_scoped, reset]);
+  const list = students.data?.items ?? [];
+  const pinned = selected && !list.some((s) => s.id === selected.id);
+  const generate = () => {
+    if (!selected || selected.sectionId !== section.id || generation.pending) return;
+    const state = lifecycle.current;
+    const revision = state.revision;
+    const captured = selected;
+    const tone = toneSel;
+    generation.start(async () => {
+      const request = ++state.request;
+      setGenerationError(null);
+      const current = () => state.mounted && state.revision === revision && state.request === request;
+      try {
+        const body: ParentUpdateIn = { tone, expected_section_id: captured.sectionId };
+        const result = await api<ParentUpdateOut>(`/reports/students/${captured.id}/parent-update`, { method: 'POST', body });
+        if (current()) { clearCopied(); setDraft(result); }
+      } catch (error) {
+        if (current()) {
+          if (error instanceof ApiError && error.status === 404) reset();
+          setGenerationError(error instanceof Error ? error : new Error('Unable to generate this draft. Please try again.'));
+        }
+      }
+    });
+  };
   const copy = async () => {
     if (!draft) return;
-    try { await navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
+    const state = lifecycle.current;
+    const revision = state.draftRevision;
+    const operation = ++state.copyOperation;
+    clearTimeout(state.timer);
+    setCopied(false);
+    const current = () => state.mounted && state.draftRevision === revision && state.copyOperation === operation;
+    try {
+      await navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
+      if (!current()) return;
+      setCopied(true);
+      state.timer = setTimeout(() => { if (current()) setCopied(false); }, 2000);
+    } catch { /* clipboard blocked */ }
   };
+  const edit = (value: ParentUpdateOut) => { clearCopied(); setDraft(value); };
   const mailto = draft ? `mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` : '#';
   return (
     <section className="card rep-composer" aria-labelledby="rep-parent">
       <div className="rep-head"><h2 id="rep-parent">Parent update</h2>{draft && <span className="chip neutral">{draft.source === 'ai' ? 'AI draft' : 'Template draft'}</span>}</div>
       <p className="rep-privacy">Drafts use only this student&apos;s grades and attendance. Review and edit before sending; nothing is sent from here.</p>
-      <ErrorBox error={students.error || gen.error} />
-      {!students.isLoading && list.length === 0 ? <p className="muted">Add students to this section to draft updates.</p> : (
-        <div className="fields">
-          <label>Student
-            <select className="input" value={studentId} onChange={(e) => { setStudentId(e.target.value); setDraft(null); }}>
-              <option value="">Choose a student…</option>
-              {list.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </label>
-          <label>Tone
-            <select className="input" value={toneSel} onChange={(e) => { const value = e.target.value; if (value === 'warm' || value === 'neutral' || value === 'concerned') setTone(value); setDraft(null); }}>
-              {TONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </label>
-        </div>
-      )}
-      <div className="row">
-        <button className="btn primary" disabled={!studentId || gen.isPending} onClick={() => gen.mutate({ studentId, sectionId: section.id, tone: toneSel })}>{gen.isPending ? 'Drafting…' : draft ? 'Regenerate' : 'Generate draft'}</button>
+      <label>Search students<input className="input" type="search" maxLength={120} value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+      {search && <button className="btn" onClick={() => setSearch('')}>Clear search</button>}
+      <ErrorBox error={students.error} />
+      {students.error && <button className="btn" onClick={() => { if (students.invalidCursor) students.restart(); else void students.retry(); }}>{students.invalidCursor ? 'Restart student list' : 'Retry student list'}</button>}
+      {students.loading && <p role="status">Loading students…</p>}
+      {students.data && <p role="status">{students.data.total_matches} matching students · {students.data.total_scoped} in this section · Page {students.page}</p>}
+      {students.data?.total_scoped === 0 && <p className="muted">Add students to this section to draft updates.</p>}
+      {students.data && students.data.total_scoped > 0 && students.data.total_matches === 0 && <p className="muted">No students match this search.</p>}
+      {students.data && students.data.total_matches > 0 && list.length === 0 && <p>The student list changed. <button className="btn" onClick={students.restart}>Restart student list</button></p>}
+      <div className="fields">
+        <label>Student
+          <select className="input" value={selected?.id ?? ''} disabled={!students.data || list.length === 0} onChange={(e) => {
+            const item = list.find((s) => s.id === e.target.value);
+            if (!item || item.section_id !== section.id) return;
+            reset(); setSelected({ id: item.id, name: item.name, sectionId: item.section_id });
+          }}>
+            <option value="">Choose a student…</option>
+            {pinned && <option value={selected.id}>{selected.name}</option>}
+            {list.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </label>
+        <label>Tone
+          <select className="input" value={toneSel} onChange={(e) => {
+            const value = e.target.value;
+            if (value === 'warm' || value === 'neutral' || value === 'concerned') { lifecycle.current.revision += 1; clearCopied(); setDraft(null); setGenerationError(null); setTone(value); }
+          }}>{TONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        </label>
       </div>
-      {draft && (
-        <>
-          <label>Subject
-            <input className="input" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-          </label>
-          <label>Message
-            <textarea className="input" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
-          </label>
-          <div className="row">
-            <button className="btn" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button>
-            <a className="btn primary" href={mailto}>Open in email</a>
-          </div>
-          <span className="sr-only" role="status">{copied ? 'Copied to clipboard' : ''}</span>
-        </>
-      )}
+      {selected && <p>Selected: {selected.name}{pinned ? ' (outside these results)' : ''} <button className="btn" onClick={reset}>Clear selection</button></p>}
+      <nav aria-label="Student pages" className="row">
+        <button className="btn" disabled={!students.data || students.page === 1} onClick={students.previous}>Previous students</button>
+        <button className="btn" disabled={!students.data?.next_cursor} onClick={students.next}>Next students</button>
+      </nav>
+      <ErrorBox error={generationError} />
+      <div className="row"><button className="btn primary" disabled={!selected || generation.pending} onClick={generate}>{generation.pending ? 'Drafting…' : draft ? 'Regenerate' : 'Generate draft'}</button></div>
+      {draft && <>
+        <label>Subject<input className="input" value={draft.subject} onChange={(e) => edit({ ...draft, subject: e.target.value })} /></label>
+        <label>Message<textarea className="input" value={draft.body} onChange={(e) => edit({ ...draft, body: e.target.value })} /></label>
+        <div className="row"><button className="btn" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button><a className="btn primary" href={mailto}>Open in email</a></div>
+        <span className="sr-only" role="status">{copied ? 'Copied to clipboard' : ''}</span>
+      </>}
     </section>
   );
 }
 
 export default function Reports() {
+  // Keep the latch across scope-driven composer remounts until the actual write settles.
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  const [pending, setPending] = useState(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const start = useCallback((work: () => Promise<void>) => {
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    void work().finally(() => { busy.current = false; if (mounted.current) setPending(false); });
+  }, []);
   const section = useActiveSection();
   const { isLoading, ready } = useScope();
   if (!ready) return <><div className="topbar"><h1>Reports</h1><ScopePicker /></div><ScopeStatus /></>;
@@ -208,7 +282,7 @@ export default function Reports() {
       </div>
       <ScopeStatus />
       <Summary section={section} />
-      <ParentComposer key={section.id} section={section} />
+      <ParentComposer key={section.id} section={section} generation={{ pending, start }} />
     </>
   );
 }

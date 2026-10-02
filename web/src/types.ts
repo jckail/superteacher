@@ -60,7 +60,7 @@ export type AssessmentPatch = Partial<Required<AssessmentIn>>;
 export interface ScoresIn { scores: ScoreEntry[] }
 export interface AttendanceIn { day?: string; marks: AttendanceMark[] }
 export interface ImportIn { csv: string }
-export interface ParentUpdateIn { tone?: Tone }
+export interface ParentUpdateIn { tone?: Tone; expected_section_id?: string | null }
 export interface LoginIn { password: string }
 export interface LogoutOut { authenticated: false }
 export interface HealthOut { status: 'healthy' | 'unhealthy'; database: string; ai: boolean }

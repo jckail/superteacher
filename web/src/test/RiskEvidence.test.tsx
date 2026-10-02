@@ -42,7 +42,7 @@ const classData = (o: OverviewData): ClassSummary => ({
   attention: o.attention.map((s) => ({ id: s.id, name: s.name, risk: s.risk, average: s.average, reasons: s.risk_reasons })),
 });
 function mount(page: 'overview' | 'reports', data: OverviewData) {
-  vi.mocked(api).mockImplementation(async (path) => (path === '/courses' ? courses : path.startsWith('/overview') ? data : path.endsWith('/summary') ? classData(data) : []) as never);
+  vi.mocked(api).mockImplementation(async (path) => (path === '/courses' ? courses : path.startsWith('/overview') ? data : path.endsWith('/summary') ? classData(data) : { items: [], next_cursor: null, as_of: '2026-10-02', total_matches: 0, total_scoped: 0 }) as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><MemoryRouter><ScopeProvider>{page === 'overview' ? <Overview /> : <Reports />}</ScopeProvider></MemoryRouter></QueryClientProvider>);
 }
@@ -99,10 +99,6 @@ describe.each(['all', 'course'] as const)('report review navigation from %s scop
     vi.mocked(api).mockImplementation(async (path) => {
       if (path === '/courses') return courses as never;
       if (path.endsWith('/summary')) return classData({ ...base, students: 1, unknown: 1 }) as never;
-      if (path.startsWith('/students?')) {
-        const sectionId = new URLSearchParams(path.split('?')[1]).get('section_id');
-        return students.filter((student) => !sectionId || student.section_id === sectionId) as never;
-      }
       if (path.startsWith('/students/page?')) {
         const params = new URLSearchParams(path.split('?')[1]);
         const scoped = students.filter((student) => (!params.get('section_id') || student.section_id === params.get('section_id')) && (!params.get('course_id') || student.course_id === params.get('course_id')));
@@ -130,8 +126,12 @@ describe.each(['all', 'course'] as const)('report review navigation from %s scop
     const rosterRequests = vi.mocked(api).mock.calls.filter(([path]) => path.startsWith('/students?') || path.startsWith('/students/page?'));
     expect(rosterRequests.length).toBeGreaterThan(1);
     for (const [path] of rosterRequests) expect(new URLSearchParams(path.split('?')[1]).get('section_id')).toBe('p1');
-    expect(rosterRequests.some(([path]) => path.startsWith('/students?'))).toBe(true); // Reports picker keeps its complete array contract.
-    const pagedRequests = rosterRequests.filter(([path]) => path.startsWith('/students/page?'));
+    expect(rosterRequests.every(([path]) => path.startsWith('/students/page?'))).toBe(true);
+    const pickerRequests = rosterRequests.filter(([path]) => !new URLSearchParams(path.split('?')[1]).has('risk'));
+    expect(pickerRequests).toHaveLength(1);
+    expect(new URLSearchParams(pickerRequests[0][0].split('?')[1]).get('course_id')).toBeNull();
+    expect(new URLSearchParams(pickerRequests[0][0].split('?')[1]).get('sort')).toBe('name');
+    const pagedRequests = rosterRequests.filter(([path]) => new URLSearchParams(path.split('?')[1]).has('risk'));
     expect(pagedRequests.length).toBeGreaterThan(0);
     for (const [path] of pagedRequests) {
       const params = new URLSearchParams(path.split('?')[1]);

@@ -78,7 +78,7 @@ describe('operations request races', () => {
     const pending = deferred<ParentUpdateOut>();
     request.mockImplementation((path: string) => {
       if (path.endsWith('/summary')) return Promise.resolve(emptySummary);
-      if (path.startsWith('/students?')) return Promise.resolve([student('ada', 'Ada'), student('bob', 'Bob')]);
+      if (path.startsWith('/students/page?')) return Promise.resolve({ items: [student('ada', 'Ada'), student('bob', 'Bob')], next_cursor: null, as_of: '2026-10-01', total_matches: 2, total_scoped: 2 });
       if (path.endsWith('/parent-update')) return pending.promise;
       throw new Error(`Unexpected request: ${path}`);
     });

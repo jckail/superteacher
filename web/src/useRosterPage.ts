@@ -10,8 +10,10 @@ interface Filters {
 let nextSession = 0;
 
 /** One response at a time; readable continuation tokens remain in transient memory. */
-export function useRosterPage(filters: Filters) {
+export function useRosterPage(filters: Filters, onInvalidate?: () => void) {
   const qc = useQueryClient();
+  const invalidated = useRef(onInvalidate);
+  invalidated.current = onInvalidate;
   // Raw search participates so changed input immediately drops the previous view.
   const identity = JSON.stringify([filters.courseId, filters.sectionId, filters.search, filters.risk, filters.sort, filters.direction, filters.enabled]);
   const [position, setPosition] = useState(() => ({ identity, session: ++nextSession, page: 1 }));
@@ -57,7 +59,10 @@ export function useRosterPage(filters: Filters) {
   useEffect(() => qc.getQueryCache().subscribe((event) => {
     if (event.type === 'updated' && event.action.type === 'invalidate') {
       const key = event.query.queryKey;
-      if (key[0] === 'students' && key[1] === 'page' && key[2] === position.identity && key[3] === position.session) restart();
+      if (key[0] === 'students' && key[1] === 'page' && key[2] === position.identity && key[3] === position.session && chain.current.session === position.session) {
+        restart();
+        invalidated.current?.();
+      }
     }
   }), [qc, position.identity, position.session, restart]);
 

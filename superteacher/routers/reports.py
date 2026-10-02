@@ -11,6 +11,7 @@ from ..db import get_db
 from ..gradebook_export import ClosingStreamingResponse, csv_chunks, read_metadata
 from ..models import Section
 from ..queries import load_students, owned_section
+from ..schemas import Id
 from .roster import get_student_or_404
 
 router = APIRouter(tags=["reports"])
@@ -18,6 +19,7 @@ router = APIRouter(tags=["reports"])
 
 class ParentUpdateIn(BaseModel):
     tone: svc.Tone = "warm"
+    expected_section_id: Id | None = None
 
 
 class ParentUpdateOut(BaseModel):
@@ -63,6 +65,8 @@ async def parent_update(
     user: CurrentUser = Depends(current_user),
 ):
     student = get_student_or_404(db, user.id, student_id)
+    if body.expected_section_id is not None and student.section_id != body.expected_section_id:
+        raise HTTPException(404, "Student not found")
 
     def charge() -> None:
         try:

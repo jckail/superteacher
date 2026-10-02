@@ -336,3 +336,87 @@ def test_template_accepts_maximum_length_names(client):
     response = client.post(f"/api/reports/students/{student['id']}/parent-update", json={"tone": "warm"})
     assert response.status_code == 200
     assert len(response.json()["subject"]) <= 150
+
+
+def test_expected_section_mismatch_precedes_service_and_quota(client, monkeypatch):
+    from superteacher.routers import reports as route
+
+    original, other = mk_class(client), mk_class(client, name="Other", sec="P2")
+    student = mk_student(client, original, "Private student")
+    service = []
+    quota = []
+
+    async def unexpected_service(*args, **kwargs):
+        service.append(args)
+        raise AssertionError("Generation must not run for a section mismatch")
+
+    monkeypatch.setattr(route.svc, "parent_update", unexpected_service)
+    monkeypatch.setattr(route.accounts, "consume_quota", lambda *a, **kw: quota.append(a))
+    response = client.post(
+        f"/api/reports/students/{student['id']}/parent-update", json={"expected_section_id": other["id"]}
+    )
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Student not found"}
+    assert service == quota == []
+
+
+@pytest.mark.parametrize("expected", ["same", "omitted", "null"])
+def test_expected_section_preserves_compatible_generation(client, expected):
+    section = mk_class(client)
+    student = mk_student(client, section, "Ada")
+    body = {"tone": "neutral"}
+    if expected != "omitted":
+        body["expected_section_id"] = section["id"] if expected == "same" else None
+    response = client.post(f"/api/reports/students/{student['id']}/parent-update", json=body)
+    assert response.status_code == 200
+    assert response.json()["source"] == "template"
+    assert "Ada" in response.json()["body"]
+
+
+@pytest.mark.parametrize("case", ["transfer", "deleted", "foreign_student", "foreign_section", "missing"])
+def test_expected_section_unavailable_is_generic_before_work(client, session_factory, monkeypatch, case):
+    from superteacher.models import Course, Section, Student
+    from superteacher.routers import reports as route
+
+    original = mk_class(client)
+    other = mk_class(client, name="Other", sec="P2")
+    student = mk_student(client, original, "Private student")
+    student_id, expected = student["id"], original["id"]
+    with session_factory() as db:
+        course = Course(id="foreign-course", owner_id="foreign-owner", name="Secret course")
+        section = Section(id="foreign-section", course=course, name="Secret section")
+        db.add_all(
+            [course, section, Student(id="foreign-student", section=section, name="Secret student", grade_level=4)]
+        )
+        db.commit()
+    if case == "transfer":
+        assert client.patch(f"/api/students/{student_id}", json={"section_id": other["id"]}).status_code == 200
+    elif case == "deleted":
+        assert client.delete(f"/api/students/{student_id}").status_code == 204
+    elif case == "foreign_student":
+        student_id, expected = "foreign-student", "foreign-section"
+    elif case == "foreign_section":
+        expected = "foreign-section"
+    else:
+        student_id = "missing-student"
+    work = []
+
+    async def unexpected_service(*args, **kwargs):
+        work.append("service")
+        raise AssertionError("Unavailable student must not reach generation")
+
+    monkeypatch.setattr(route.svc, "parent_update", unexpected_service)
+    monkeypatch.setattr(route.accounts, "consume_quota", lambda *args, **kwargs: work.append("quota"))
+    response = client.post(f"/api/reports/students/{student_id}/parent-update", json={"expected_section_id": expected})
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Student not found"}
+    assert work == []
+
+
+def test_expected_section_id_is_bounded(client):
+    section = mk_class(client)
+    student = mk_student(client, section, "Ada")
+    response = client.post(
+        f"/api/reports/students/{student['id']}/parent-update", json={"expected_section_id": "x" * 65}
+    )
+    assert response.status_code == 422
