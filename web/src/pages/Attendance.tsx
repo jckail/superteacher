@@ -43,9 +43,10 @@ export default function Attendance() {
       toast.error(`Couldn’t save attendance: ${e.message}`);
     },
     onSuccess: (_d, { marks }) => { if (marks.length > 1) toast.success(`Marked ${marks.length} students present`); },
-    onSettled: () => {
+    onSettled: (_data, _error, { sectionId }) => {
       if (qc.isMutating({ mutationKey: ['attendance-save'] }) <= 1) void qc.invalidateQueries({ queryKey: ['attendance'] });
       void qc.invalidateQueries({ queryKey: ['overview'] }); void qc.invalidateQueries({ queryKey: ['students'] }); void qc.invalidateQueries({ queryKey: ['student'] });
+      void qc.invalidateQueries({ queryKey: ['report-summary', sectionId], exact: true });
     },
   });
   if (!ready) return <><div className="topbar"><h1>Attendance</h1><ScopePicker /></div><ScopeStatus /></>;
