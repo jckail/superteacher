@@ -31,10 +31,25 @@ Cloud Build `b524f123-9699-4189-89af-2aeff7a39106` SUCCESS and immutable image
 `gcr.io/portfolio-383615/superteacher@sha256:4554d1b067e80152b46053aa088ecdb809e5bb78853fd9b41a22987f1f5c4be6`.
 Root verified build state, image digest and proof bindings; private build-proof
 SHA256 is `50a73dc4cc557a9990586bb96b6e740fa228939806e69a476f1f5b1621c21a79`.
-No runtime deployment has executed for this source yet. A private create-only
-manifest is under independent review. Its local input guard passed after the
+The private create-only manifest passed independent review. Its local input guard passed after the
 owned preflight parent was tightened from0755 to0700; the backup root was already
 0700. No candidate phase directory or resource was reserved by that local check.
+Root then executed the protected create-only phase (session97376). The sole
+create request returned operation `8f52d7c9-0621-4e74-98a8-a9099c12283c`, and the
+new service `st-candidate-257a657e2ce4-8b942daad1eb` reports Ready revision
+`st-candidate-257a657e2ce4-8b942daad1eb-00001-dzp`. The helper exited1 at
+service/revision verification: it required a full resource path in the revision's
+parent-service field, while the actual response contains the exact service-name
+leaf. Three bounded read-only GETs and local verification isolated only that
+guard mismatch; all other configuration guards passed. The original failure and
+cleanup receipts remain preserved (temporary request removed, credentials private,
+phase not completed). No deployment acceptance proof exists yet. A separately
+reviewed read-only continuation is being prepared; do not repeat creation,
+alter IAM, update existing staging or infer platform/application handshake success.
+The [Cloud Run revision reference](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions)
+describes this field as the parent service's name; live response bindings supply
+the observed format. Complete synthetic workflows and isolated restore remain
+separate acceptance gates.
 Previous d256 and112 admission75 receipts remain preserved; no unchanged retry
 is authorized by a source review. The separate Insight freshness gap remains:
 its GET can charge quota and generate AI content, so an explicit refresh/provenance
