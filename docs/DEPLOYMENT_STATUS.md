@@ -5,10 +5,10 @@ verification. The native overhaul is merged and isolated staging is deployed;
 this release operator has not changed production traffic or custom-domain mappings. Private
 backup artifacts stay outside Git and hosted project memory.
 
-Latest verified source is `2bf9a5c` (all seven combined CI jobs passed).
-The latest successful immutable build is sourcefbaf; the existing private
+Latest verified source is `5bad21a` (all seven combined CI jobs passed).
+The latest successful immutable build is source5bad; the existing private
 candidate is frozen at source257 with runtime acceptance still pending.
-See [the latest integration checkpoint](#score-field-accessibility-integrated-2026-10-02)
+See [the latest integration checkpoint](#insight-provenance-and-attendance-disclosure-integrated-2026-10-02)
 and [candidate verification](#prepared-synthetic-candidate-verifier-2026-10-02).
 
 ## Attendance report freshness follow-up (2026-10-02)
@@ -1213,3 +1213,75 @@ No image or runtime promotion is claimed for the new source. The frozen257
 candidate and its genuine continuation/synthetic/restore prerequisites are
 unchanged. Insight cutoff/refresh work under JCK-70 is a subsequent isolated
 iteration; broader teacher-confirmed intervention plans remain open.
+
+## Insight provenance and attendance disclosure integrated (2026-10-02)
+
+PR81 exact `a6fc6fa006d840f8bd08a65cb864bfd965484858` passed independent
+root/source-peer review, all seven CI jobs and Bugbot before merge `d2f6e07`.
+Reports now offer a native disclosure with a captioned attendance table: full
+dates, fractional rates, marked counts and absent counts. Copy explains that
+present/tardy count as attended and excused marks are excluded from the rate.
+Zero and an unavailable rate remain distinct. The author qualified 39 focused
+tests plus lint/types. The table reuses the current summary; no query or mutation
+was added. Expanded mobile geometry and actual assistive-technology acceptance
+remain open.
+
+PR82 exact `2199ce6d5fbf592ef92618f66a3426e3d19789b4` passed independent
+SPEC/QUALITY review and all seven
+[CI37067960454](https://github.com/jckail/superteacher/actions/runs/37067960454)
+jobs plus Bugbot before merge `5bad21aafdd18b09927c6716858e1e6dc978fc4f`.
+Insight responses carry the calculation cutoff from the same metrics used for
+their fingerprint and prompt, including cached AI and rule fallback paths.
+Cached UTC generation time is preserved; a new generation stores and returns
+one captured instant. The card displays its own cutoff and generation time,
+flags an earlier school day, and offers a guarded explicit refresh with possible
+AI allowance wording. Date equality does not prove that same-day records are
+current. Calendar changes do not add automatic Insight requests. Existing cache,
+quota, owner, retry and mutation invalidation policies are preserved.
+
+The author reproduced six frontend RED cases before the fix; eight new cases
+passed. Root's focused union passed 69 tests across Insight provenance, Student
+deletion identity, note settlement and calendar in 7.16s. TypeScript, focused
+ESLint, Ruff/format, AST and diff checks passed. Exact CI qualified the six native
+fake-provider backend cases, which were unavailable locally. See the
+[bounded Insight plan](plans/insight_provenance.md). Broader saved, editable,
+teacher-confirmed intervention plans remain open under JCK-70.
+
+Combined-source [CI37068612575](https://github.com/jckail/superteacher/actions/runs/37068612575)
+passed all seven jobs: 1591 API tests in 214.56s and 259 Docker tests in 22.34s,
+plus web/browser/E2E/lint and benchmark checks. Authentic private CI-state SHA256
+is `d343ea62ce95c02f784c2ff09881a73bfc8146126eb5eb1c02b429e75e7a6be5`.
+Independent review verified 313 Git/archive/context files, 342 entries and modes;
+root's exact artifact/CI validation passed. Protected build session33571 exited0.
+Cloud Build `8fc929cf-5676-4773-ae5f-470a7797689f` completed SUCCESS at
+`2026-10-02T21:53:51.422930Z`, producing immutable image
+`gcr.io/portfolio-383615/superteacher@sha256:8736f8b00b094c96205864f7ee1f01b1f93ce48b1b98d8011f3afa397a9f559c`.
+Root verified source/archive/CI/mode/tag/digest/build-state bindings; proof SHA256
+is `7a427c84ed8153ecfeb0db74b57f2ce20c3cb3e5fb86b4117ecc8f299d08012b`.
+This establishes the source5bad artifact, not runtime or production acceptance.
+
+The canonical code-context refresh completed successfully: 215 files and 1861
+chunks, no warnings, with eight changed source/test hashes matching live files.
+Shared Graphify refresh completed, while native Superteacher remains outside its
+configured corpus; live source and the checkout index supply that coverage.
+PR83 labels the earlier [release checkpoint](RELEASE_CHECKPOINT.md) historical
+and links current operations without changing its observations or guards.
+
+## Private-candidate continuation result (2026-10-02)
+
+Following a newly admitted successful index refresh and fresh job inspection,
+root made one serialized, protected read-only continuation attempt for the
+original frozen257 candidate. Session70777 admitted and executed, then exited1
+at initial service/revision/IAM verification after two API requests. The Cloud
+Resource Manager project-policy read returned HTTP429. The original creation
+failure, earlier admission refusals, and new exclusive intent/failure receipt
+remain preserved. No continuation success proof was created; no resource, IAM,
+traffic or domain mutation occurred, and no automatic retry followed.
+
+Canonical synthetic workflows, feature acceptance, isolated restore, production
+lineage adoption, writer drain and rollback remain separate open gates. Existing
+prepared adapters and their inert tests cannot replace actual successful receipts.
+A future continuation must preserve the failed attempt and qualify a new proof
+producer; the old exclusive-intent helper cannot simply be rerun. SMTP/provider,
+domain and human acceptance work remains open. Production has not been promoted
+by this release operator.
