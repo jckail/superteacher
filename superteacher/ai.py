@@ -132,7 +132,8 @@ def build_context_parts(
             if len(attention) > cap:
                 attention.pop()
     out = [
-        f"Today is {as_of:%Y-%m-%d}. Roster snapshot ({count} students):", "<roster>",
+        f"Today is {as_of:%Y-%m-%d}. Roster snapshot ({count} students):",
+        "<roster>",
         f"Status counts: {dict(counts)}. Unknown means not enough data; only watch/at_risk are attention flags.",
     ]
     if count <= cap:

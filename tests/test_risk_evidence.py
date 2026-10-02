@@ -50,11 +50,13 @@ def test_no_evidence_pure_orm_bounded_agree_as_of(client, session_factory, case)
             student.notes.append(Note(body="A teacher observation"))
         if case in ("future-work", "due-null-test"):
             due = AS_OF + timedelta(days=1) if case == "future-work" else AS_OF
-            assessment = Assessment(id="test", title="Work", kind=AssessmentKind.test,
-                                    max_points=100, due_date=due, section=section)
+            assessment = Assessment(
+                id="test", title="Work", kind=AssessmentKind.test, max_points=100, due_date=due, section=section
+            )
             student.scores.append(Score(assessment=assessment, points=90 if case == "future-work" else None))
-            points = [metrics.make_point("test", "Work", AssessmentKind.test, due, 100,
-                                         90 if case == "future-work" else None)]
+            points = [
+                metrics.make_point("test", "Work", AssessmentKind.test, due, 100, 90 if case == "future-work" else None)
+            ]
         if case in ("future-attendance", "excused"):
             status = AttendanceStatus.present if case == "future-attendance" else AttendanceStatus.excused
             day = AS_OF + timedelta(days=1) if case == "future-attendance" else AS_OF
@@ -81,8 +83,14 @@ def test_due_boundaries_zero_and_historical_cutoff(client, session_factory):
     with session_factory() as db:
         section = Section(name="P1", course=Course(name="Math", owner_id=OWNER_ID))
         student = Student(name="Zero is evidence", grade_level=7, section=section)
-        student.scores.append(Score(assessment=Assessment(title="Test", kind=AssessmentKind.test,
-                                   section=section, due_date=AS_OF, max_points=100), points=0))
+        student.scores.append(
+            Score(
+                assessment=Assessment(
+                    title="Test", kind=AssessmentKind.test, section=section, due_date=AS_OF, max_points=100
+                ),
+                points=0,
+            )
+        )
         student.attendance.append(AttendanceRecord(day=AS_OF, status=AttendanceStatus.present))
         db.add(student)
         db.commit()
@@ -109,8 +117,12 @@ def test_due_null_orm_bounded_boundary(client, session_factory, kind):
     with session_factory() as db:
         section = Section(name="P1", course=Course(name="Math", owner_id=OWNER_ID))
         student = Student(name="Pending work", grade_level=7, section=section)
-        student.scores.append(Score(assessment=Assessment(title="Due", kind=kind,
-                                   section=section, due_date=AS_OF, max_points=100), points=None))
+        student.scores.append(
+            Score(
+                assessment=Assessment(title="Due", kind=kind, section=section, due_date=AS_OF, max_points=100),
+                points=None,
+            )
+        )
         db.add(student)
         db.commit()
         for cutoff in (AS_OF - timedelta(days=1), AS_OF):
@@ -125,17 +137,27 @@ def test_due_null_orm_bounded_boundary(client, session_factory, kind):
                 assert orm.homework_rate is None and orm.risk == "unknown"
 
 
-@pytest.mark.parametrize("evidence,risk", [
-    ({"average": 0}, "at_risk"), ({"average": 64.9}, "at_risk"),
-    ({"average": 65}, "watch"), ({"average": 71.9}, "watch"), ({"average": 72}, "on_track"),
-    ({"average": 90}, "on_track"), ({"attendance_rate": 79.9}, "watch"),
-    ({"attendance_rate": 80}, "on_track"), ({"attendance_rate": 90}, "on_track"),
-    ({"homework_rate": 0}, "on_track"),
-    ({"attendance_rate": 89, "homework_rate": 69}, "watch"),
-    ({"attendance_rate": 79, "homework_rate": 69}, "at_risk"),
-    ({"trend": -7.9}, "on_track"), ({"trend": -8}, "on_track"), ({"trend": -15}, "watch"),
-    ({"average": 70, "trend": -8}, "at_risk"),
-])
+@pytest.mark.parametrize(
+    "evidence,risk",
+    [
+        ({"average": 0}, "at_risk"),
+        ({"average": 64.9}, "at_risk"),
+        ({"average": 65}, "watch"),
+        ({"average": 71.9}, "watch"),
+        ({"average": 72}, "on_track"),
+        ({"average": 90}, "on_track"),
+        ({"attendance_rate": 79.9}, "watch"),
+        ({"attendance_rate": 80}, "on_track"),
+        ({"attendance_rate": 90}, "on_track"),
+        ({"homework_rate": 0}, "on_track"),
+        ({"attendance_rate": 89, "homework_rate": 69}, "watch"),
+        ({"attendance_rate": 79, "homework_rate": 69}, "at_risk"),
+        ({"trend": -7.9}, "on_track"),
+        ({"trend": -8}, "on_track"),
+        ({"trend": -15}, "watch"),
+        ({"average": 70, "trend": -8}, "at_risk"),
+    ],
+)
 def test_known_thresholds_unchanged(evidence, risk):
     metric = metrics.StudentMetrics(as_of=AS_OF, **evidence)
     metrics._assess_risk(metric)
@@ -149,8 +171,11 @@ def test_mixed_counts_attention_filters_tools_and_tenancy(client, session_factor
     set_scores(client, assessment, {students[1]["id"]: 90, students[2]["id"]: 70, students[3]["id"]: 0})
     with session_factory() as db:
         foreign = User(id="foreign00001", email="foreign@example.invalid")
-        foreign_student = Student(name="Foreign roster", grade_level=7,
-                                  section=Section(name="Hidden", course=Course(name="Foreign", owner_id=foreign.id)))
+        foreign_student = Student(
+            name="Foreign roster",
+            grade_level=7,
+            section=Section(name="Hidden", course=Course(name="Foreign", owner_id=foreign.id)),
+        )
         db.add(foreign_student)
         db.add(foreign)
         db.commit()
@@ -219,15 +244,29 @@ def test_old_on_track_empty_cache_misses_and_unknown_ai_prompt(client, session_f
         old = replace(current, risk="on_track")
         old_fingerprint = metrics.fingerprint(loaded, old)
         assert old_fingerprint != metrics.fingerprint(loaded, current)
-        db.add(InsightCache(student_id=loaded.id, fingerprint=old_fingerprint,
-                            model=get_settings().anthropic_insight_model,
-                            payload={"headline": "On track", "strengths": [],
-                                     "concerns": [], "actions": ["Stretch task"]}))
+        db.add(
+            InsightCache(
+                student_id=loaded.id,
+                fingerprint=old_fingerprint,
+                model=get_settings().anthropic_insight_model,
+                payload={"headline": "On track", "strengths": [], "concerns": [], "actions": ["Stretch task"]},
+            )
+        )
         db.commit()
         fallback = asyncio.run(ai.ai_insight(db, loaded))
         assert fallback.source == "rules" and "not enough data" in fallback.headline
-        fake = FakeAI(creates=[json.dumps({"headline": "Not enough evidence", "strengths": [],
-                                          "concerns": [], "actions": ["Record attendance"]})])
+        fake = FakeAI(
+            creates=[
+                json.dumps(
+                    {
+                        "headline": "Not enough evidence",
+                        "strengths": [],
+                        "concerns": [],
+                        "actions": ["Record attendance"],
+                    }
+                )
+            ]
+        )
         monkeypatch.setattr(ai, "client", lambda: fake)
         generated = asyncio.run(ai.ai_insight(db, loaded))
         assert generated.source == "ai" and len(fake.create_calls) == 1

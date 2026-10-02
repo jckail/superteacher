@@ -99,8 +99,11 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "section": {"type": "string", "description": "Case-insensitive substring of a section or course name."},
-                "risk": {"type": "string", "enum": ["unknown", "on_track", "watch", "at_risk"],
-                         "description": "Unknown: insufficient evidence. Attention flags: watch/at_risk."},
+                "risk": {
+                    "type": "string",
+                    "enum": ["unknown", "on_track", "watch", "at_risk"],
+                    "description": "Unknown: insufficient evidence. Attention flags: watch/at_risk.",
+                },
                 "name_contains": {"type": "string"},
                 "max_average": {"type": "number", "description": "Only students with average <= this (0-100)."},
                 "min_average": {"type": "number"},
@@ -295,8 +298,14 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
     }
     if not a.section:
         out["sections"] = [
-            {"section": label, "students": sec[0], "average": sec[1].value(), "at_risk": sec[2]["at_risk"],
-             "unknown": sec[2]["unknown"], "status_counts": dict(sec[2])}
+            {
+                "section": label,
+                "students": sec[0],
+                "average": sec[1].value(),
+                "at_risk": sec[2]["at_risk"],
+                "unknown": sec[2]["unknown"],
+                "status_counts": dict(sec[2]),
+            }
             for label, sec in sorted(sections.items())
         ]
     return out

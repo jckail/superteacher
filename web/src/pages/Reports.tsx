@@ -67,6 +67,7 @@ function AttendanceStrip({ days }: { days: AttendanceDay[] }) {
 }
 
 function Summary({ section }: { section: Section }) {
+  const { setSection } = useScope();
   const q = useQuery({ queryKey: ['report-summary', section.id], queryFn: ({ signal }) => api<ClassSummary>(`/reports/sections/${section.id}/summary`, { signal }) });
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorBox error={q.error} />;
@@ -113,7 +114,7 @@ function Summary({ section }: { section: Section }) {
         </section>
         <section className="card" aria-labelledby="rep-attn">
           <h2 id="rep-attn">Students needing attention</h2>
-          {s.unknown > 0 && <p className="muted">{s.unknown} student{s.unknown === 1 ? '' : 's'} lack{s.unknown === 1 ? 's' : ''} enough data to assess progress. <Link to="/roster?status=unknown">Review records needing data</Link>.</p>}
+          {s.unknown > 0 && <p className="muted">{s.unknown} student{s.unknown === 1 ? '' : 's'} lack{s.unknown === 1 ? 's' : ''} enough data to assess progress. <Link to="/roster?status=unknown" onClick={() => setSection(section.id)}>Review records needing data</Link>.</p>}
           {s.attention.length === 0 ? <p className="muted">{s.unknown === s.students ? 'Record work or attendance before assessing progress.' : s.unknown ? 'No attention flags among students with evidence.' : 'Nobody is flagged right now.'}</p> : (
             <ul className="rep-attn">
               {s.attention.map((a) => (
