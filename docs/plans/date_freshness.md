@@ -1,7 +1,7 @@
 # Date freshness: accepted behavior and locally integrated Student implementation
 
 This checkpoint records source-verified behavior, current verification status
-and locally integrated implementation awaiting publication and combined acceptance. Grading/history, paging, authentication, provider calls and
+and published, combined-CI-verified implementation awaiting runtime acceptance. Grading/history, paging, authentication, provider calls and
 draft provenance retain their separate contracts.
 
 ## Current status
@@ -12,23 +12,46 @@ calendar. Gradebook defers its automatic day read while score writes are pending
 Overview retains cached results through ordinary refresh errors. Their accepted
 cutoff/freshness work is the baseline for later consumers.
 
-Latest exact-CI-verified candidate `9011f65509e5871c8425a99ebaaa4f17b638ab34`
-passed all seven exact-source jobs in
-[CI37028496201](https://github.com/jckail/superteacher/actions/runs/37028496201):
-1357 API tests in 131.56s, 225 web, four browser and 84 E2E tests, plus
-lint/types/build, Docker/auth smoke and informational benchmark. The locked Docker
-runtime compatibility set passed 259 cases in 35.76s; this is not the full native
-API suite inside that image. Reviewed Docker chmod PR63 and documentation PR64
-are merged into parent `9011f65`; main and the working branch are pushed.
+Latest published candidate `f423afcad2bfda91b9162f06457e2befee3cde7b` is pushed
+to root main and the working branch. PR65 and PR66 were merged at 16:35:09 UTC.
+Its exact combined [CI37034932285](https://github.com/jckail/superteacher/actions/runs/37034932285)
+passed all seven jobs: 1357 API tests in 160.81s, 287 web tests across 23 files in
+31.44s, four browser tests in 14.7s, 84 E2E tests in 2.1 minutes, and 259 locked
+Docker compatibility cases in 35.25s; lint/types/build and informational benchmark
+passed. Root captured actual metadata and full private logs. This combined run
+covers the reviewed Student integration and chat-link/runbook changes; the focused
+Docker set remains distinct from the full native API suite inside that image.
 
-The immutable archive SHA256
-`1ed2b2f022aeaf39e4f22b5aecb0f787b86fe145d8f5b154b20c29e4e4c35d26`
-contains 305 entries/276 files, with regular files 0644/0755, directories 0755 and
-private roots 0700. Build-helper review passed. Protected session 19785 exited
-75 before the helper began: no new intent/proof or cloud call, image digest,
-deployment or restore acceptance exists. Do not retry unchanged automatically or
-bypass the wrapper; future execution requires fresh capacity and preflight.
-B5 `00007-9lq` remains the most recent root-accepted staging release.
+Immutable f423 archive SHA256
+`d463c058173a68d4b81d7508eeeae0ba6e2608774f86f86dd8aecf522f65ca02`
+contains 308 entries/279 files. Independent build-helper source/specification/
+quality reviews passed; root validated archive/source byte agreement and the
+approved 9011 substitutions in deploy/recovery/smoke helpers. Protected session
+20955 completed successfully. Cloud Build `91213e75-fd3b-480a-957e-286180b77003`
+accepted the exact archive and produced image digest
+`8a01599ed2cb0b49f85d78bf8f9ed32289bca265236f082e69b13628a318ac25`.
+Its private proof binds the actual seven-job CI state hash. Protected staging
+deployment session 48075 exited 75 before its helper began; no deployment intent,
+cloud mutation or f423 deployment/recovery acceptance exists. Preserve the queue
+blocker and do not retry unchanged or bypass the wrapper. A fresh read-only
+Cloud Run snapshot now records staging `00009-bcw` Ready at 100%, VERSION
+`fe2cd01582d288346bb8f9fa565b7938ad7d24ff`, changed by another session.
+The prepared B5/failed-23 state guards are stale; reconcile that ownership/state
+and review new guards before any future deployment. B5 `00007-9lq` remains the
+most recent root-accepted historical runtime, not the currently serving revision. This checkpoint
+edit changes documentation only; source CI/artifact remain pinned to f423.
+
+Historical 9011 checkpoint: exact source
+`9011f65509e5871c8425a99ebaaa4f17b638ab34` passed all seven jobs in
+[CI37028496201](https://github.com/jckail/superteacher/actions/runs/37028496201)
+(1357 API in 131.56s, 225 web, four browser, 84 E2E; locked Docker 259 in 35.76s).
+Reviewed Docker chmod PR63/documentation PR64 were merged and published. Archive
+SHA256 `1ed2b2f022aeaf39e4f22b5aecb0f787b86fe145d8f5b154b20c29e4e4c35d26`
+had 305 entries/276 files and reviewed 0644/0755 regular modes, directories 0755
+and private roots 0700. Protected session 19785 exited 75 before helper execution:
+no intent/proof or cloud call occurred. Preserve this blocker separately; do not
+retry its unchanged action or bypass the wrapper. Fresh f423 execution follows a
+distinct source/context, fresh preflight and actual lock acquisition.
 
 Historical 1cde checkpoint: exact source
 `1cde1cc24e64599fc03f6a26aad01736960764e2` passed all seven jobs in
@@ -72,17 +95,15 @@ and the full branch diff have independent specification and quality approval wit
 no actionable findings. Original worktree:
 `/home/jkail/projects/superteacher-student-freshness-20261002`.
 Root-executed final focused evidence is 80 tests across eight files in 7.04s, with
-types, focused lint and diff checks passing. Integration is local; publication,
-full combined exact CI and runtime acceptance remain pending. The 9011 CI does
-not cover these new commits. Independent Insight, generated-draft provenance and
+types, focused lint and diff checks passing. Publication and full combined exact CI are complete at f423; staging/recovery acceptance remains pending; the immutable build is accepted. Independent Insight, generated-draft provenance and
 new-after-submit note settlement remain separate. Opening note B during a pending
 note-A modal has not been established as reachable; note/accessibility audits
 remain ongoing, without a confirmed interaction claim from that scenario.
 
-## Locally integrated Student behavior
+## Published Student behavior
 
 The integrated `Student.tsx` subscribes to the validated school calendar and retains
-its exact `['student', id]` key and consumed AbortSignal. The historical `9011f65` CI does not cover
+its exact `['student', id]` key and consumed AbortSignal. The published f423 combined CI covers
 these integrated commits. Existing backend/types supply the response cutoff;
 no browser-date fallback, grading formula or history contract changed.
 
@@ -110,7 +131,7 @@ separate from the calendar's exact detail read and exercise captured completions
 Integrated commit `7e9b627` (original `79f85f3`) captures the delete target and its
 QueryClient/lifecycle so late confirmation or completion cannot act on another
 student/session. Task 2 and whole-branch specification/quality reviews approve;
-publication, combined exact CI and runtime acceptance remain pending.
+publication and combined exact CI are complete; runtime acceptance remains pending.
 
 Existing new-note input/edit-dialog settlement policies remain separate: an input
 can be edited during pending add and completion clears its current body. Opening
@@ -119,7 +140,7 @@ reachable; note settlement and accessibility audits remain ongoing. Calendar
 freshness does not settle the policy for edits made after submission or provide
 generated-draft provenance.
 
-## Focused evidence and remaining publication gates
+## Focused evidence and remaining runtime gates
 
 The 35 new freshness tests cover actual displayed calculations/raw points/cutoff,
 empty/reopened caches, repeated polls, stale-success/manual recovery, failed reads,
@@ -132,10 +153,10 @@ Compatibility includes Student edit/notes/history, calendar and authentication
 fixtures. Final focused result: 80 tests/eight files in 7.04s, types/focused lint/
 diff checks PASS; these are root-executed focused checks, not full exact CI.
 
-Whole-branch final review and local integration are complete. Root must publish
-the resulting candidate, run exact combined CI and verify its immutable
-build/staging/recovery before runtime acceptance. The existing 9011 CI and B5
-runtime do not cover the integrated Student commits. Root remains sole broad
+Whole-branch final review, integration, publication and exact combined CI are
+complete at f423. The immutable build is accepted. Root must reconcile staging ownership/state,
+review new deployment guards and verify staging/recovery before runtime acceptance. The accepted B5 runtime does not include these Student commits;
+source/CI success does not establish that they are serving. Root remains sole broad
 verification and release owner.
 
 ## Remaining limits and separate contracts
