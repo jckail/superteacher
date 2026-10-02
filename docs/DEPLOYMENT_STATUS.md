@@ -18,11 +18,29 @@ reviews approved SPEC/QUALITY without blocking findings. See
 [the bounded plan](plans/attendance_summary_freshness.md).
 
 Exact combined [CI37049099552](https://github.com/jckail/superteacher/actions/runs/37049099552)
-is running. This newer source has no accepted image or runtime deployment.
+passed all seven jobs: 1403 API tests in 191.53s, 350 web tests across 28 files,
+four browser tests in 13.6s, 84 E2E tests in 2.0 minutes, and 259 locked Docker
+cases in 32.25s, plus lint/types/build/benchmark checks. Root captured private
+full logs and CI-state SHA256
+`123c9c11fda501a6b4242b7d2e0f1c324f0a13216fd6055c57538be7306265c9`.
+The exact archive SHA256 is
+`4cd7224dbf7c038e7ebf28c8a88807b85e162f30f0d3ea7d7f7161eb4a94fc80`.
+Independent review verified 296 Git-matching files/325 context entries and modes;
+root helper validation passed. Protected build session89535 is awaiting its
+outcome. This newer source has no accepted image or runtime deployment.
 Previous d256 and112 admission75 receipts remain preserved; no unchanged retry
 is authorized by a source review. The separate Insight freshness gap remains:
 its GET can charge quota and generate AI content, so an explicit refresh/provenance
 design is still needed before changing its cache policy.
+
+Canonical index refresh completed under its internal shared gate (session34933):
+202 files/1761 chunks, no warnings. Four changed evaluator/attendance source and
+test files match their indexed live hashes. Shared Graphify refresh was skipped
+because another writer was active; native runtime coverage remains absent.
+PR71 (`7c9c919`) has independent source review and exact-head CI approval for a
+future batch. Keep trusted proxy hops at zero until actual ingress/header suffix
+and direct-access exclusion are verified. It is not integrated into this frozen
+candidate. Author-owned PR72–75 and dependency updates remain separate work.
 
 ## Reports, evaluation and keyboard focus integration (2026-10-02)
 
