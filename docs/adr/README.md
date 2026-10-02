@@ -1,10 +1,11 @@
 # Architecture decision records
 
-These five records preserve proposals written on 2026-10-02 against `origin/main`
-(`bb23101`) and a read-only inspection at that time. They are historical design
-context, not current deployment instructions or proof of owner approval. Their
-cost estimates, timing estimates, migration assumptions and observed service
-state must be rechecked before acting.
+These records include accepted pilot decisions and historical proposals originally
+written on 2026-10-02 against `origin/main` (`bb23101`) and a read-only inspection.
+The status table below follows each record's current status header. Historical
+context and estimates are not current deployment instructions or proof of a
+serving release. Recheck costs, migration assumptions and live service state
+before acting.
 
 ## Current operational entry points
 
@@ -22,12 +23,12 @@ CLI, and [the roadmap](../ROADMAP.md) for remaining product work. Proposed Googl
 sign-in, pseudonymisation/ZDR arrangements and configurable grading below remain
 proposals unless their own current records establish otherwise.
 
-## Historical proposal index
+## Decision records and remaining proposals
 
-| # | Record | Status | One-line recommendation (monthly cost at 1 / 10 / 100 teachers, estimate) |
+| # | Record | Recorded status | Accepted decision or historical proposal |
 |---|---|---|---|
-| [0001](0001-persistence.md) | Production persistence | Proposed, needs owner decision | Litestream to GCS with max-instances=1 for the pilot ($0-1 / $1 / $3), move to Cloud SQL `db-g1-small` (about $28) when you pass about 10 teachers or need multi-instance |
-| [0002](0002-identity-and-tenancy.md) | Identity and tenancy | Proposed, needs owner decision | Google sign-in with an invite allowlist plus `courses.owner_id` ($0 / $0 / $0); Clerk if you need organisations soon |
+| [0001](0001-persistence.md) | Production persistence | Accepted: Litestream/GCS pilot | One writer with `max-instances=1`; Cloud SQL remains a future path. Current recovery and serving acceptance are separate gates. |
+| [0002](0002-identity-and-tenancy.md) | Identity and tenancy | Accepted: passwordless-email variant | Server-side revocable sessions and owner-scoped data. Google sign-in/Clerk options were not adopted as written; email delivery and owner adoption still require acceptance. |
 | [0003](0003-privacy-and-ai-data.md) | Student privacy and AI data | Proposed, needs owner decision | Pseudonymise prompts, notes off by default, request Anthropic ZDR and a DPA (about $0 infra; 3-5 days work) |
 | [0004](0004-grading-policy.md) | Grading policy | Proposed, needs owner decision | Policy objects at section/course/owner level with defaults equal to today's numbers (about $0; 4-5 days for first slice) |
 | [0005](0005-domain-cutover.md) | Domain cutover | Proposed, needs owner decision | Staging host `app.` first, then repoint `www` and apex mappings to `superteacher`; original empty-data assumption superseded—preserve legacy evidence (original estimate about $0) |
