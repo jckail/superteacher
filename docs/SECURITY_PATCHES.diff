@@ -1,0 +1,125 @@
+--- a/superteacher/main.py
++++ b/superteacher/main.py
+@@ -2,7 +2,10 @@
+ from contextlib import asynccontextmanager
+ from pathlib import Path
+ 
+-from fastapi import Depends, FastAPI, Request
++from fastapi import Depends, FastAPI, HTTPException, Request
++from fastapi.exception_handlers import request_validation_exception_handler  # noqa: F401
++from fastapi.exceptions import RequestValidationError
++from fastapi.responses import JSONResponse
+ from fastapi.middleware.cors import CORSMiddleware
+ from fastapi.responses import FileResponse
+ from fastapi.staticfiles import StaticFiles
+@@ -35,6 +38,35 @@
+     return h
+ 
+ 
++MAX_BODY_BYTES = 4 * 1024 * 1024  # CSV import is capped at 500k characters (<= ~3 MB once JSON-escaped)
++
++
++class BodyLimitMiddleware:
++    """Reject oversized request bodies before they are buffered (the 401 for anonymous callers comes after parsing)."""
++
++    def __init__(self, app, limit: int = MAX_BODY_BYTES):
++        self.app, self.limit = app, limit
++
++    async def __call__(self, scope, receive, send):
++        if scope["type"] != "http":
++            return await self.app(scope, receive, send)
++        declared = dict(scope["headers"]).get(b"content-length")
++        if declared and declared.isdigit() and int(declared) > self.limit:
++            return await JSONResponse({"detail": "Request body too large"}, status_code=413)(scope, receive, send)
++        seen = 0
++
++        async def limited():
++            nonlocal seen
++            msg = await receive()
++            if msg["type"] == "http.request":
++                seen += len(msg.get("body", b""))
++                if seen > self.limit:
++                    raise HTTPException(413, "Request body too large")
++            return msg
++
++        return await self.app(scope, limited, send)
++
++
+ def create_app(
+     session_factory=None, engine=None, seed: bool | None = None, settings: Settings | None = None
+ ) -> FastAPI:
+@@ -66,6 +98,14 @@
+         redoc_url=None,
+         openapi_url="/api/openapi.json" if docs else None,
+     )
++    app.add_middleware(BodyLimitMiddleware)
++
++    @app.exception_handler(RequestValidationError)
++    async def validation_error(_request: Request, exc: RequestValidationError):
++        # Drop "input"/"ctx": echoing the offending value can be huge, deeply nested or un-encodable (-> 500).
++        errs = [{"type": e["type"], "loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]
++        return JSONResponse({"detail": errs}, status_code=422)
++
+     app.state.session_factory = session_factory
+     app.state.auth = auth_state
+     app.add_middleware(
+@@ -111,6 +151,10 @@
+ 
+         @app.get("/{path:path}", include_in_schema=False)
+         def spa(path: str):
++            if path == "api" or path.startswith("api/"):
++                raise HTTPException(404, "Not Found")  # unknown API routes are JSON 404s, never the SPA shell
++            if "\x00" in path:
++                raise HTTPException(404, "Not Found")
+             f = (dist / path).resolve()
+             if path and f.is_file() and dist.resolve() in f.parents:
+                 return FileResponse(f)
+--- a/superteacher/auth.py
++++ b/superteacher/auth.py
+@@ -103,7 +103,7 @@
+             return False
+ 
+     def check_password(self, candidate: str) -> bool:
+-        a = hashlib.sha256(candidate.encode()).digest()
++        a = hashlib.sha256(candidate.encode("utf-8", "surrogatepass")).digest()
+         b = hashlib.sha256((self.settings.auth_password or "").encode()).digest()
+         return hmac.compare_digest(a, b)
+ 
+@@ -115,8 +115,9 @@
+         origin = origin.rstrip("/").lower()
+         if origin in self.origins:
+             return True
+-        host = (urlparse(origin).netloc or "").lower()
+-        return bool(host) and host == (conn.headers.get("host") or "").lower()
++        parsed = urlparse(origin)
++        host = (parsed.netloc or "").lower()
++        return parsed.scheme in ("http", "https") and bool(host) and host == (conn.headers.get("host") or "").lower()
+ 
+     # --- throttle ---
+     def _lock_remaining(self, key: str) -> int:
+--- a/superteacher/ai_tools.py
++++ b/superteacher/ai_tools.py
+@@ -10,6 +10,7 @@
+ 
+ import json
+ import re
++import unicodedata
+ from collections import Counter
+ from collections.abc import Callable
+ from typing import Any, Literal
+@@ -33,7 +34,14 @@
+ def clean(text: object, limit: int = 300) -> str:
+     """Neutralise untrusted text: strip control chars, defang angle brackets, truncate."""
+     # The look-alike quotes are deliberate: they keep the text readable while making it unable to close our tags.
+-    s = _CTRL.sub(" ", str(text)).replace("<", "\u2039").replace(">", "\u203a")
++    # NFKC folds full-width/compat brackets to ASCII first so they are defanged too; format characters (zero-width,
++    # bidi overrides, Unicode "tag" characters that can smuggle invisible text) are dropped, line/paragraph
++    # separators become spaces.
++    folded = unicodedata.normalize("NFKC", str(text))
++    folded = "".join(
++        "" if (cat := unicodedata.category(ch)) == "Cf" else " " if cat in ("Zl", "Zp") else ch for ch in folded
++    )
++    s = _CTRL.sub(" ", folded).replace("<", "\u2039").replace(">", "\u203a")
+     s = re.sub(r" {2,}", " ", s).strip()
+     return s if len(s) <= limit else s[: limit - 1] + "…"
+ 

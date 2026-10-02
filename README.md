@@ -54,6 +54,9 @@ Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket orig
 ## Not yet
 Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
 
+## Decisions
+Open architecture decisions (persistence, identity, privacy, grading policy, domain cutover): [docs/adr/README.md](docs/adr/README.md)
+
 ## End-to-end tests
 
 `e2e/` holds a Playwright suite (TypeScript) that drives the **real built app** in Chromium: login/logout, roster, CSV import, gradebook, attendance, student page, reports/CSV export, chat without an API key, keyboard and mobile behaviour, plus an axe-core accessibility audit (light/dark, desktop/390px, modals and chat panel; fails on serious/critical violations).

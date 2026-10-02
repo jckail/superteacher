@@ -22,7 +22,7 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
-from . import ai_tools, metrics, schemas
+from . import ai_tools, metrics, observability, schemas
 from .ai_tools import clean, section_label, student_block, student_line
 from .config import get_settings
 from .models import InsightCache, Student
@@ -156,6 +156,7 @@ def _block_param(b: Any) -> dict:
     return {"type": b.type, "text": getattr(b, "text", "")}
 
 
+@observability.ai_stream("chat")
 async def run_chat(
     history: list[dict], roster: str, focus: str = "", session_factory=None, max_iterations: int | None = None
 ) -> AsyncIterator[dict]:
@@ -365,7 +366,7 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
     key = (s.id, fp)
     task = _inflight.get(key)
     if task is None:
-        task = asyncio.create_task(_generate(ai, model, prompt))
+        task = asyncio.create_task(observability.timed_ai("insight", _generate(ai, model, prompt)))
         _inflight[key] = task
         task.add_done_callback(lambda _t, k=key: _inflight.pop(k, None))
     try:
