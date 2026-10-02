@@ -1,22 +1,9 @@
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID', '.']
+    args: ['build', '--build-arg', 'VERSION=$BUILD_ID', '-t', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID', '.']
   - name: gcr.io/cloud-builders/docker
     args: ['push', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID']
-  # Secrets come from Secret Manager (create them first, see docs/DEPLOYMENT.md); never put values here.
-  # --allow-unauthenticated only opens the Cloud Run front door: the app itself enforces AUTH_PASSWORD.
-  # Configure the Cloud SQL connection and DATABASE_URL secret before submitting.
-  # Keep one instance until session/throttle state supports multiple workers.
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
-    args: ['run', 'deploy', '${_SERVICE_NAME}', '--image', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated',
-           '--max-instances', '1',
-           '--add-cloudsql-instances', '${_CLOUD_SQL_INSTANCE}',
-           '--set-secrets', 'DATABASE_URL=superteacher-database-url:latest,AUTH_PASSWORD=superteacher-auth-password:latest,SESSION_SECRET=superteacher-session-secret:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest',
-           '--set-env-vars', 'SEED_DEMO_DATA=false,VERSION=$BUILD_ID,FORWARDED_ALLOW_IPS=*,SCHOOL_TIMEZONE=${_SCHOOL_TIMEZONE}']
+# Build only. Stage and promote separately after replica/backup/drain verification;
+# automatic Cloud Run promotion can start overlapping SQLite writers.
 images:
   - 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID'
-
-substitutions:
-  _SERVICE_NAME: superteacher
-  _SCHOOL_TIMEZONE: UTC

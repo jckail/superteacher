@@ -1,8 +1,9 @@
 import csv
 import io
+import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -66,10 +67,12 @@ def list_courses(db: Session = Depends(get_db)):
 
 
 def _name_taken(db: Session, model, name: str, **scope) -> bool:
-    q = select(model.id).where(func.lower(model.name) == name.lower())
+    # Compare in Python: SQLite's lower() only folds ASCII, so "Ångström" / "ÅNGSTRÖM" would both be accepted.
+    q = select(model.name)
     for k, v in scope.items():
         q = q.where(getattr(model, k) == v)
-    return db.scalar(q.limit(1)) is not None
+    wanted = name.casefold()
+    return any(n.casefold() == wanted for n in db.scalars(q))
 
 
 @router.post("/courses", response_model=schemas.CourseOut, status_code=201)
@@ -207,7 +210,10 @@ def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depen
     """Bulk-add students from CSV (``name,grade_level``, header optional). Bad rows are skipped, not fatal."""
     if not db.get(Section, section_id):
         raise HTTPException(404, "Section not found")
-    existing = {n.casefold() for n in db.scalars(select(Student.name).where(Student.section_id == section_id))}
+    existing = {
+        unicodedata.normalize("NFC", n).casefold()
+        for n in db.scalars(select(Student.name).where(Student.section_id == section_id))
+    }
     created, skipped, new = 0, [], []
     try:
         rows = list(csv.reader(io.StringIO(body.csv.lstrip("\ufeff").replace("\x00", ""))))
@@ -218,12 +224,16 @@ def import_students(section_id: str, body: schemas.ImportIn, db: Session = Depen
     for i, row in enumerate(rows, start=1):
         if not row or not "".join(row).strip():
             continue
-        name = " ".join(row[0].split())
+        name = unicodedata.normalize("NFC", " ".join(row[0].split()))
         if i == 1 and name.lower() in {"name", "student", "student name"}:
             continue
         try:
             level = int(row[1]) if len(row) > 1 and row[1].strip() else 9
-            if not 1 <= level <= 12 or not 0 < len(name) <= 120:
+            if (
+                not 1 <= level <= 12
+                or not 0 < len(name) <= 120
+                or any(unicodedata.category(c) in ("Cc", "Cs") for c in name)
+            ):
                 raise ValueError
         except ValueError:
             skipped.append(f"Row {i}: invalid name or grade level")

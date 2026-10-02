@@ -4,13 +4,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from . import auth
+from . import auth, observability
 from . import db as database
 from .calendar import SchoolCalendarMiddleware, school_calendar
 from .config import Settings, get_settings
@@ -37,16 +38,59 @@ def _security_headers() -> dict[str, str]:
     return h
 
 
+MAX_BODY_BYTES = 4 * 1024 * 1024  # CSV import is capped at 500k characters (<= ~3 MB once JSON-escaped)
+
+
+class BodyLimitMiddleware:
+    """Reject oversized request bodies before they are buffered (the 401 for anonymous callers comes after parsing)."""
+
+    def __init__(self, app, limit: int = MAX_BODY_BYTES):
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        declared = dict(scope["headers"]).get(b"content-length")
+        if declared and declared.isdigit() and int(declared) > self.limit:
+            return await JSONResponse({"detail": "Request body too large"}, status_code=413)(scope, receive, send)
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body", b""))
+                if seen > self.limit:
+                    raise HTTPException(413, "Request body too large")
+            return msg
+
+        return await self.app(scope, limited, send)
+
+
+def _replicated_sqlite(engine) -> bool:
+    """Accept managed SQLite only after the fail-closed container entrypoint restores it."""
+    database_path = engine.url.database
+    restored_path = os.environ.get("DB_FILE")
+    return bool(
+        database_path
+        and restored_path
+        and Path(database_path).is_absolute()
+        and Path(database_path).resolve() == Path(restored_path).resolve()
+        and os.environ.get("LITESTREAM_RESTORE_VERIFIED") == "1"
+        and os.environ.get("LITESTREAM_REPLICA_URL", "").startswith("gs://")
+    )
+
+
 def create_app(
     session_factory=None, engine=None, seed: bool | None = None, settings: Settings | None = None
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or database.SessionLocal
     engine = engine or database.engine
-    if os.environ.get("K_SERVICE") and engine.dialect.name == "sqlite":
+    if os.environ.get("K_SERVICE") and engine.dialect.name == "sqlite" and not _replicated_sqlite(engine):
         raise RuntimeError(
             "Cloud Run requires a durable server database. Configure DATABASE_URL for PostgreSQL; "
-            "container-local SQLite is not supported on Cloud Run."
+            "SQLite requires a verified Litestream restore and active GCS replication."
         )
 
     @asynccontextmanager
@@ -73,6 +117,14 @@ def create_app(
         redoc_url=None,
         openapi_url="/api/openapi.json" if docs else None,
     )
+    app.add_middleware(BodyLimitMiddleware)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_request: Request, exc: RequestValidationError):
+        # Drop "input"/"ctx": echoing the offending value can be huge, deeply nested or un-encodable (-> 500).
+        errs = [{"type": e["type"], "loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]
+        return JSONResponse({"detail": errs}, status_code=422)
+
     app.state.session_factory = session_factory
     app.state.auth = auth_state
     app.add_middleware(SchoolCalendarMiddleware, timezone=settings.school_timezone)
@@ -118,6 +170,8 @@ def create_app(
     for r in (system, roster, gradebook, attendance, ai, reports):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.require_auth)])
 
+    observability.install(app)  # request ids, access logs, metrics, /api/ready, /api/metrics
+
     dist = Path(settings.static_dir)
     if (dist / "index.html").is_file():
         if (dist / "assets").is_dir():
@@ -126,7 +180,9 @@ def create_app(
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str):
             if path == "api" or path.startswith("api/"):
-                raise HTTPException(404, "Not found")
+                raise HTTPException(404, "Not Found")  # unknown API routes are JSON 404s, never the SPA shell
+            if "\x00" in path:
+                raise HTTPException(404, "Not Found")
             f = (dist / path).resolve()
             if path and f.is_file() and dist.resolve() in f.parents:
                 return FileResponse(f)

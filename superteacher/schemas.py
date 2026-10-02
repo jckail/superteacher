@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import date, datetime
 from typing import Annotated
 
@@ -16,9 +17,36 @@ class CalendarOut(BaseModel):
     today: date
 
 
+def _scrub_surrogates(v):
+    """Lone UTF-16 surrogates ("\\ud800" in JSON) are valid JSON but cannot be encoded by SQLite/UTF-8 (-> 500)."""
+    if isinstance(v, str) and any("\ud800" <= ch <= "\udfff" for ch in v):
+        return "".join("\ufffd" if "\ud800" <= ch <= "\udfff" else ch for ch in v)
+    return v
+
+
+def _sanitize(multiline: bool):
+    """NFC-normalise (so visually identical names compare equal) and refuse text SQLite/JSON/CSV/prompts mishandle:
+    lone surrogates (crash the DB driver -> 500), NUL and other control characters."""
+    allowed = "\n\r\t" if multiline else ""
+
+    def check(v):
+        if not isinstance(v, str):
+            return v
+        v = unicodedata.normalize("NFC", _scrub_surrogates(v))
+        if any(unicodedata.category(ch) == "Cc" and ch not in allowed for ch in v):
+            raise ValueError("contains control or invalid characters")
+        return v
+
+    return check
+
+
 # Trimmed, non-blank text: "   " is rejected (422) instead of being stored as an empty name.
-def _text(max_length: int):
-    return Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=max_length)]
+def _text(max_length: int, multiline: bool = False):
+    return Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=max_length),
+        BeforeValidator(_sanitize(multiline)),
+    ]
 
 
 def _finite(v):
@@ -30,6 +58,9 @@ def _finite(v):
 
 
 Num = Annotated[float, BeforeValidator(_finite)]
+
+# Identifiers sent by the client: bounded, and safe to bind as a SQL parameter.
+Id = Annotated[str, StringConstraints(max_length=64), BeforeValidator(_scrub_surrogates)]
 
 MAX_BATCH = 1000  # entries per scores / attendance PUT
 
@@ -57,20 +88,20 @@ class CourseIn(BaseModel):
 
 
 class SectionIn(BaseModel):
-    course_id: str
+    course_id: Id
     name: _text(60)
 
 
 class StudentIn(BaseModel):
     name: _text(120)
     grade_level: int = Field(ge=1, le=12)
-    section_id: str
+    section_id: Id
 
 
 class StudentPatch(BaseModel):
     name: _text(120) | None = None
     grade_level: int | None = Field(default=None, ge=1, le=12)
-    section_id: str | None = None
+    section_id: Id | None = None
 
     @model_validator(mode="after")
     def _no_explicit_null(self):
@@ -136,7 +167,7 @@ class NoteOut(ORM):
 
 
 class NoteIn(BaseModel):
-    body: _text(2000)
+    body: _text(2000, multiline=True)
 
 
 class StudentDetail(StudentSummary):
@@ -180,7 +211,7 @@ class AssessmentOut(ORM):
 
 
 class ScoreEntry(BaseModel):
-    student_id: str
+    student_id: Id
     points: Num | None = Field(default=None, ge=0, allow_inf_nan=False)
 
 
@@ -204,7 +235,7 @@ class Gradebook(BaseModel):
 
 # ── attendance ──────────────────────────────────────────────────────────
 class AttendanceMark(BaseModel):
-    student_id: str
+    student_id: Id
     status: AttendanceStatus
 
 
@@ -249,7 +280,7 @@ class Insight(BaseModel):
 
 
 class ImportIn(BaseModel):
-    csv: str = Field(max_length=500_000)
+    csv: Annotated[str, BeforeValidator(_scrub_surrogates)] = Field(max_length=500_000)
 
 
 class ImportResult(BaseModel):

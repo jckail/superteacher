@@ -20,10 +20,17 @@ def make_engine(url: str) -> Engine:
             Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
     eng = create_engine(url, **kwargs)
     if url.startswith("sqlite"):
+        file_backed = not ("://" in url and ":memory:" in url) and url not in ("sqlite://", "sqlite:///")
 
         @event.listens_for(eng, "connect")
-        def _fk_on(dbapi_conn, _):  # SQLite ignores FKs unless asked
-            dbapi_conn.execute("PRAGMA foreign_keys=ON")
+        def _sqlite_pragmas(dbapi_conn, _):
+            dbapi_conn.execute("PRAGMA foreign_keys=ON")  # SQLite ignores FKs unless asked
+            if file_backed:
+                # WAL: readers don't block the writer, and it is what Litestream replicates (it needs WAL mode).
+                # synchronous=NORMAL is the recommended pairing with WAL; busy_timeout rides out brief write locks.
+                dbapi_conn.execute("PRAGMA journal_mode=WAL")
+                dbapi_conn.execute("PRAGMA synchronous=NORMAL")
+                dbapi_conn.execute("PRAGMA busy_timeout=5000")
 
     return eng
 

@@ -124,7 +124,7 @@ class AuthState:
             return False
 
     def check_password(self, candidate: str) -> bool:
-        a = hashlib.sha256(candidate.encode()).digest()
+        a = hashlib.sha256(candidate.encode("utf-8", "surrogatepass")).digest()
         b = hashlib.sha256((self.settings.auth_password or "").encode()).digest()
         return hmac.compare_digest(a, b)
 

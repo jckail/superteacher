@@ -15,7 +15,7 @@ import os
 from bisect import insort
 from collections import Counter
 from collections.abc import AsyncIterator
-from contextlib import aclosing
+from contextlib import aclosing, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -25,7 +25,7 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
-from . import ai_capacity, ai_tools, metrics, schemas
+from . import ai_capacity, ai_tools, metrics, observability, schemas
 from .ai_tools import clean, section_label, student_block, student_line
 from .calendar import school_today
 from .config import get_settings
@@ -186,22 +186,23 @@ async def run_chat(
         raise ChatError(str(exc)) from None
     ai = None
     try:
-        async with asyncio.timeout(get_settings().ai_chat_timeout_seconds):
-            ai = client()
-            if ai is None:
-                yield {
-                    "type": "delta",
-                    "text": (
-                        "AI is not configured on this server (set `ANTHROPIC_API_KEY`). "
-                        "The rest of the app works without it."
-                    ),
-                }
-                return
-            async with aclosing(
-                _run_chat_client(ai, history, roster, focus, session_factory, max_iterations)
-            ) as events:
-                async for event in events:
-                    yield event
+        with observability.ai_call("chat") if get_settings().anthropic_api_key else nullcontext():
+            async with asyncio.timeout(get_settings().ai_chat_timeout_seconds):
+                ai = client()
+                if ai is None:
+                    yield {
+                        "type": "delta",
+                        "text": (
+                            "AI is not configured on this server (set `ANTHROPIC_API_KEY`). "
+                            "The rest of the app works without it."
+                        ),
+                    }
+                    return
+                async with aclosing(
+                    _run_chat_client(ai, history, roster, focus, session_factory, max_iterations)
+                ) as events:
+                    async for event in events:
+                        yield event
     except TimeoutError:
         raise ChatError(friendly_error(TimeoutError())) from None
     finally:
@@ -434,7 +435,13 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
         except ai_capacity.CapacityError:
             return rule_insight(s, m)
         try:
-            job = _InsightJob(asyncio.create_task(_generate(model, prompt, lease)))
+            job = _InsightJob(
+                asyncio.create_task(
+                    observability.timed_ai("insight", _generate(model, prompt, lease))
+                    if get_settings().anthropic_api_key
+                    else _generate(model, prompt, lease)
+                )
+            )
             job.task.add_done_callback(lambda _task: lease.release())
             _inflight[key] = job
         except BaseException:

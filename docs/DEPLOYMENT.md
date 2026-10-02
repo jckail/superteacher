@@ -59,40 +59,85 @@ healthcheck uses the public `/api/health`.
 
 ## Cloud Run
 
+The accepted pilot uses SQLite replicated by pinned Litestream to the existing
+Cloud Storage bucket. No new paid Cloud SQL instance is needed for this release.
+See [current target/configuration evidence and the release sequence](DEPLOYMENT_STATUS.md).
+The direct `superteacher` service and custom domains currently serve different releases;
+choose the intended service explicitly.
+
+`cloudbuild.yaml` builds and pushes an image tagged with the immutable Cloud Build
+ID; it does not deploy or move traffic. The image includes that ID as its default
+`VERSION`. A release may also use the full source commit as the image tag and
+explicit runtime version. Existing auth/session/AI secrets should be reused by
+reviewed version, rather than recreated.
+
 ```bash
-printf '%s' "$(openssl rand -base64 24)" | gcloud secrets create superteacher-auth-password --data-file=-
-printf '%s' "$(openssl rand -base64 48)" | gcloud secrets create superteacher-session-secret --data-file=-
-printf '%s' "$ANTHROPIC_API_KEY"         | gcloud secrets create anthropic-api-key --data-file=-
-# grant the service account roles/secretmanager.secretAccessor, then:
-gcloud builds submit --config cloudbuild.yaml \
-  --project=PROJECT \
-  --substitutions=_CLOUD_SQL_INSTANCE=PROJECT:REGION:INSTANCE,_SERVICE_NAME=superteacher
+gcloud builds submit --project=PROJECT --config=cloudbuild.yaml
+# Stage only: creates no deployment health-check instance and does not promote traffic.
+PROJECT=PROJECT SERVICE=superteacher RUNTIME_SERVICE_ACCOUNT=VERIFIED_ACCOUNT \
+  SCHOOL_TIMEZONE=UTC scripts/deploy_cloud_run.sh FULL_SOURCE_COMMIT
 ```
 
-`_SERVICE_NAME` defaults to `superteacher`; choose the intended service explicitly for a reviewed live cutover. See [the observed deployment targets and cutover prerequisites](RELEASE_PLAN.md).
+The script defaults to stage-only: `--no-traffic --no-deploy-health-check`, minimum
+zero, maximum one, explicit runtime identity, pinned secret versions, and
+`LITESTREAM_REPLICA_URL=gs://PROJECT-superteacher-litestream/SERVICE`. Override
+`REPLICA_PREFIX` only deliberately. A candidate using the live prefix must remain
+uninvoked until the previous writer has drained; opening a tagged URL can start
+another writer. Test a separate staging service with an isolated prefix first.
+Cloud Run's default deployment health check also starts a container despite
+`--no-traffic`, which is why both flags are required.
 
-`cloudbuild.yaml` uses the immutable build ID as the image tag and `/api/version` value and mounts those secrets as env vars. `--allow-unauthenticated` only means Cloud Run does not
-add its own login; the app enforces `AUTH_PASSWORD`. Alternatively drop that flag and use IAP.
-Cloud Run deployments require PostgreSQL. The app refuses container-local SQLite when Cloud Run's
-`K_SERVICE` environment marker is present. Local Docker deployments continue to support SQLite on a volume.
+Before promotion, preserve a consistent snapshot, rehearse migrations on a copy,
+stop new writes, close existing WebSockets, and observe the old writer drain and
+final replica sync. Revision maximum-one does not establish single-writer safety
+across rollout. The script requires the release operator's explicit precondition;
+it does not manufacture drain evidence:
 
-Before submitting a build, provision a Cloud SQL PostgreSQL database and database user. Store a
-SQLAlchemy Psycopg URL in the `superteacher-database-url` Secret Manager secret:
-
-```text
-postgresql+psycopg://USER:URL_ENCODED_PASSWORD@/DATABASE?host=/cloudsql/PROJECT:REGION:INSTANCE
+```bash
+PROJECT=PROJECT SERVICE=superteacher \
+  DRAINED_WRITER_CONFIRMED=yes DRAINED_WRITER_REVISION=OBSERVED_OLD_REVISION \
+  scripts/deploy_cloud_run.sh --promote NAMED_CANDIDATE_REVISION
 ```
 
-Provide the actual instance connection name in `_CLOUD_SQL_INSTANCE`. The service account needs
-Cloud SQL Client access and permission to read the database URL secret. `cloudbuild.yaml` attaches the
-instance and injects `DATABASE_URL`; it does not provision resources or migrate existing SQLite data.
-Choose a migration window, back up existing records, and verify imported data before switching traffic.
-See [Google's Cloud Run connection guide](https://docs.cloud.google.com/sql/docs/postgres/connect-run)
-and [SQLAlchemy's Psycopg dialect](https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#module-sqlalchemy.dialects.postgresql.psycopg).
+Promotion checks the recorded previous revision still receives 100% traffic,
+then moves traffic to the named candidate. Verify health, expected version,
+protected 401 responses, authenticated workflows and persistence immediately.
+It never automatically shifts back after a failed check: drain the candidate
+writer and confirm database schema compatibility before rollback. The current
+old image knows only migration `0001`; a database upgraded to `0002` needs a
+compatible rollback image or a separate recovery replica.
 
-CI runs integration checks against an isolated PostgreSQL 17 service. Locally, set
-`ST_TEST_POSTGRES_URL` to an isolated test server and run `python -m pytest tests/test_postgres.py`.
-These tests create a unique schema and remove only that schema after each test.
+### Durable data on Cloud Run
+
+The image restores its absolute SQLite file before launching the application
+under Litestream. Restore errors fail closed. Only this entrypoint's successful
+restore path sets `LITESTREAM_RESTORE_VERIFIED=1`; do not set that marker in Cloud
+Run environment configuration. Managed SQLite also requires the matching file
+and a validated `gs://` replica URL. Local Docker still supports SQLite on a
+persistent volume without replication.
+
+The live bucket `portfolio-383615-superteacher-litestream` has versioning, uniform
+access, public-access prevention, 7-day soft delete and a 14-day noncurrent-object
+lifecycle. Verify these settings and runtime IAM before each release. A wrong
+prefix with no replica is treated as first boot: check the exact URI and preserve
+existing records before promotion. There is no public-data export in the release
+commands.
+
+Replication is asynchronous with a configured 1-second sync interval. Request-
+based CPU throttling and hard termination can extend data loss beyond that
+interval; it is not a guaranteed one-second RPO. Restore on cold start adds time.
+Rehearse restoration into a separate file and synthetic-data persistence across
+replacement, and alert on replication failures and backup age. Do not overlap
+writers or put the live SQLite database directly on Cloud Storage FUSE.
+
+### Optional PostgreSQL path
+
+PostgreSQL 17 support and focused integration checks remain available. Set
+`ST_TEST_POSTGRES_URL` to an isolated test server for `tests/test_postgres.py`.
+For a future multi-writer deployment, use the reviewed proposal in
+[CLOUD_SQL_PLAN.md](CLOUD_SQL_PLAN.md), provide the instance connection and a
+Psycopg database URL secret, and verify/import existing data before a traffic
+switch. The build-only YAML neither provisions nor requires Cloud SQL.
 
 ## Database migrations (Alembic)
 
@@ -118,7 +163,7 @@ See [the tested SQLite backup and recovery command](BACKUP_RECOVERY.md) for onli
 * SQLite lives in the `/data` volume. Snapshot the volume, or take a consistent copy with
   `sqlite3 /data/superteacher.db ".backup /backup/superteacher-$(date +%F).db"` (safe while running).
 * [Litestream](https://litestream.io) can continuously replicate the DB to GCS/S3
-  (`litestream replicate /data/superteacher.db gcs://bucket/superteacher`) and restore on a fresh
+  (`litestream replicate /data/superteacher.db gs://bucket/superteacher`) and restore on a fresh
   container (`litestream restore`); run it as the container entrypoint wrapper or a sidecar.
 * Also back up `/data/.session_secret` only if you rely on the generated key (otherwise users just log in again).
 

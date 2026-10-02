@@ -30,3 +30,6 @@ web/playwright-report/
 infra/
 
 .superdesign/
+
+# Independent browser harness is not a runtime image input.
+e2e/

@@ -135,7 +135,12 @@ td.name { font-weight: 600; }
 @media (max-width: 800px) {
   .shell, .shell.chat-open { grid-template-columns: 1fr; }
   .sidebar { position: fixed; inset: auto 0 0 0; top: auto; height: auto; flex-direction: row; padding: 6px; z-index: 30; border-right: 0; border-top: 1px solid var(--line); }
-  .brand, .sidebar .spacer, .sidebar .side-extra { display: none; }
+  .brand, .sidebar .spacer { display: none; }
+  /* Sign out + theme toggle stay reachable on phones: a compact second row under the tab bar. */
+  .sidebar { flex-wrap: wrap; gap: 4px; }
+  .sidebar .nav { flex: 1 0 100%; }
+  .sidebar .side-extra { flex: 1 1 0; width: auto; padding: 4px 8px; font-size: .78rem; text-align: center; }
+  .main { padding-bottom: 128px; }
   .nav { display: flex; width: 100%; justify-content: space-around; } .nav a { flex-direction: column; gap: 2px; font-size: .75rem; padding: 6px 10px; }
   .grid.two { grid-template-columns: 1fr; }
   .hide-sm { display: none; }
@@ -163,7 +168,7 @@ td.name { font-weight: 600; }
 .toast button { all: unset; cursor: pointer; margin-left: auto; padding: 0 4px; opacity: .8; border-radius: 4px; }
 .toast button:focus-visible { outline: 2px solid currentColor; }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
-@media (max-width: 800px) { .toasts { left: 16px; bottom: 76px; } }
+@media (max-width: 800px) { .toasts { left: 16px; bottom: 120px; } }
 
 /* modal extras */
 .modal h2 { font-size: 1.15rem; }
@@ -244,3 +249,10 @@ td.name { font-weight: 600; }
 
 /* Inline links remain identifiable when surrounding text uses a muted color. */
 p a:not(.btn) { text-decoration: underline; text-underline-offset: .15em; }
+
+/* mobile fit (found by e2e/a11y audits): attendance rows must wrap instead of widening the page,
+   and chart scrollers that contain no focusable content must not scroll (axe: scrollable-region-focusable). */
+@media (max-width: 800px) {
+  .att-btns { flex-wrap: wrap; justify-content: flex-end; }
+  .rep-chart[style] { min-width: 0 !important; }
+}

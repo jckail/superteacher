@@ -19,7 +19,7 @@ from typing import Literal
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field, field_validator
 
-from . import ai_capacity, metrics
+from . import ai_capacity, metrics, observability
 from .ai_tools import clean
 from .calendar import school_today
 from .config import get_settings
@@ -31,12 +31,16 @@ Tone = Literal["warm", "neutral", "concerned"]
 
 
 # ── CSV ─────────────────────────────────────────────────────────────────
+_FORMULA_LEAD = frozenset("=+-@\t\r\n\uff1d\uff0b\uff0d\uff20")
+
+
 def csv_safe(value) -> str | int | float:
     """Neutralise spreadsheet formula injection: text starting with = + - @ (or tab/CR) gets a leading quote."""
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return value
     text = "" if value is None else str(value)
-    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+    # Leading whitespace and full-width look-alikes are checked too: some spreadsheet importers trim or fold them.
+    return "'" + text if text[:1] in _FORMULA_LEAD or text.lstrip()[:1] in _FORMULA_LEAD else text
 
 
 def _points(v: float | None):
@@ -312,6 +316,7 @@ def _context(s: Student, m: metrics.StudentMetrics) -> str:
     return "\n".join(lines)
 
 
+@observability.ai_observed("parent_update", observability.source_outcome)
 async def parent_update(s: Student, tone: Tone) -> tuple[ParentDraft, Literal["ai", "template"]]:
     m = metrics.compute(s)
     try:
