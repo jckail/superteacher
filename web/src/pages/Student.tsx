@@ -37,6 +37,7 @@ export function Notes({ student }: { student: StudentDetail }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [body, setBody] = useState('');
+  const bodyRevision = useRef(0);
   const confirm = useConfirm();
   const [editing, setEditing] = useState<NoteOut | null>(null);
   const [draft, setDraft] = useState('');
@@ -58,14 +59,19 @@ export function Notes({ student }: { student: StudentDetail }) {
   };
   const closeEdit = () => { if (!edit.isPending) setEditing(null); };
   const add = useMutation({
-    mutationFn: () => api<NoteOut>(`/students/${student.id}/notes`, { method: 'POST', body: { body: body.trim() } }),
-    onSuccess: () => { setBody(''); toast.success('Note added'); refresh(); },
+    mutationFn: ({ studentId, text }: { studentId: string; text: string; revision: number; client: typeof qc }) => api<NoteOut>(`/students/${studentId}/notes`, { method: 'POST', body: { body: text } }),
+    onSuccess: (_note, { studentId, revision, client }) => {
+      if (bodyRevision.current === revision) setBody('');
+      toast.success('Note added');
+      void client.invalidateQueries({ queryKey: ['student', studentId] });
+      void client.invalidateQueries({ queryKey: ['insight', studentId] });
+    },
   });
   return (
     <section className="card">
       <h2>Notes</h2>
-      <form className="row" onSubmit={(e) => { e.preventDefault(); if (body.trim()) add.mutate(); }}>
-        <input className="input" style={{ flex: 1 }} value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="Add a private note…" aria-label="New note" />
+      <form className="row" onSubmit={(e) => { e.preventDefault(); if (body.trim() && !add.isPending) add.mutate({ studentId: student.id, text: body.trim(), revision: bodyRevision.current, client: qc }); }}>
+        <input className="input" style={{ flex: 1 }} value={body} onChange={(e) => { bodyRevision.current += 1; setBody(e.target.value); }} maxLength={2000} placeholder="Add a private note…" aria-label="New note" />
         <button className="btn" disabled={add.isPending || !body.trim()}>Add</button>
       </form>
       <ErrorBox error={add.error} />
