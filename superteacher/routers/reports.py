@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
@@ -6,7 +6,9 @@ from .. import accounts
 from .. import reports as svc
 from ..accounts import CurrentUser
 from ..auth import current_user, settings_of
+from ..calendar import school_today
 from ..db import get_db
+from ..gradebook_export import ClosingStreamingResponse, csv_chunks, read_metadata
 from ..models import Section
 from ..queries import load_students, owned_section
 from .roster import get_student_or_404
@@ -32,12 +34,15 @@ def _section_or_404(db: Session, owner_id: str, section_id: str) -> Section:
 
 
 @router.get("/reports/sections/{section_id}/gradebook.csv")
-def gradebook_csv(section_id: str, db: Session = Depends(get_db), user: CurrentUser = Depends(current_user)):
-    sec = _section_or_404(db, user.id, section_id)
-    body = svc.gradebook_csv(sec, load_students(db, user.id, section_id=section_id))
-    name = f"gradebook-{svc.slug(sec.course.name)}-{svc.slug(sec.name)}.csv"
-    return Response(
-        "\ufeff" + body,
+def gradebook_csv(section_id: str, request: Request, user: CurrentUser = Depends(current_user)):
+    with request.app.state.session_factory() as db:
+        metadata = read_metadata(db, user.id, section_id)
+    if metadata is None:
+        raise HTTPException(404, "Section not found")
+    as_of = school_today()
+    name = f"gradebook-{svc.slug(metadata.course)}-{svc.slug(metadata.section)}.csv"
+    return ClosingStreamingResponse(
+        csv_chunks(request.app.state.session_factory, user.id, section_id, metadata, as_of),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"},
     )
