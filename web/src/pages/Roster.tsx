@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import type { CourseOut, ImportResult, Risk, SectionOut, StudentDetail, StudentSummary } from '../types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import type { CourseOut, ImportResult, Risk, SectionOut, StudentDetail, RosterSort } from '../types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, fmt } from '../api';
 import { useScope } from '../scope';
 import ScopePicker from '../components/ScopePicker';
+import { useRosterPage } from '../useRosterPage';
 import { useToast } from '../components/Toast';
 import { Bar, EmptyState, ErrorBox, Loading, Modal, RiskChip, gradeColor } from '../components/ui';
 
-type SortKey = 'name' | 'section' | 'average' | 'trend' | 'attendance_rate' | 'homework_rate' | 'risk';
+type SortKey = RosterSort;
 type DialogProps = { onClose: () => void };
 const COLS: readonly (readonly [SortKey, string, string?])[] = [
   ['name', 'Student'], ['section', 'Class', 'hide-sm'], ['average', 'Average'], ['trend', 'Trend', 'hide-sm'],
@@ -177,7 +178,7 @@ export default function Roster() {
 
   // Filters live in the URL so a refresh, back button or shared link keeps the view.
   const search = params.get('q') ?? '';
-  const risk = FILTERS.some(([v]) => v === params.get('status')) ? params.get('status') ?? '' : '';
+  const risk = FILTERS.find(([v]) => v === params.get('status'))?.[0] ?? '';
   const requestedSort = params.get('sort');
   const sort: { key: SortKey; dir: number } = { key: isSortKey(requestedSort) ? requestedSort : 'risk', dir: params.get('dir') === 'desc' ? -1 : 1 };
   const update = (patch: Record<string, string>) => setParams((p) => {
@@ -187,27 +188,16 @@ export default function Roster() {
     return n;
   }, { replace: true });
 
-  const q = useQuery({
-    queryKey: ['students', course?.id, section?.id],
-    queryFn: ({ signal }) => api<StudentSummary[]>(`/students?${new URLSearchParams({ ...(course && { course_id: course.id }), ...(section && { section_id: section.id }) })}`, { signal }),
-  });
-  const rows = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const get = (r: StudentSummary) => sort.key === 'risk' ? RISK_ORDER[r.risk] : sort.key === 'section' ? `${r.course} ${r.section}` : sort.key === 'name' ? r.name.toLowerCase() : r[sort.key];
-    return (q.data ?? [])
-      .filter((r) => (!risk || r.risk === risk) && (!term || r.name.toLowerCase().includes(term)))
-      .sort((a, b) => {
-        const [x, y] = [get(a), get(b)];
-        if (x == null && y == null) return 0;
-        if (x == null) return 1; if (y == null) return -1;   // empty values always last
-        return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
-      });
-  }, [q.data, search, risk, sort.key, sort.dir]);
-  const pageSize = 50;
-  const requestedPage = Number(params.get('page') ?? '1');
-  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const page = Math.min(pages, Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1);
-  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  const [legacyPageNotice, setLegacyPageNotice] = useState(() => params.has('page'));
+  const q = useRosterPage({ courseId: course?.id, sectionId: section?.id, search, risk, sort: sort.key, direction: sort.dir === -1 ? 'desc' : 'asc' });
+  useEffect(() => {
+    if (params.has('page')) {
+      setLegacyPageNotice(true);
+      if (q.page > 1) q.restart();
+      setParams((p) => { const n = new URLSearchParams(p); n.delete('page'); return n; }, { replace: true });
+    }
+  }, [params, setParams, q.page, q.restart]);
+  const rows = q.data?.items ?? [];
   const toggleSort = (key: SortKey) => {
     const dir = sort.key === key ? -sort.dir : 1;
     update({ sort: key === 'risk' && dir === 1 ? '' : key, dir: dir === -1 ? 'desc' : '' });
@@ -218,18 +208,20 @@ export default function Roster() {
   return (
     <>
       <div className="topbar">
-        <div><h1>Roster</h1><div className="page-sub" aria-live="polite">{q.data ? `${rows.length} of ${q.data.length} students` : ' '}</div></div>
+        <div><h1>Roster</h1><div className="page-sub" aria-live="polite">{q.data ? `${q.data.total_matches} of ${q.data.total_scoped} students` : ' '}</div></div>
         <div className="row"><ScopePicker /><button type="button" className="btn" onClick={() => setDialog('import')}>Import CSV</button><button type="button" className="btn" onClick={() => setDialog('class')}>+ Course</button><button type="button" className="btn primary" onClick={() => setDialog('student')}>+ Student</button></div>
       </div>
+      {legacyPageNotice && <p role="status">Roster page links now start at the first page. Your filters and sort are preserved.</p>}
       <div className="row" style={{ marginBottom: 14 }}>
-        <input className="input" style={{ maxWidth: 280 }} type="search" placeholder="Search students…" value={search} onChange={(e) => update({ q: e.target.value })} aria-label="Search students" />
+        <input className="input" style={{ maxWidth: 280 }} type="search" maxLength={120} placeholder="Search students…" value={search} onChange={(e) => update({ q: e.target.value })} aria-label="Search students" />
         <div className="seg" role="group" aria-label="Filter by status">
           {FILTERS.map(([v, l]) => <button type="button" key={v} className={risk === v ? 'on' : ''} aria-pressed={risk === v} onClick={() => update({ status: v })}>{l}</button>)}
         </div>
         {filtered && <button type="button" className="btn small" onClick={clear}>Clear filters</button>}
       </div>
-      <ErrorBox error={q.error} onRetry={() => q.refetch()} />
-      {q.isLoading ? <Loading /> : q.data && q.data.length === 0 ? (
+      <ErrorBox error={q.error} onRetry={q.invalidCursor ? undefined : q.retry} />
+      {q.invalidCursor && <button type="button" className="btn" onClick={q.restart}>Restart roster</button>}
+      {q.loading ? <Loading /> : q.data && q.data.total_scoped === 0 ? (
         <EmptyState title="No students yet">
           <p>Add your first student, or import a whole class from a CSV.</p>
           <div className="row"><button type="button" className="btn primary" onClick={() => setDialog('student')}>+ Add student</button><button type="button" className="btn" onClick={() => setDialog('import')}>Import CSV</button></div>
@@ -244,7 +236,7 @@ export default function Roster() {
               </th>
             ))}</tr></thead>
             <tbody>
-              {visibleRows.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.id} className="link" onClick={(e) => { if (!(e.target instanceof Element && e.target.closest('a'))) nav(`/students/${r.id}`); }}>
                   <td className="name"><Link className="row-link" to={`/students/${r.id}`}>{r.name}</Link><div className="muted" style={{ fontWeight: 400, fontSize: '.8rem' }}>Grade {r.grade_level}</div></td>
                   <td className="hide-sm">{r.course}<div className="muted" style={{ fontSize: '.8rem' }}>{r.section}</div></td>
@@ -255,13 +247,14 @@ export default function Roster() {
                   <td><RiskChip risk={r.risk} /></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={COLS.length} className="empty">No students match. {filtered && <button type="button" className="btn small" onClick={clear}>Clear filters</button>}</td></tr>}
+              {q.data.total_matches === 0 && <tr><td colSpan={COLS.length} className="empty">No students match. {filtered && <button type="button" className="btn small" onClick={clear}>Clear filters</button>}</td></tr>}
             </tbody>
           </table>
-          {rows.length > pageSize && <nav className="row" aria-label="Roster pages" style={{ padding: 12, justifyContent: 'space-between' }}>
-            <button type="button" className="btn" disabled={page === 1} onClick={() => update({ page: page === 2 ? '' : String(page - 1) })}>Previous page</button>
-            <span aria-live="polite">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, rows.length)} of {rows.length} · Page {page} of {pages}</span>
-            <button type="button" className="btn" disabled={page === pages} onClick={() => update({ page: String(page + 1) })}>Next page</button>
+          {rows.length === 0 && q.data.total_matches > 0 && <div className="empty"><p>The roster changed. Restart to see the current first page.</p><button type="button" className="btn" onClick={q.restart}>Restart roster</button></div>}
+          {(q.page > 1 || q.data.next_cursor !== null) && <nav className="row" aria-label="Roster pages" style={{ padding: 12, justifyContent: 'space-between' }}>
+            <button type="button" className="btn" disabled={q.page === 1} onClick={q.previous}>Previous page</button>
+            <span aria-live="polite">Page {q.page} · {q.data.total_matches} matching students</span>
+            <button type="button" className="btn" disabled={q.data.next_cursor === null} onClick={q.next}>Next page</button>
           </nav>}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, api, fmt, UNAUTHORIZED_EVENT } from '../api';
+import { ApiError, api, advanceApiSession, fmt, UNAUTHORIZED_EVENT } from '../api';
 
 const respond = (status: number, body?: unknown) => vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
   ok: status >= 200 && status < 300, status,
@@ -21,6 +21,16 @@ describe('api', () => {
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init?.body).toBe('{"a":1}');
     expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+  });
+
+  it('sends roster continuation only in its header without changing the URL or auth headers', async () => {
+    respond(200, { items: [] });
+    const controller = new AbortController();
+    await api('/students/page?limit=50', { rosterCursor: 'readable-owned-name', signal: controller.signal });
+    expect(fetch).toHaveBeenCalledWith('/api/students/page?limit=50', expect.objectContaining({
+      signal: controller.signal, credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'superteacher', 'X-Roster-Cursor': 'readable-owned-name' },
+    }));
   });
 
   it('returns null for 204', async () => {
@@ -48,6 +58,24 @@ describe('api', () => {
       signal: controller.signal, credentials: 'same-origin',
       headers: { 'X-Requested-With': 'superteacher' },
     }));
+  });
+
+  it('suppresses an old-session cursor 401 while current-session expiry still dispatches', async () => {
+    let resolve!: (value: Response) => void;
+    const pending = new Promise<Response>((yes) => { resolve = yes; });
+    vi.stubGlobal('fetch', vi.fn(() => pending));
+    const expired = vi.fn();
+    window.addEventListener(UNAUTHORIZED_EVENT, expired);
+    try {
+      const old = api('/students/page?limit=50', { rosterCursor: 'old-owner' });
+      advanceApiSession();
+      resolve({ ok: false, status: 401, json: async () => ({ detail: 'Unauthorized' }) } as Response);
+      await expect(old).rejects.toMatchObject({ status: 401 });
+      expect(expired).not.toHaveBeenCalled();
+      respond(401, { detail: 'Unauthorized' });
+      await expect(api('/students/page?limit=50')).rejects.toMatchObject({ status: 401 });
+      expect(expired).toHaveBeenCalledOnce();
+    } finally { window.removeEventListener(UNAUTHORIZED_EVENT, expired); }
   });
 
   it('uses string detail as the error message', async () => {

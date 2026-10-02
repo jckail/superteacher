@@ -12,6 +12,12 @@ export interface StudentSummary {
   gpa: number | null; trend: number | null; attendance_rate: number | null;
   homework_rate: number | null; missing: number; risk: Risk; risk_reasons: string[];
 }
+export type RosterSort = 'name' | 'section' | 'average' | 'trend' | 'attendance_rate' | 'homework_rate' | 'risk';
+export type RosterDirection = 'asc' | 'desc';
+export interface StudentPage {
+  items: StudentSummary[]; next_cursor: string | null; as_of: string;
+  total_matches: number; total_scoped: number;
+}
 export interface ScoreOut { assessment_id: string; title: string; kind: AssessmentKind; due_date: string; max_points: number; points: number | null; pct: number | null }
 export interface GradeHistorySection { section_id: string; section: string; course_id: string; course: string; scores: ScoreOut[] }
 export interface GradeHistoryOut { student_id: string; active_section_id: string; sections: GradeHistorySection[] }

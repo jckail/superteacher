@@ -8,7 +8,7 @@ export const UNAUTHORIZED_EVENT = 'st:unauthorized';
 let sessionGeneration = 0;
 /** Invalidate expiry notifications from requests started in an earlier session. */
 export function advanceApiSession() { sessionGeneration += 1; }
-export interface ApiOptions { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; signal?: AbortSignal }
+export interface ApiOptions { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; signal?: AbortSignal; rosterCursor?: string }
 
 function errorDetail(data: unknown): string {
   if (typeof data !== 'object' || data === null || !('detail' in data)) return 'Request failed';
@@ -23,11 +23,11 @@ function errorDetail(data: unknown): string {
 }
 
 /** Response types follow the server contract; callers can supply a query cancellation signal. */
-export async function api<T = unknown>(path: string, { method = 'GET', body, signal }: ApiOptions = {}): Promise<T> {
+export async function api<T = unknown>(path: string, { method = 'GET', body, signal, rosterCursor }: ApiOptions = {}): Promise<T> {
   const requestGeneration = sessionGeneration;
   const res = await fetch(`/api${path}`, {
     method, signal, credentials: 'same-origin',
-    headers: { 'X-Requested-With': 'superteacher', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { 'X-Requested-With': 'superteacher', ...(rosterCursor !== undefined ? { 'X-Roster-Cursor': rosterCursor } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401 && !path.startsWith('/auth/') && requestGeneration === sessionGeneration) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
