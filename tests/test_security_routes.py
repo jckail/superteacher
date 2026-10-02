@@ -13,6 +13,11 @@ PUBLIC = {
     # Readiness probe for the platform: returns only a fixed status body (no details, no data); see observability.py.
     ("GET", "/api/ready"),
     ("POST", "/api/auth/login"),
+    # Accounts mode sign-in (404 in passcode mode). Public by necessity: they are how a session starts. Each answers
+    # without a session only with generic bodies, is CSRF/Origin-checked and rate limited; see tests/test_accounts_*.
+    ("GET", "/api/auth/config"),
+    ("POST", "/api/auth/request-link"),
+    ("POST", "/api/auth/verify"),
     ("POST", "/api/auth/logout"),
     ("GET", "/api/auth/me"),
 }

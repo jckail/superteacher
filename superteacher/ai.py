@@ -13,7 +13,7 @@ import json
 import logging
 import os
 from collections import Counter
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -93,10 +93,10 @@ def client() -> AsyncAnthropic | None:
 
 
 # ── context ─────────────────────────────────────────────────────────────
-def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str, str]:
+def build_context_parts(db: Session, owner_id: str, student_id: str | None = None) -> tuple[str, str]:
     """(roster snapshot, focus block). The roster part is stable across turns, so it carries the cache breakpoint."""
     cap = setting_int("chat_roster_cap", 60)
-    students = load_students(db)
+    students = load_students(db, owner_id)
     computed = {s.id: metrics.compute(s) for s in students}
     out = [f"Today is {datetime.now(UTC):%Y-%m-%d}. Roster snapshot ({len(students)} students):", "<roster>"]
     if len(students) <= cap:
@@ -130,8 +130,8 @@ def build_context_parts(db: Session, student_id: str | None = None) -> tuple[str
     return "\n".join(out), focus
 
 
-def build_context(db: Session, student_id: str | None = None) -> str:
-    roster, focus = build_context_parts(db, student_id)
+def build_context(db: Session, owner_id: str, student_id: str | None = None) -> str:
+    roster, focus = build_context_parts(db, owner_id, student_id)
     return roster + ("\n\n" + focus if focus else "")
 
 
@@ -158,7 +158,12 @@ def _block_param(b: Any) -> dict:
 
 @observability.ai_stream("chat")
 async def run_chat(
-    history: list[dict], roster: str, focus: str = "", session_factory=None, max_iterations: int | None = None
+    history: list[dict],
+    roster: str,
+    focus: str = "",
+    session_factory=None,
+    max_iterations: int | None = None,
+    owner_id: str | None = None,
 ) -> AsyncIterator[dict]:
     """Agentic chat turn. Yields {"type":"delta","text"} and {"type":"tool","name"} events.
 
@@ -175,6 +180,8 @@ async def run_chat(
         return
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
     system = system_blocks(roster, focus)
+    if session_factory is not None and owner_id is None:
+        raise ValueError("owner_id is required when tools are enabled")  # tools must never run unscoped
     tools = ai_tools.TOOLS if session_factory is not None else []
     messages: list[dict] = list(history)
     model = get_settings().anthropic_model
@@ -212,17 +219,17 @@ async def run_chat(
             if b.type != "tool_use":
                 continue
             yield {"type": "tool", "name": b.name}
-            results.append(await _run_tool(session_factory, b))
+            results.append(await _run_tool(session_factory, owner_id, b))
         if results:
             messages.append({"role": "user", "content": results})  # all results in ONE user message
 
     yield {"type": "delta", "text": "\n\n_(I stopped looking things up after several steps; ask a narrower question.)_"}
 
 
-async def _run_tool(session_factory, block: Any) -> dict:
+async def _run_tool(session_factory, owner_id: str, block: Any) -> dict:
     def work() -> str:
         with session_factory() as db:
-            return ai_tools.execute(db, block.name, block.input)
+            return ai_tools.execute(db, owner_id, block.name, block.input)
 
     try:
         content = await asyncio.to_thread(work)
@@ -234,9 +241,11 @@ async def _run_tool(session_factory, block: Any) -> dict:
         return {"type": "tool_result", "tool_use_id": block.id, "content": "The lookup failed.", "is_error": True}
 
 
-async def stream_chat(history: list[dict], context: str, session_factory=None) -> AsyncIterator[str]:
+async def stream_chat(
+    history: list[dict], context: str, session_factory=None, owner_id: str | None = None
+) -> AsyncIterator[str]:
     """Text-only convenience wrapper over run_chat (kept for compatibility)."""
-    async for ev in run_chat(history, context, "", session_factory):
+    async for ev in run_chat(history, context, "", session_factory, owner_id=owner_id):
         if ev["type"] == "delta":
             yield ev["text"]
 
@@ -341,7 +350,8 @@ async def _generate(ai: AsyncAnthropic, model: str, prompt: str) -> InsightPaylo
     return None
 
 
-async def ai_insight(db: Session, s: Student) -> schemas.Insight:
+async def ai_insight(db: Session, s: Student, before_generate: Callable[[], None] | None = None) -> schemas.Insight:
+    """``s`` must already be owner-checked. ``before_generate`` runs only when a model call is about to start."""
     m = metrics.compute(s)
     fp = metrics.fingerprint(s, m)
     cached = db.get(InsightCache, s.id)
@@ -359,6 +369,8 @@ async def ai_insight(db: Session, s: Student) -> schemas.Insight:
     ai = client()
     if ai is None:
         return rule_insight(s, m)
+    if before_generate and (s.id, fp) not in _inflight:
+        before_generate()  # may raise (quota); cached and rule-based answers above/below are free
     model = get_settings().anthropic_insight_model
     prompt = "<student_record>\n" + student_block(s, m) + "\n</student_record>"
 

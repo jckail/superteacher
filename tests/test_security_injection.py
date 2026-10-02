@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from superteacher import reports
+from superteacher.models import OWNER_ID
 from tests.sec_util import H, build, login, seed_class
 
 SQLI = [
@@ -447,13 +448,13 @@ def test_ai_tool_arguments_are_bounded_and_validated(api):
             {"limit": True},
         ):
             try:
-                out = ai_tools.execute(db, "find_students", args)
+                out = ai_tools.execute(db, OWNER_ID, "find_students", args)
             except ai_tools.ToolError:
                 continue
             assert len(out) <= ai_tools.MAX_TOOL_RESULT_CHARS + 20
-        assert '"returned":' in ai_tools.execute(db, "find_students", {"limit": 10**9})
+        assert '"returned":' in ai_tools.execute(db, OWNER_ID, "find_students", {"limit": 10**9})
         with pytest.raises(ai_tools.ToolError):
-            ai_tools.execute(db, "drop_everything", {})
+            ai_tools.execute(db, OWNER_ID, "drop_everything", {})
     assert tables_intact(api)[0] == 4
 
 

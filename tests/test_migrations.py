@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect, text
 
+from alembic import command
 from superteacher import db as database
-from superteacher import models  # noqa: F401
+from superteacher import models
 from superteacher.db import ROOT
 
 
