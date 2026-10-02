@@ -234,3 +234,115 @@ def test_unsafe_audit_target_refused_before_mutation(account_db, tmp_path, kind)
     assert mutate(account_db, audit, "disable").returncode != 0
     assert account_db.read_bytes() == before
     assert audit.read_bytes() == audit_before
+
+
+@pytest.mark.parametrize("limit", [1, 2, 3])
+def test_list_pages_are_ordered_bounded_and_exclude_passcode_owner(account_db, limit):
+    with sqlite3.connect(account_db) as conn:
+        for user in ("zoe", "charlie", "owner0000000"):
+            conn.execute(
+                "INSERT INTO users (id,email,created_at,disabled) VALUES (?,?,CURRENT_TIMESTAMP,1)",
+                (user, user + "@example.invalid"),
+            )
+    before = account_db.read_bytes()
+    found = []
+    after = None
+    while True:
+        args = ["list", "--limit", str(limit)]
+        if after is not None:
+            args += ["--after", after]
+        result = run_cli(account_db, *args)
+        assert result.returncode == 0, result.stderr
+        page = json.loads(result.stdout)
+        assert set(page) == {"users", "next_cursor"}
+        assert 0 < len(page["users"]) <= limit
+        assert all(isinstance(user["disabled"], bool) for user in page["users"])
+        found.extend(user["id"] for user in page["users"])
+        after = page["next_cursor"]
+        if after is None:
+            break
+        assert after == page["users"][-1]["id"]
+    assert found == ["alice", "bob", "charlie", "zoe"]
+    assert account_db.read_bytes() == before
+
+
+def test_list_default_limit_exact_boundary_and_empty_tail(account_db):
+    with sqlite3.connect(account_db) as conn:
+        conn.executemany(
+            "INSERT INTO users (id,email,created_at,disabled) VALUES (?,?,CURRENT_TIMESTAMP,0)",
+            [(f"user{i:03}", f"user{i:03}@example.invalid") for i in range(99)],
+        )
+    first = json.loads(run_cli(account_db, "list").stdout)
+    assert len(first["users"]) == 100 and first["next_cursor"] == "user097"
+    final = json.loads(run_cli(account_db, "list", "--after", first["next_cursor"]).stdout)
+    assert [user["id"] for user in final["users"]] == ["user098"]
+    assert final["next_cursor"] is None
+    boundary = json.loads(run_cli(account_db, "list", "--limit", "101").stdout)
+    assert len(boundary["users"]) == 101 and boundary["next_cursor"] is None
+    assert json.loads(run_cli(account_db, "list", "--after", "zzzz").stdout) == {"users": [], "next_cursor": None}
+
+
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("--limit", "0"),
+        ("--limit", "-1"),
+        ("--limit", "1001"),
+        ("--limit", "oops"),
+        ("--after", ""),
+        ("--after", "alice@example.invalid"),
+        ("--after", "a" * 65),
+        ("--after", "alice' OR 1=1 --"),
+        ("--after", "é"),
+    ],
+)
+def test_list_invalid_bounds_and_cursor_refused_before_open(tmp_path, option, value):
+    path = tmp_path / "missing.db"
+    result = run_cli(path, "list", option, value)
+    assert result.returncode == 2
+    assert not path.exists()
+    assert "Cannot open" not in result.stderr
+
+
+def test_list_query_fetches_only_limit_plus_one_and_binds_cursor():
+    from superteacher import admin
+
+    class BoundedCursor:
+        closed = False
+
+        def fetchall(self):
+            assert "LIMIT ?" in query
+            assert parameters == ("owner0000000", "cursor:1", 3)
+            return [{"id": str(i), "disabled": i % 2} for i in range(parameters[-1])]
+
+        def close(self):
+            self.closed = True
+
+    cursor = BoundedCursor()
+
+    class Connection:
+        def execute(self, sql, values):
+            nonlocal query, parameters
+            query, parameters = sql, values
+            return cursor
+
+    query = parameters = None
+    page = admin._list_users(Connection(), limit=2, after="cursor:1")
+    assert "id > ?" in query and "ORDER BY id" in query
+    assert [user["id"] for user in page["users"]] == ["0", "1"]
+    assert page["next_cursor"] == "1" and cursor.closed
+
+
+def test_list_deleted_cursor_and_concurrent_insert_semantics(account_db):
+    first = json.loads(run_cli(account_db, "list", "--limit", "1").stdout)
+    with sqlite3.connect(account_db) as conn:
+        conn.execute("DELETE FROM sessions WHERE user_id='alice'")
+        conn.execute("DELETE FROM users WHERE id='alice'")
+        for user in ("aaron", "anna"):
+            conn.execute(
+                "INSERT INTO users (id,email,created_at,disabled) VALUES (?,?,CURRENT_TIMESTAMP,0)",
+                (user, user + "@example.invalid"),
+            )
+    page = json.loads(run_cli(account_db, "list", "--after", first["next_cursor"]).stdout)
+    assert [user["id"] for user in page["users"]] == ["anna", "bob"]
+    assert page["next_cursor"] is None
