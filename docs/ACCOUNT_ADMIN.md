@@ -9,7 +9,7 @@ file uses POSIX ownership, permissions and locking. PostgreSQL is outside this t
 Coordinate the database path and access window with the release owner. Do not operate on an arbitrary
 restored copy, another revision's disk, or a running replica and assume the changes reach the writer.
 Follow [release acceptance](RELEASE_CHECKLIST.md) and [backup/recovery](BACKUP_RECOVERY.md) for
-release/database ownership. The consolidated operator runbook is also available separately in PR66.
+release/database ownership. Start with the consolidated [operator runbook](OPERATOR_RUNBOOK.md) for current ownership and recovery procedures.
 The CLI never supplies missing credentials or authorizes a release.
 
 ## Inspect accounts and use

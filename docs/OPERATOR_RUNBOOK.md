@@ -18,6 +18,8 @@ change; dates, revision names and task completion in a document are observations
 | Release owner's artifact, staging and recovery evidence | [Deployment ledger](DEPLOYMENT_STATUS.md) |
 | Other session's production lineage, email and owner decisions | [Release checkpoint](RELEASE_CHECKPOINT.md) |
 | Exact-source checks and remaining acceptance gates | [Release checklist](RELEASE_CHECKLIST.md) |
+| Scoped account disable/sign-out and private audit outcomes | [Local account administration](ACCOUNT_ADMIN.md), [CLI source](../superteacher/admin.py) |
+| Historical design proposals and current navigation | [ADR index](adr/README.md) |
 | Settings and helper interface | [Deployment reference](DEPLOYMENT.md), [deploy helper](../scripts/deploy_cloud_run.sh) |
 | Legacy preservation and domain prerequisites | [Legacy cutover](LEGACY_CUTOVER.md), [domain ADR](adr/0005-domain-cutover.md) |
 
@@ -114,6 +116,31 @@ See [email/settings reference](DEPLOYMENT.md) and current
 [authentication](../superteacher/auth.py), [sessions](../superteacher/accounts.py)
 and [mailer](../superteacher/mailer.py) source. Accounts, passcode and credential
 changes can have different revocation effects; test the intended mode.
+
+## Scoped account administration
+
+For a single accounts-mode user, the reviewed [local CLI](ACCOUNT_ADMIN.md) supplies
+`disable`, `enable`, `sign-out` and usage inspection. The release owner must identify
+the actual database and access window; modifying an arbitrary restored copy does
+not revoke the serving writer's sessions. The CLI requires an existing database
+at this checkout's native migration head and does not migrate it, create a new
+one or authenticate an operator. Follow its full procedure before invoking it.
+
+`disable` revokes that account's sessions and unconsumed login links while preserving
+classroom data and quota evidence. `sign-out` revokes sessions/links without disabling;
+new link requests remain possible. `enable` does not restore revoked sessions or
+links. None cancels work already in flight. The implicit passcode owner is refused;
+use the passcode/session rotation procedure above for that mode. Account deletion,
+export and quota reset are separate capabilities, not CLI incident workarounds.
+
+Mutation commands require an asserted operator ID and a private operator-owned
+`0600` JSONL audit file. Keep the mapping of operator IDs and account-list output
+(which includes emails) private. Audit records contain IDs and outcome counts,
+not emails, tokens or student contents. Exit `3` means the database committed but
+the audit outcome could not be persisted: reconcile actual account/session state
+and the intent event before retrying. A crash can likewise leave an unmatched
+intent. Do not erase the audit log to make a retry pass. The CLI is a local
+filesystem tool, not a global admin endpoint or proof of production acceptance.
 
 ## Incident checklist
 
