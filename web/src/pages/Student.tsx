@@ -192,7 +192,14 @@ export default function Student() {
   }, retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 1 });
   const del = useMutation({
     mutationFn: () => api<null>(`/students/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries(); toast.success('Student removed'); nav('/roster'); },
+    onSuccess: () => {
+      // Drop the deleted student's own queries first: invalidating them would refetch the still-mounted page and 404.
+      qc.removeQueries({ queryKey: ['student', id] });
+      qc.removeQueries({ queryKey: ['insight', id] });
+      qc.invalidateQueries();
+      toast.success('Student removed');
+      nav('/roster');
+    },
     onError: (e) => toast.error(`Couldn’t remove student: ${e.message}`),
   });
   const s = q.data;

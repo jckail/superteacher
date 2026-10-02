@@ -182,7 +182,7 @@ th[scope="row"].name { font-size: inherit; text-transform: none; letter-spacing:
 
 /* roster */
 .row-link { color: inherit; font-weight: 600; } .row-link:hover { text-decoration: none; color: var(--brand-text); }
-.empty h3 { color: var(--text); margin-bottom: 6px; } .empty .row { justify-content: center; margin-top: 14px; }
+.empty h2, .empty h3 { color: var(--text); margin-bottom: 6px; font-size: .95rem; } .empty .row { justify-content: center; margin-top: 14px; }
 .hint-inline { font-size: .8rem; }
 
 /* gradebook */

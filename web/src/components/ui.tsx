@@ -133,7 +133,7 @@ export const ErrorBox = ({ error, onRetry }: { error?: Error | null; onRetry?: (
 ) : null;
 
 export const EmptyState = ({ title, children }: { title: string; children?: ReactNode }) => (
-  <div className="card empty"><h3>{title}</h3>{children}</div>
+  <div className="card empty"><h2>{title}</h2>{children}</div>
 );
 
 export function Bar({ value, color }: { value?: number | null; color?: string }) {

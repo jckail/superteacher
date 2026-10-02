@@ -1,8 +1,6 @@
 import { test, expect, uid } from '../support/fixtures';
 
-test('student page: rule-based insight, notes persist, remove asks for confirmation', async ({ page, api, allowConsole }) => {
-  // Known app issue (FINDINGS.md #2): after delete the page refetches the removed student and logs two 404s.
-  allowConsole(/status of 404/);
+test('student page: rule-based insight, notes persist, remove asks for confirmation', async ({ page, api }) => {
   const name = uid('Eve ');
   const c = await api.classroom({ studentNames: [name] });
   const a = await api.assessment(c.sectionId, 'Test 1', 100, 'test');
