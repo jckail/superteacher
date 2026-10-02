@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # --- web build ---
-FROM node:22.11-slim AS web
+FROM node:24.20.0-slim AS web
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
@@ -8,7 +8,9 @@ COPY web/ ./
 RUN npm run build
 
 # --- runtime ---
-FROM python:3.12.7-slim-bookworm
+FROM python:3.12.15-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
+ARG VERSION=dev
+ENV VERSION=$VERSION
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
 COPY requirements.txt .
@@ -24,6 +26,9 @@ COPY alembic.ini server.py litestream.yml docker-entrypoint.sh ./
 # Do not rely on git preserving the executable bit (repos on Windows/WSL mounts often do not).
 RUN chmod 0755 /app/docker-entrypoint.sh
 COPY --from=web /web/dist ./web/dist
+# Private release archives may contain root-owned directories with mode 0700.
+# The runtime user must be able to traverse and read copied code and static assets.
+RUN chmod -R a+rX /app/superteacher /app/alembic /app/web
 
 # Non-root; data lives on a volume. Secrets (AUTH_PASSWORD, SESSION_SECRET, ANTHROPIC_API_KEY) are injected at
 # runtime and never baked into the image. AUTH_PASSWORD is REQUIRED: the container refuses to start without it
@@ -31,10 +36,8 @@ COPY --from=web /web/dist ./web/dist
 RUN useradd --system --uid 10001 --create-home app && mkdir -p /data && chown app /data
 USER app
 ENV PORT=8080 DATABASE_URL=sqlite:////data/superteacher.db STATIC_DIR=web/dist
-# Cloud Run (and most platforms) put a proxy in front of the container. Without this uvicorn ignores X-Forwarded-For,
-# so every user looks like the proxy's address and the login lockout (5 failures) would lock out everyone at once.
-# "*" is right when only the platform's proxy can reach the container; self-hosting? Set your proxy's IP instead.
-ENV FORWARDED_ALLOW_IPS=*
+# The Cloud Run release sets FORWARDED_ALLOW_IPS=* for its platform proxy.
+# Directly reachable local containers retain Uvicorn's restricted default.
 VOLUME /data
 EXPOSE 8080
 # /api/health is intentionally public so probes work with auth enabled.

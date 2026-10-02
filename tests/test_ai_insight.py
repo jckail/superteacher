@@ -35,6 +35,7 @@ def test_valid_json_is_validated_truncated_and_cached(seeded, monkeypatch):
     fake = FakeAI(creates=["Sure! ```json\n" + GOOD + "\n```"])
     (ins,), sid = go(seeded, fake, monkeypatch)
     assert ins.source == "ai" and len(ins.strengths) == 3 and len(ins.actions[0]) == 240
+    assert fake.close_calls == 1
     with seeded.app.state.session_factory() as db:
         assert db.get(InsightCache, sid) is not None
     # cache hit: no model call
@@ -88,7 +89,44 @@ def test_concurrent_requests_share_one_model_call(seeded, monkeypatch):
     fake = Slow(creates=[GOOD])
     results, _ = go(seeded, fake, monkeypatch, n=4)
     assert len(fake.create_calls) == 1 and all(r.source == "ai" for r in results)
+    assert fake.close_calls == 1
     assert not ai._inflight
+
+
+def test_model_change_invalidates_cached_insight(seeded, monkeypatch):
+    go(seeded, FakeAI(creates=[GOOD]), monkeypatch)
+    monkeypatch.setattr(ai.get_settings(), "anthropic_insight_model", "another-model")
+    fake = FakeAI(creates=[GOOD])
+    (ins,), _ = go(seeded, fake, monkeypatch)
+    assert ins.model == "another-model" and len(fake.create_calls) == 1
+
+
+@pytest.mark.parametrize("change", ["note", "assignment", "section", "attendance"])
+def test_record_text_and_attendance_details_invalidate_insight(seeded, monkeypatch, change):
+    from superteacher.models import AttendanceStatus, Note
+
+    if change == "note":
+        with seeded.app.state.session_factory() as db:
+            s = db.scalars(select(Student)).first()
+            db.add(Note(student_id=s.id, body="Original note"))
+            db.commit()
+    go(seeded, FakeAI(creates=[GOOD]), monkeypatch)
+    with seeded.app.state.session_factory() as db:
+        s = db.scalars(select(Student)).first()
+        if change == "note":
+            s.notes[0].body = "Updated note"
+        elif change == "assignment":
+            s.scores[0].assessment.title = "Revised title"
+        elif change == "section":
+            s.section.name = "Revised section name"
+        else:
+            # A tardy counts as attended, but must change the insight's absence/tardy details.
+            present = next(a for a in s.attendance if a.status is AttendanceStatus.present)
+            present.status = AttendanceStatus.tardy
+        db.commit()
+    fake = FakeAI(creates=[GOOD])
+    go(seeded, fake, monkeypatch)
+    assert len(fake.create_calls) == 1
 
 
 def test_malformed_cached_payload_regenerates(seeded, monkeypatch):

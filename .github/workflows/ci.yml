@@ -16,6 +16,19 @@ jobs:
       - run: ruff format --check .
   api:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: st_test
+          POSTGRES_PASSWORD: ci-only-test-password
+          POSTGRES_DB: st_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U st_test -d st_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      ST_TEST_POSTGRES_URL: postgresql+psycopg://st_test:ci-only-test-password@localhost:5432/st_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,20 +47,120 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
-      - run: npm ci && npm run lint && npm test && npm run build
+      - run: npm ci && npm run lint && npm test -- --maxWorkers=2 && npm run build
         working-directory: web
-  docker:
-    needs: [lint, api, web]
+  browser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: requirements-dev.txt }
+      - run: pip install -r requirements-dev.txt
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run test:e2e
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-artifacts
+          path: web/test-results/
+          retention-days: 7
+  docker:
+    needs: [lint, api, web, browser, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reproduce private release archive directory permissions
+        run: find superteacher alembic -type d -exec chmod 0700 {} +
       - run: docker build -t superteacher:ci .
+      - name: Verify built runtime version, imports and non-root user
+        run: |
+          docker run --rm -i --entrypoint python superteacher:ci - <<'PY'
+          import importlib
+          import importlib.metadata
+          import json
+          import os
+          import sqlite3
+          import ssl
+          import sys
+
+          assert sys.version_info[:3] == (3, 12, 15), sys.version
+          assert os.getuid() == 10001, os.getuid()
+          for name in ("fastapi", "sqlalchemy", "psycopg", "anthropic", "uvicorn"):
+              importlib.import_module(name)
+          print(json.dumps({
+              "python": sys.version,
+              "uid": os.getuid(),
+              "openssl": ssl.OPENSSL_VERSION,
+              "sqlite": sqlite3.sqlite_version,
+              "packages": sorted(
+                  (distribution.metadata["Name"], distribution.version)
+                  for distribution in importlib.metadata.distributions()
+              ),
+          }, sort_keys=True))
+          PY
+      - name: Check focused compatibility on the built Python runtime
+        timeout-minutes: 5
+        run: |
+          docker run --rm -i --entrypoint sh \
+            --mount "type=bind,source=$PWD/tests,target=/app/tests,readonly" \
+            --workdir /app -e AUTH_DISABLED=true superteacher:ci -s <<'SH'
+          set -eu
+          runtime_test_dir=$(mktemp -d)
+          trap 'rm -rf "$runtime_test_dir"' EXIT
+          python -m pip freeze --all > "$runtime_test_dir/constraints.txt"
+          python - "$runtime_test_dir/production.json" <<'PY'
+          import importlib.metadata
+          import json
+          import sys
+
+          with open(sys.argv[1], "w") as output:
+              json.dump({d.metadata["Name"]: d.version for d in importlib.metadata.distributions()}, output)
+          PY
+          python -m venv --system-site-packages --without-pip "$runtime_test_dir/venv"
+          "$runtime_test_dir/venv/bin/python" -m pip install \
+            --constraint "$runtime_test_dir/constraints.txt" 'pytest>=8'
+          "$runtime_test_dir/venv/bin/python" - "$runtime_test_dir/production.json" <<'PY'
+          import importlib.metadata
+          import json
+          import os
+          import sys
+
+          assert sys.version_info[:3] == (3, 12, 15), sys.version
+          assert os.getuid() == 10001, os.getuid()
+          with open(sys.argv[1]) as source:
+              expected = json.load(source)
+          for name, version in expected.items():
+              actual = importlib.metadata.version(name)
+              assert actual == version, (name, version, actual)
+          print(f"Verified {len(expected)} production package versions unchanged in test environment")
+          PY
+          "$runtime_test_dir/venv/bin/python" -m pytest -q -p no:cacheprovider \
+            --basetemp "$runtime_test_dir/pytest" \
+            tests/test_security_injection.py tests/test_accounts_tokens.py \
+            tests/test_legacy_archive_viewer.py tests/test_legacy_archive_import.py \
+            tests/test_export_streaming.py tests/test_account_export_streaming.py
+          SH
       - name: Smoke test the image (auth on, health public, API gated)
         run: |
           docker run -d --name st -p 8080:8080 -e AUTH_PASSWORD=ci-secret -e SEED_DEMO_DATA=false superteacher:ci
           for i in $(seq 1 30); do curl -fsS localhost:8080/api/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/health)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 401
           curl -fsS localhost:8080/ | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/ready)" = 200
+          curl -fsS -c /tmp/st-ci-cookies -H 'Content-Type: application/json' -H 'X-Requested-With: ci' \
+            --data '{"password":"ci-secret"}' localhost:8080/api/auth/login
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 200
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/calendar)" = 200
+          curl -fsS -b /tmp/st-ci-cookies -c /tmp/st-ci-cookies -H 'X-Requested-With: ci' -X POST localhost:8080/api/auth/logout
+          test "$(curl -s -b /tmp/st-ci-cookies -o /dev/null -w '%{http_code}' localhost:8080/api/overview)" = 401
+          rm -f /tmp/st-ci-cookies
           docker logs st
       - name: Refuses to start without a password
         run: |
@@ -99,3 +212,21 @@ jobs:
             e2e/playwright-report/
             e2e/test-results/
           retention-days: 7
+  bench-smoke:
+    # Non-blocking: records scale numbers (no pass/fail thresholds yet) so regressions are visible in the artifact.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: requirements-dev.txt }
+      - run: pip install -r requirements-dev.txt
+      - run: python scripts/bench.py --sizes 1000 --runs 15 --json bench-1k.json --markdown bench-1k.md
+      - run: cat bench-1k.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-1k
+          path: |
+            bench-1k.json
+            bench-1k.md

@@ -63,8 +63,9 @@ test.describe('accessibility (axe-core, WCAG 2.x A/AA + best practices) - seeded
           await page.goto('/');
           await expect(page.getByRole('heading', { name: /Grade distribution/ })).toBeVisible();
           await page.getByRole('button', { name: 'Ask AI' }).click();
-          const chat = page.getByRole('complementary', { name: 'Super Teacher assistant' });
+          const chat = page.getByRole(vpName === 'mobile' ? 'dialog' : 'complementary', { name: 'Super Teacher assistant' });
           await expect(chat).toBeVisible();
+          if (vpName === 'mobile') await expect(chat).toHaveAttribute('aria-modal', 'true');
           await auditA11y(page, `chat-empty|${vpName}|${theme}`, info);
           await chat.getByLabel('Message').fill('hello');
           await chat.getByRole('button', { name: 'Send' }).click();

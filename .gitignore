@@ -20,6 +20,8 @@ var/
 .installed.cfg
 *.egg
 .env
+.env.*
+!.env.example
 venv/
 .venv/
 ENV/
@@ -66,3 +68,10 @@ data/
 # auth / tooling
 .session_secret
 .ruff_cache/
+
+# Browser test output
+web/test-results/
+web/playwright-report/
+
+*.db-*
+*.sqlite*

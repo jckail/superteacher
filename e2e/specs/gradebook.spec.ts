@@ -15,7 +15,7 @@ test.describe('gradebook', () => {
     await dialog.getByLabel('Max points').fill('20');
     await dialog.getByRole('button', { name: 'Create' }).click();
     await expect(page.getByText('Added “Quiz 1”')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Quiz 1' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Quiz 1', exact: true })).toBeVisible();
 
     const cell = (n: string) => page.getByRole('textbox', { name: `${n}, Quiz 1` });
     await cell(names[0]).fill('18');

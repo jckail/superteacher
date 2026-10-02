@@ -12,15 +12,17 @@ import json
 import re
 import unicodedata
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from fractions import Fraction
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import metrics
-from .models import Student
-from .queries import load_students
+from .models import OWNER_ID, Course, Note, Section, Student
+from .queries import iter_summaries, student_candidates, summaries_for
 
 MAX_TOOL_RESULT_CHARS = 12_000
 _CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f]+")  # C0, DEL and C1 (incl. NEL \x85)
@@ -61,16 +63,26 @@ def student_line(s: Student, m: metrics.StudentMetrics) -> str:
     )
 
 
-def student_block(s: Student, m: metrics.StudentMetrics, max_scores: int | None = None, max_notes: int = 5) -> str:
+def student_block(
+    s: Student,
+    m: metrics.StudentMetrics,
+    max_scores: int | None = None,
+    max_notes: int = 5,
+    notes: list[Note] | None = None,
+) -> str:
     lines = [student_line(s, m)]
     if m.risk_reasons:
         lines.append("  flags: " + "; ".join(m.risk_reasons))
     lines.append(f"  absences {m.absences}, tardies {m.tardies}")
     scores = m.scores if max_scores is None else m.scores[-max_scores:]
     for p in scores:
-        got = "MISSING" if p.points is None else f"{p.points:g}/{p.max_points:g}"
+        got = (
+            ("NOT YET DUE" if p.due_date > m.as_of else "MISSING")
+            if p.points is None
+            else (f"{p.points:g}/{p.max_points:g}")
+        )
         lines.append(f"  · {p.due_date} {p.kind.value} {clean(p.title, 80)}: {got}")
-    for n in s.notes[:max_notes]:
+    for n in s.notes[:max_notes] if notes is None else notes[:max_notes]:
         lines.append(f'  <note date="{n.created_at:%Y-%m-%d}">{clean(n.body, 400)}</note>')
     return "\n".join(lines)
 
@@ -87,7 +99,11 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "section": {"type": "string", "description": "Case-insensitive substring of a section or course name."},
-                "risk": {"type": "string", "enum": ["on_track", "watch", "at_risk"]},
+                "risk": {
+                    "type": "string",
+                    "enum": ["unknown", "on_track", "watch", "at_risk"],
+                    "description": "Unknown: insufficient evidence. Attention flags: watch/at_risk.",
+                },
                 "name_contains": {"type": "string"},
                 "max_average": {"type": "number", "description": "Only students with average <= this (0-100)."},
                 "min_average": {"type": "number"},
@@ -117,7 +133,8 @@ TOOLS: list[dict[str, Any]] = [
         "name": "class_stats",
         "description": (
             "Aggregate statistics (average, attendance, homework, risk counts, letter-grade distribution) "
-            "for the whole class, or one section/course when `section` is given."
+            "for the whole class, or one section/course when `section` is given. "
+            "Unknown is insufficient evidence, separate from watch/at_risk attention flags."
         ),
         "input_schema": {"type": "object", "properties": {"section": {"type": "string"}}},
     },
@@ -127,7 +144,7 @@ TOOL_NAMES = {t["name"] for t in TOOLS}
 
 class FindStudentsArgs(BaseModel):
     section: str | None = Field(None, max_length=80)
-    risk: Literal["on_track", "watch", "at_risk"] | None = None
+    risk: Literal["unknown", "on_track", "watch", "at_risk"] | None = None
     name_contains: str | None = Field(None, max_length=80)
     max_average: float | None = None
     min_average: float | None = None
@@ -166,11 +183,24 @@ def _row(s: Student, m: metrics.StudentMetrics) -> dict[str, Any]:
 
 
 def find_students(students: list[Student], a: FindStudentsArgs) -> dict[str, Any]:
+    return _find_summaries(((s, metrics.compute(s)) for s in students), a)
+
+
+def _find_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]], a: FindStudentsArgs) -> dict[str, Any]:
     rows = []
-    for s in students:
+    total = 0
+    limit = min(a.limit, 25)
+    keyf: dict[str, Callable] = {
+        "name": lambda sm: sm[0].name.lower(),
+        "average": lambda sm: sm[1].average,
+        "attendance": lambda sm: sm[1].attendance_rate,
+        "trend": lambda sm: sm[1].trend,
+        "missing": lambda sm: sm[1].missing,
+    }
+    k = keyf[a.sort_by]
+    for s, m in summaries:
         if not _in_section(s, a.section) or (a.name_contains and a.name_contains.lower() not in s.name.lower()):
             continue
-        m = metrics.compute(s)
         if a.risk and m.risk != a.risk:
             continue
         if (a.max_average is not None and (m.average is None or m.average > a.max_average)) or (
@@ -181,22 +211,15 @@ def find_students(students: list[Student], a: FindStudentsArgs) -> dict[str, Any
             continue
         if a.min_missing is not None and m.missing < a.min_missing:
             continue
+        total += 1
         rows.append((s, m))
-    keyf: dict[str, Callable] = {
-        "name": lambda sm: sm[0].name.lower(),
-        "average": lambda sm: sm[1].average,
-        "attendance": lambda sm: sm[1].attendance_rate,
-        "trend": lambda sm: sm[1].trend,
-        "missing": lambda sm: sm[1].missing,
-    }
-    k = keyf[a.sort_by]
-    have = [x for x in rows if k(x) is not None]  # unknowns sort last regardless of direction
-    rows = sorted(have, key=k, reverse=a.descending) + [x for x in rows if k(x) is None]
-    limit = min(a.limit, 25)
+        # Stable bounded ranking: retain at most 25 metrics, including when every student matches.
+        have = [x for x in rows if k(x) is not None]
+        rows = (sorted(have, key=k, reverse=a.descending) + [x for x in rows if k(x) is None])[:limit]
     return {
-        "total_matches": len(rows),
-        "returned": min(limit, len(rows)),
-        "students": [_row(s, m) for s, m in rows[:limit]],
+        "total_matches": total,
+        "returned": len(rows),
+        "students": [_row(s, m) for s, m in rows],
     }
 
 
@@ -219,37 +242,101 @@ def get_student(students: list[Student], a: GetStudentArgs) -> dict[str, Any] | 
 
 
 def class_stats(students: list[Student], a: ClassStatsArgs) -> dict[str, Any]:
-    pool = [(s, metrics.compute(s)) for s in students if _in_section(s, a.section)]
-    if not pool:
+    return _class_summaries(((s, metrics.compute(s)) for s in students), a)
+
+
+class _Mean:
+    """Exact float summation matches statistics.mean without retaining the input values."""
+
+    def __init__(self):
+        self.total = Fraction()
+        self.count = 0
+
+    def add(self, value):
+        if value is not None:
+            self.total += Fraction(value)
+            self.count += 1
+
+    def value(self):
+        return None if not self.count else round(float(self.total / self.count), 1)
+
+
+def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]], a: ClassStatsArgs) -> dict[str, Any]:
+    averages, attendance, homework = _Mean(), _Mean(), _Mean()
+    count = missing = 0
+    statuses = Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})
+    letters = Counter()
+    sections = {}
+    for s, m in summaries:
+        if not _in_section(s, a.section):
+            continue
+        count += 1
+        missing += m.missing
+        averages.add(m.average)
+        attendance.add(m.attendance_rate)
+        homework.add(m.homework_rate)
+        statuses[m.risk] += 1
+        letters[m.letter or "n/a"] += 1
+        if not a.section:
+            label = section_label(s)
+            if label not in sections:
+                sections[label] = [0, _Mean(), Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})]
+            sec = sections[label]
+            sec[0] += 1
+            sec[1].add(m.average)
+            sec[2][m.risk] += 1
+    if not count:
         return {"error": "No students in that section."}
-
-    def avg(vals):
-        value = metrics.mean_of(vals)
-        return None if value is None else round(value, 1)
-
-    out: dict[str, Any] = {
-        "students": len(pool),
-        "average": avg(m.average for _, m in pool),
-        "attendance": avg(m.attendance_rate for _, m in pool),
-        "homework": avg(m.homework_rate for _, m in pool),
-        "missing_assignments": sum(m.missing for _, m in pool),
-        "status_counts": dict(Counter(m.risk for _, m in pool)),
-        "letter_distribution": dict(Counter(m.letter or "n/a" for _, m in pool)),
+    out = {
+        "students": count,
+        "average": averages.value(),
+        "attendance": attendance.value(),
+        "homework": homework.value(),
+        "missing_assignments": missing,
+        "status_counts": dict(statuses),
+        "letter_distribution": dict(letters),
     }
     if not a.section:
-        by_sec: dict[str, list[metrics.StudentMetrics]] = {}
-        for s, m in pool:
-            by_sec.setdefault(section_label(s), []).append(m)
         out["sections"] = [
             {
-                "section": k,
-                "students": len(v),
-                "average": avg(x.average for x in v),
-                "at_risk": sum(x.risk == "at_risk" for x in v),
+                "section": label,
+                "students": sec[0],
+                "average": sec[1].value(),
+                "at_risk": sec[2]["at_risk"],
+                "unknown": sec[2]["unknown"],
+                "status_counts": dict(sec[2]),
             }
-            for k, v in sorted(by_sec.items())
+            for label, sec in sorted(sections.items())
         ]
     return out
+
+
+def _get_student(db: Session, args: GetStudentArgs, owner_id: str):
+    if not args.student_id and not args.name:
+        return {"error": "Provide student_id or name."}
+    hits = student_candidates(
+        db, owner_id=owner_id, student_id=args.student_id, name_contains=None if args.student_id else args.name
+    )
+    if not hits:
+        return {"error": "No matching student."}
+    if len(hits) > 1:
+        return {
+            "error": "Several students match; call again with student_id.",
+            "candidates": [_row(s, m) for s, m in summaries_for(db, hits, owner_id=owner_id, retain_scores=False)],
+        }
+    s, m = next(summaries_for(db, hits, owner_id=owner_id))
+    notes = list(
+        db.scalars(
+            select(Note)
+            .join(Student)
+            .join(Section)
+            .join(Course)
+            .where(Note.student_id == s.id, Course.owner_id == owner_id)
+            .order_by(Note.created_at.desc(), Note.id.desc())
+            .limit(5)
+        )
+    )
+    return "<student_record>\n" + student_block(s, m, max_scores=15, notes=notes) + "\n</student_record>"
 
 
 _HANDLERS: dict[str, tuple[type[BaseModel], Callable]] = {
@@ -263,18 +350,34 @@ class ToolError(Exception):
     """Raised for bad tool name/arguments; the message is safe to show the model."""
 
 
-def execute(db: Session, name: str, raw_input: object) -> str:
+def execute(db: Session, name: str, raw_input: object, *owner_input: object, owner_id: str = OWNER_ID) -> str:
     """Run one tool and return the string for the tool_result block (always bounded in size)."""
+    if owner_input:
+        if len(owner_input) != 1:
+            raise TypeError("Expected owner, tool name and arguments")
+        owner_id, name, raw_input = name, raw_input, owner_input[0]
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
-    model, fn = _HANDLERS[name]
+    model, _ = _HANDLERS[name]
     try:
         args = model.model_validate(raw_input if isinstance(raw_input, dict) else {})
     except ValidationError as e:
         raise ToolError(
             "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
         ) from None
-    result = fn(load_students(db), args)
+    if name == "get_student":
+        result = _get_student(db, args, owner_id)
+    elif name == "find_students":
+        result = _find_summaries(
+            iter_summaries(
+                db, owner_id=owner_id, section=args.section, name_contains=args.name_contains, retain_scores=False
+            ),
+            args,
+        )
+    else:
+        result = _class_summaries(
+            iter_summaries(db, owner_id=owner_id, section=args.section, retain_scores=False), args
+        )
     text = result if isinstance(result, str) else json.dumps(result, separators=(",", ":"), default=str)
     if len(text) > MAX_TOOL_RESULT_CHARS:
         text = text[:MAX_TOOL_RESULT_CHARS] + "\n[truncated]"

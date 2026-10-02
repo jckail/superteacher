@@ -117,7 +117,7 @@ def test_unknown_api_write_methods_do_not_fall_through_to_the_spa(site):
 
 
 def test_vite_build_config_does_not_publish_source_maps():
-    cfg = (ROOT / "web" / "vite.config.js").read_text()
+    cfg = (ROOT / "web" / "vite.config.ts").read_text()
     assert not re.search(r"sourcemap\s*:\s*(true|'inline'|\"inline\"|'hidden')", cfg)
 
 
@@ -181,7 +181,7 @@ def test_health_is_generic_when_the_database_is_down(api):
 
     api.app.dependency_overrides[database.get_db] = lambda: DeadSession()
     r = api.get("/api/health")
-    assert r.status_code == 200 and r.json()["status"] == "unhealthy"
+    assert r.status_code == 503 and r.json()["status"] == "unhealthy"
     assert "prod.db" not in r.text and "disk" not in r.text and r.json()["database"] == "error"
 
 

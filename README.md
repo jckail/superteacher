@@ -11,12 +11,13 @@ A classroom copilot: it answers **"who needs me today, and why?"** — then help
 - **Gradebook** – spreadsheet-style entry per section; averages and risk update live.
 - **Attendance** – one-tap daily roll call, optimistic UI.
 - **Reports** – class statistics per assignment, attendance-by-day, gradebook CSV export (injection-safe), and AI-drafted parent updates you edit before sending.
+- **Accounts (optional)** – `AUTH_MODE=accounts`: passwordless email sign-in, a private synthetic starter classroom per user, server-side revocable sessions, per-user daily AI quotas, account export and delete. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - **Ask AI** – streaming Claude chat with tools (`find_students`, `get_student`, `class_stats`) that queries your real data, so answers are grounded and scale past a prompt-sized roster.
 
 ## Architecture
 ```mermaid
 flowchart LR
-  UI[React + Vite<br/>TanStack Query] -- REST /api --> API[FastAPI]
+  UI[React + TypeScript + Vite<br/>TanStack Query] -- REST /api --> API[FastAPI]
   UI -- WebSocket /api/chat/ws --> API
   API --> M[metrics.py<br/>one definition of grade / attendance / risk]
   API --> DB[(SQLite via SQLAlchemy 2)]
@@ -34,25 +35,29 @@ export ANTHROPIC_API_KEY=sk-...         # optional
 ./local_test.sh                          # API :8080, UI http://localhost:4000
 python -m pytest && (cd web && npm test)
 ```
-Python **3.11+** is required (3.12 in the Docker image). With [uv](https://docs.astral.sh/uv/): `uv venv --python 3.12 && uv pip install -r requirements-dev.txt`.
+Node **22.12+** is required for the web toolchain (Docker uses Node 24). Python **3.11+** is required (3.12 in the Docker image). With [uv](https://docs.astral.sh/uv/): `uv venv --python 3.12 && uv pip install -r requirements-dev.txt`.
 
 ### Before you push
 CI runs exactly these; run them locally first:
 ```bash
 ruff check . && ruff format --check .   # Python lint + format (ruff format . to fix)
 python -m pytest                        # warnings are errors on purpose
-(cd web && npm run lint && npm test && npm run build)
+(cd web && npm run lint && npm test && npm run build)  # build includes strict typecheck
 ```
-Layering: routers → services (`ai.py`, `reports.py`) → `queries.py` / `metrics.py` → `models.py`. Nothing below a router imports a router (enforced in `tests/test_architecture.py`). Schema changes need an Alembic revision (`alembic revision --autogenerate -m "..."`); `tests/test_migrations.py` fails on drift.
-Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Browser application code is strict TypeScript; `npm run typecheck` checks API contracts, components, and Vite configuration. Runtime API validation remains in FastAPI/Pydantic.
 
-Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
+Layering: routers → services (`ai.py`, `reports.py`) → `queries.py` / `metrics.py` → `models.py`. Nothing below a router imports a router (enforced in `tests/test_architecture.py`). Schema changes need an Alembic revision (`alembic revision --autogenerate -m "..."`); `tests/test_migrations.py` fails on drift.
+SQLite recovery: [tested online backup and restore rehearsal](docs/BACKUP_RECOVERY.md).
+
+Production (auth on, schema migrated automatically via Alembic): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Cloud Run uses the accepted Litestream/GCS pilot; Cloud Build is build-only, and release promotion requires a verified drained writer. [Current deployment handoff](docs/DEPLOYMENT_STATUS.md).
+
+Config (env / `.env`): `AUTH_PASSWORD`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_INSIGHT_MODEL`, `CORS_ORIGINS`, `SEED_DEMO_DATA`, `STATIC_DIR`, plus `AI_MAX_CONCURRENT_REQUESTS`, `AI_CHAT_TIMEOUT_SECONDS`, `AI_INSIGHT_TIMEOUT_SECONDS`, `AI_PARENT_TIMEOUT_SECONDS`, `CHAT_ROSTER_CAP`, `CHAT_MAX_TOOL_ITERATIONS`, `CHAT_RATE_LIMIT_PER_MIN`.
 
 ## Security
-Shared-passcode auth with signed HttpOnly session cookies, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. Single shared passcode only — no per-teacher accounts or roles yet.
+Shared-passcode auth with signed HttpOnly cookies backed by revocable database sessions, CSRF + WebSocket origin checks, login lockout, security headers, prompt-injection-hardened AI context (student text is delimited as data), per-connection chat rate limits. By default a single shared passcode; opt-in accounts mode adds per-user tenancy (every query and AI path is owner-scoped, cross-tenant tested), but no roles/organisations yet.
 
 ## Not yet
-Per-user accounts/roles, multi-instance session/rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
+Roles/organisations, shared multi-instance rate-limit state, SQLite → Postgres for multi-writer deployments, class-average overlays and trend series on the dashboards.
 
 ## Decisions
 Open architecture decisions (persistence, identity, privacy, grading policy, domain cutover): [docs/adr/README.md](docs/adr/README.md)

@@ -106,7 +106,8 @@ def test_every_replica_url_we_ship_uses_a_scheme_litestream_knows():
         CONFIG.read_text(),
     ]
     assert not any("gcs://" in text for text in shipped)
-    assert "LITESTREAM_REPLICA_URL=gs://" in shipped[0] and "LITESTREAM_REPLICA_URL=gs://" in shipped[1]
+    assert "LITESTREAM_REPLICA_URL=gs://" in shipped[1]
+    assert "run', 'deploy" not in shipped[0]  # build-only: deployment is explicitly staged separately
 
 
 # ── real Litestream, file replica ────────────────────────────────────────────────────────────────────────────────

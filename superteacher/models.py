@@ -15,9 +15,25 @@ import enum
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, Enum, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .calendar import school_today
 from .db import Base
 
 
@@ -43,14 +59,80 @@ class AttendanceStatus(enum.StrEnum):
     excused = "excused"
 
 
+OWNER_ID = "owner0000000"  # the implicit user behind passcode mode / pre-accounts data
+OWNER_EMAIL = "owner@superteacher.invalid"
+
+
+class User(Base):
+    """An account. ``email`` is stored normalised (NFKC, stripped, lower-cased), so it is unique case-insensitively."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class AuthSession(Base):
+    """Server-side, revocable browser session. Only the SHA-256 of the 256-bit cookie value is stored."""
+
+    __tablename__ = "sessions"
+
+    id_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class LoginToken(Base):
+    """One-time sign-in link token (SHA-256 stored, never the token). Not tied to a user row: it may create one."""
+
+    __tablename__ = "login_tokens"
+    __table_args__ = (Index("ix_login_tokens_email_created", "email", "created_at"),)
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    email: Mapped[str] = mapped_column(String(254))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class UsageCounter(Base):
+    """Per-user, per-UTC-day counters for metered actions (chat, insight, parent_update)."""
+
+    __tablename__ = "usage_counters"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class AiBudget(Base):
+    """Global AI call counter per UTC day (optional cost cap)."""
+
+    __tablename__ = "ai_budget"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Course(Base):
     __tablename__ = "courses"
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
     sections: Mapped[list[Section]] = relationship(
         back_populates="course", cascade="all, delete-orphan", order_by="Section.name"
     )
+
+
+Index("uq_courses_owner_name", Course.owner_id, func.lower(Course.name), unique=True)
 
 
 class Section(Base):
@@ -71,6 +153,12 @@ class Section(Base):
 
 class Student(Base):
     __tablename__ = "students"
+    __table_args__ = (
+        CheckConstraint(
+            "grade_level BETWEEN 1 AND 12 AND grade_level = CAST(grade_level AS INTEGER)",
+            name="ck_students_grade_level",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     name: Mapped[str] = mapped_column(String(120), index=True)
@@ -79,7 +167,11 @@ class Student(Base):
     section: Mapped[Section] = relationship(back_populates="students")
     scores: Mapped[list[Score]] = relationship(cascade="all, delete-orphan", back_populates="student")
     attendance: Mapped[list[AttendanceRecord]] = relationship(
-        cascade="all, delete-orphan", back_populates="student", order_by="AttendanceRecord.day"
+        cascade="all, delete-orphan",
+        back_populates="student",
+        # Keep each student's days chronological without a global day-ordered
+        # scan when selectinload fetches attendance for many students.
+        order_by="(AttendanceRecord.student_id, AttendanceRecord.day)",
     )
     notes: Mapped[list[Note]] = relationship(
         cascade="all, delete-orphan", back_populates="student", order_by="Note.created_at.desc()"
@@ -89,20 +181,27 @@ class Student(Base):
 
 class Assessment(Base):
     __tablename__ = "assessments"
+    __table_args__ = (
+        CheckConstraint("max_points > 0 AND max_points <= 1000000", name="ck_assessments_max_points"),
+        CheckConstraint("kind IN ('test', 'quiz', 'homework', 'project')", name="ck_assessments_kind"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     section_id: Mapped[str] = mapped_column(ForeignKey("sections.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(120))
     kind: Mapped[AssessmentKind] = mapped_column(Enum(AssessmentKind), default=AssessmentKind.test)
     max_points: Mapped[float] = mapped_column(Float, default=100.0)
-    due_date: Mapped[date] = mapped_column(Date, default=date.today)
+    due_date: Mapped[date] = mapped_column(Date, default=school_today)
     section: Mapped[Section] = relationship(back_populates="assessments")
     scores: Mapped[list[Score]] = relationship(cascade="all, delete-orphan", back_populates="assessment")
 
 
 class Score(Base):
     __tablename__ = "scores"
-    __table_args__ = (UniqueConstraint("assessment_id", "student_id"),)
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "student_id"),
+        CheckConstraint("points >= 0 AND points <= 1.7976931348623157e308", name="ck_scores_points"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     assessment_id: Mapped[str] = mapped_column(ForeignKey("assessments.id", ondelete="CASCADE"), index=True)
@@ -115,7 +214,10 @@ class Score(Base):
 
 class AttendanceRecord(Base):
     __tablename__ = "attendance"
-    __table_args__ = (UniqueConstraint("student_id", "day"),)
+    __table_args__ = (
+        UniqueConstraint("student_id", "day"),
+        CheckConstraint("status IN ('present', 'tardy', 'absent', 'excused')", name="ck_attendance_status"),
+    )
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_id)
     student_id: Mapped[str] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)

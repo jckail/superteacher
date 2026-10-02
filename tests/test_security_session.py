@@ -5,13 +5,14 @@ import stat
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 
 from superteacher import auth
 from superteacher.config import Settings
 from tests.sec_util import PW, H, behind_proxy, build, login
 
-BROWSER = {**H, "Origin": "https://testserver", "X-Forwarded-Proto": "https"}
+BROWSER = {**H, "Origin": "http://testserver", "X-Forwarded-Proto": "http"}
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def test_valid_token_is_accepted_baseline(c):
 
 def test_tampered_tokens_rejected(c):
     tok = token_of(c)
-    payload, ts, sig = tok.split(".")
+    payload, ts, sig = tok.rsplit(".", 2)
     flipped = ("A" if sig[0] != "A" else "B") + sig[1:]
     forged_payload = base64.urlsafe_b64encode(b'{"v":2,"admin":true}').decode().rstrip("=")
     cases = {
@@ -97,10 +98,24 @@ def test_cookie_flags_http(c):
     assert "domain=" not in sc  # host-only cookie, not shared with sibling subdomains
 
 
-def test_cookie_secure_when_https_or_forwarded(c):
-    for headers in ({"X-Forwarded-Proto": "https"}, {"X-Forwarded-Proto": "https, http"}):
-        assert "; secure" in login(c, **headers).headers["set-cookie"].lower()
-    assert "; secure" not in login(c, **{"X-Forwarded-Proto": "http"}).headers["set-cookie"].lower()
+def test_cookie_secure_when_request_is_https(c):
+    with TestClient(c.app, base_url="https://testserver") as secure_client:
+        assert "; secure" in login(secure_client).headers["set-cookie"].lower()
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+def test_cookie_secure_uses_only_trusted_proxy_scheme(c, trusted):
+    with behind_proxy(c, trusted=trusted) as proxied:
+        response = login(proxied, **{"X-Forwarded-Proto": "https"})
+        assert response.status_code == 200
+        assert ("; secure" in response.headers["set-cookie"].lower()) is trusted
+
+
+def test_spoofed_forwarded_proto_does_not_force_secure_cookie(c):
+    for value in ("https", "https, http"):
+        response = login(c, **{"X-Forwarded-Proto": value})
+        assert response.status_code == 200
+        assert "; secure" not in response.headers["set-cookie"].lower()
 
 
 def test_cookie_secure_can_be_forced():
@@ -130,11 +145,6 @@ def test_logout_clears_the_browser_cookie(c):
     assert c.get("/api/overview").status_code == 401
 
 
-@pytest.mark.xfail(
-    reason="KNOWN LIMITATION F-06: sessions are stateless signed cookies, so a copied cookie stays valid until expiry "
-    "or a passcode change. Remove the xfail if a server-side revocation list is added.",
-    strict=False,
-)
 def test_copied_cookie_is_dead_after_logout(c):
     tok = token_of(c)
     c.post("/api/auth/logout", headers=H)
@@ -149,7 +159,7 @@ def test_generated_session_secret_is_private_and_stable(tmp_path: Path):
     assert f.is_file() and stat.S_IMODE(f.stat().st_mode) == 0o600
     assert len(f.read_text().strip()) >= 32
     b = auth.AuthState(s, tmp_path)
-    assert b.valid(a.issue())  # survives a restart
+    assert b.valid(a.issue())  # signing key survives; route validation also requires the original database row
     assert not auth.AuthState(Settings(auth_password="other", session_secret=None), tmp_path).valid(a.issue())
 
 
@@ -210,17 +220,20 @@ def test_malformed_login_bodies_are_not_oracles_and_never_500():
             assert r.status_code in (400, 422), body
 
 
-def test_lone_surrogate_passcode_is_a_401_not_a_500():
+def test_lone_surrogate_passcode_is_rejected_without_a_500():
     with build(raise_server_exceptions=False) as c:
         r = c.post(
             "/api/auth/login", content='{"password":"\\ud800"}', headers={**H, "content-type": "application/json"}
         )
-        assert r.status_code == 401
+        assert r.status_code == 422
+        assert "\\ud800" not in r.text
 
 
 def test_huge_passcode_is_handled_in_constant_work():
     with build() as c:
-        assert login(c, "A" * 1_000_000).status_code == 401
+        response = login(c, "A" * 1_000_000)
+        assert response.status_code == 422
+        assert len(response.content) < 1024
 
 
 @pytest.mark.parametrize("trusted", [False, True])

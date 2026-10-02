@@ -7,11 +7,13 @@ detail view, the overview and the AI context, so the numbers never disagree.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date
 from statistics import mean
 
+from .calendar import school_today
 from .models import AssessmentKind, AttendanceStatus, Student
 
 # Category weights for the course average; renormalised over categories that have data.
@@ -56,7 +58,8 @@ class ScorePoint:
 
 @dataclass
 class StudentMetrics:
-    average: float | None = None  # 0-100
+    as_of: date = field(default_factory=school_today)
+    average: float | None = None  # percentage; may exceed 100 with extra credit
     letter: str | None = None
     gpa: float | None = None
     trend: float | None = None  # recent-3 minus earlier average, in points
@@ -65,7 +68,7 @@ class StudentMetrics:
     tardies: int = 0
     homework_rate: float | None = None  # 0-100, of homework already due
     missing: int = 0
-    risk: str = "on_track"  # on_track | watch | at_risk
+    risk: str = "unknown"  # unknown | on_track | watch | at_risk
     risk_reasons: list[str] = field(default_factory=list)
     scores: list[ScorePoint] = field(default_factory=list)
 
@@ -83,22 +86,26 @@ def _sort(points: list[ScorePoint]) -> list[ScorePoint]:
 
 
 def score_points(student: Student, today: date | None = None) -> list[ScorePoint]:
+    # Transfers retain old rows; only the current section contributes to active grades.
+    # Equality also preserves unflushed fixtures where both foreign keys are still None.
     return _sort(
         [make_point(sc.assessment.id, sc.assessment.title, sc.assessment.kind, sc.assessment.due_date,
-                    sc.assessment.max_points, sc.points) for sc in student.scores]
+                    sc.assessment.max_points, sc.points) for sc in student.scores
+         if sc.assessment.section_id == student.section_id]
     )  # fmt: skip
 
 
 def compute(student: Student, today: date | None = None) -> StudentMetrics:
-    return compute_from(score_points(student), [a.status for a in student.attendance], today)
+    as_of = today or school_today()
+    return compute_from(score_points(student), [a.status for a in student.attendance if a.day <= as_of], as_of)
 
 
 def compute_from(
     points: list[ScorePoint], statuses: list[AttendanceStatus], today: date | None = None
 ) -> StudentMetrics:
     """Same as :func:`compute` but over plain values, so bulk callers can skip ORM hydration."""
-    today = today or date.today()
-    m = StudentMetrics(scores=_sort(points))
+    today = today or school_today()
+    m = StudentMetrics(as_of=today, scores=_sort(points))
     due = [s for s in m.scores if s.due_date <= today]
     graded = [s for s in due if s.pct is not None]
 
@@ -109,10 +116,14 @@ def compute_from(
     if by_kind:
         weights = {k: KIND_WEIGHTS[k] for k in by_kind}
         total_w = sum(weights.values())
-        m.average = sum(
-            weights[k] / total_w * (sum(s.points for s in v) / sum(s.max_points for s in v) * 100)
-            for k, v in by_kind.items()
-        )
+        contributions = []
+        for kind, scores in by_kind.items():
+            maximum = sum(score.max_points for score in scores)
+            # Divide before adding raw points so finite extra credit cannot
+            # overflow the numerator when several scores approach float limits.
+            category = sum(score.points / maximum * 100 for score in scores)
+            contributions.append(weights[kind] / total_w * category)
+        m.average = sum(contributions)
         m.letter, m.gpa = letter_and_gpa(m.average)
 
     if len(graded) >= 4:
@@ -136,6 +147,10 @@ def compute_from(
 
 
 def _assess_risk(m: StudentMetrics) -> None:
+    if all(v is None for v in (m.average, m.attendance_rate, m.homework_rate, m.trend)):
+        m.risk = "unknown"
+        m.risk_reasons = []
+        return
     points, why = 0, []
     if m.average is not None:
         if m.average < 65:
@@ -164,7 +179,14 @@ def _assess_risk(m: StudentMetrics) -> None:
 
 def fingerprint(student: Student, m: StudentMetrics) -> str:
     """Stable hash of everything an AI insight depends on, to cache it until the data moves."""
-    parts = [student.name, str(student.grade_level), f"{m.average}", f"{m.attendance_rate}", f"{m.homework_rate}"]
-    parts += [f"{s.assessment_id}:{s.points}" for s in m.scores]
-    parts += [n.id for n in student.notes]
-    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
+    # Include record text as well as aggregates: renamed assignments, notes, section moves,
+    # and tardies can change the prompt without changing averages or score IDs.
+    record = {
+        "name": student.name,
+        "grade_level": student.grade_level,
+        "section": [student.section_id, student.section.name, student.section.course.name],
+        "metrics": asdict(m),
+        "notes": [(n.id, n.body, n.created_at.isoformat()) for n in student.notes],
+    }
+    serialized = json.dumps(record, sort_keys=True, default=str, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode()).hexdigest()[:32]

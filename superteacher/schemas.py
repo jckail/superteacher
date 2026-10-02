@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import unicodedata
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
+from .calendar import school_today
 from .models import AssessmentKind, AttendanceStatus
 
-Risk = str  # on_track | watch | at_risk
+Risk = Literal["unknown", "on_track", "watch", "at_risk"]
+RosterSort = Literal["name", "section", "average", "trend", "attendance_rate", "homework_rate", "risk"]
+RosterDirection = Literal["asc", "desc"]
+
+
+class CalendarOut(BaseModel):
+    timezone: str
+    today: date
 
 
 def _scrub_surrogates(v):
@@ -78,6 +86,7 @@ class CourseOut(ORM):
 
 class CourseIn(BaseModel):
     name: _text(120)
+    initial_section_name: _text(60) | None = None
 
 
 class SectionIn(BaseModel):
@@ -124,6 +133,14 @@ class StudentSummary(BaseModel):
     risk_reasons: list[str]
 
 
+class StudentPage(BaseModel):
+    items: list[StudentSummary]
+    next_cursor: str | None
+    as_of: date
+    total_matches: int
+    total_scoped: int
+
+
 class ScoreOut(BaseModel):
     assessment_id: str
     title: str
@@ -132,6 +149,20 @@ class ScoreOut(BaseModel):
     max_points: float
     points: float | None
     pct: float | None
+
+
+class GradeHistorySection(BaseModel):
+    section_id: str
+    section: str
+    course_id: str
+    course: str
+    scores: list[ScoreOut]
+
+
+class GradeHistory(BaseModel):
+    student_id: str
+    active_section_id: str
+    sections: list[GradeHistorySection]
 
 
 class AttendanceOut(ORM):
@@ -150,6 +181,7 @@ class NoteIn(BaseModel):
 
 
 class StudentDetail(StudentSummary):
+    as_of: date
     scores: list[ScoreOut]
     attendance: list[AttendanceOut]
     absences: int
@@ -162,7 +194,21 @@ class AssessmentIn(BaseModel):
     title: _text(120)
     kind: AssessmentKind = AssessmentKind.test
     max_points: Num = Field(default=100, gt=0, le=1_000_000, allow_inf_nan=False)
-    due_date: date = Field(default_factory=date.today)
+    due_date: date = Field(default_factory=school_today)
+
+
+class AssessmentPatch(BaseModel):
+    title: _text(120) | None = None
+    kind: AssessmentKind | None = None
+    max_points: Num | None = Field(default=None, gt=0, le=1_000_000, allow_inf_nan=False)
+    due_date: date | None = None
+
+    @model_validator(mode="after")
+    def _no_explicit_null(self):
+        for key in self.model_fields_set:
+            if getattr(self, key) is None:
+                raise ValueError(f"{key} cannot be null")
+        return self
 
 
 class AssessmentOut(ORM):
@@ -192,6 +238,7 @@ class GradebookRow(BaseModel):
 
 
 class Gradebook(BaseModel):
+    as_of: date
     section: SectionOut
     assessments: list[AssessmentOut]
     rows: list[GradebookRow]
@@ -204,7 +251,7 @@ class AttendanceMark(BaseModel):
 
 
 class AttendanceIn(BaseModel):
-    day: date = Field(default_factory=date.today)
+    day: date = Field(default_factory=school_today)
     marks: list[AttendanceMark] = Field(max_length=MAX_BATCH)
 
 
@@ -222,12 +269,15 @@ class AttendanceSheet(BaseModel):
 
 # ── overview ────────────────────────────────────────────────────────────
 class Overview(BaseModel):
+    as_of: date
     students: int
     average: float | None
     attendance_rate: float | None
     homework_rate: float | None
     at_risk: int
     watch: int
+    on_track: int
+    unknown: int
     distribution: dict[str, int]  # letter band -> count
     attention: list[StudentSummary]
 
