@@ -963,3 +963,25 @@ and `5e9f7cd6`. Root fast-forwarded the working branch and verified all 49 relat
 file links in the merged checkout. Their changes are documentation only; the
 source257 candidate artifact stays frozen. A focused follow-up clarifies the
 ADR accounts migration numbering and links the offline adoption procedure.
+
+## Prepared synthetic candidate verifier (2026-10-02)
+
+The new private adapter preserves the canonical verifier's staging-only host guard
+and loads its exact accepted source257 archive member. Root's first local test
+run demonstrated the archive-reader failure and a separate mocking error:
+12 of 14 cases passed; neither failed case made a cloud call. The corrected
+adapter retains bounded, owned, stable, single-link archive bytes and validates
+their hash before reading the pinned member. Original creator, continuation
+helper, manifest and failure evidence remain unchanged.
+
+Root passed all 21 pure-local cases in 0.152s; independent scoped re-review
+approved SPEC/QUALITY without remaining findings. Tests cover archive aliases
+and changes, proof bindings, missing-proof refusal before authentication/phase
+creation, request origin and method limits, response/call bounds and exclusive
+partial receipt preservation. Adapter SHA256 is
+`128a7c3f02e77ad482070e4d174d0bd8708ca375a65b0a18f8fe3c32caa4b947`.
+No synthetic runtime phase has executed: actual successful continuation evidence
+is still absent after admission75. Next gates remain read-only private-platform
+acceptance, bounded synthetic workflows, isolated restore/integrity verification,
+production lineage/adoption, writer drain and compatible rollback, real email
+and domain cutover. The original overhaul goal remains unfinished.
