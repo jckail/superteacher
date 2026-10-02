@@ -13,7 +13,19 @@ request completion leaves focus alone and cannot reach a new student/tone/sectio
 or authenticated lifecycle. Independent task and complete-branch reviews approve
 SPEC/QUALITY. Root final focused checks passed 71 tests across five files in
 8.26s, types/lint/diff; combined integration passed 40 tests across three files
-in 8.31s and TypeScript. Exact combined CI and runtime acceptance remain pending.
+in 8.31s and TypeScript. Published source `11249217e32bd299179d930a2e252ecf0f0e9cb4` passed exact
+[CI37043235047](https://github.com/jckail/superteacher/actions/runs/37043235047):
+all seven jobs succeeded, including 1399 API tests in 186.91s, 342 web tests
+across 27 files, four browser tests in 14.2s, 84 E2E tests in 1.5 minutes and
+259 locked Docker cases in 33.89s; lint/types/build/benchmark passed. Root
+captured actual metadata/full private logs; CI-state SHA256 is
+`ad2c5e0216857cac3046a1bba9d08d17e7b16ba6718ec37023eec08ab11f57a0`.
+Independent immutable archive/context/helper review and root validate passed.
+Archive SHA256 `2d2e3b3d97ba7844a8f724f93bd9f4ff7fe205d3f6418a9b833d0c8321b73690`
+contains 323 entries/294 files with reviewed modes. Protected build session56016
+exited75 before the helper began: no intent, image or cloud mutation exists.
+Preserve its private blocker and do not retry unchanged. Runtime acceptance remains
+pending; source CI does not establish a deployed image.
 
 Reviewed PR69 offline evaluator (`90a849f`) and PR70 export focus (`241939f`) are
 also integrated locally. Each head passed independent review and all seven CI
@@ -33,7 +45,7 @@ was independently approved and actual CI proof captured; no Cloud Build or
 runtime deployment was executed for that intermediate source. Build the settled
 latest combined candidate after its own exact CI instead.
 
-Current shared staging remains the observed fe2 `00009-bcw`, preserved with its
+The latest root staging snapshot records fe2 `00009-bcw`, preserved with its
 qualified receipts/original feature failure. A separate create-only private
 candidate is being prepared. Root read-only preflight established operator
 create/read/invoke permissions, exact runtime actAs, no project public invocation
@@ -45,10 +57,17 @@ and restore still require execution. No candidate service was created by these
 probes. Preserve all prior queue75 and failure receipts without unchanged retries.
 
 Shared Graphify refreshed successfully (164506 nodes) but excludes native
-Superteacher source. Exact code-context catalog confirms absent indexes; earlier
-notes index75 was not retried; live text discovery works, semantic/LSP MCP tools
-are absent in this session. Agent Hub has no configured project scope; AgentMon
-is not exposed here. Curated local/Git checkpoints preserve these gaps.
+Superteacher source. Canonical code-context indexing completed under its internal shared gate
+(session55212): 201 files, 1744 chunks, no warnings. Semantic ParentComposer/Insight
+and keyword evaluator/Attendance lookups returned correct current paths; five
+changed source files match their indexed SHA256s. Sibling indexes remain absent;
+earlier notes index75 was not retried. Semantic CLI and live text discovery work;
+Codemogger/LSP MCP are absent from this session and Toolport profile. Agent Hub
+has no configured project scope. AgentMon gateway discovery returned no tools;
+its dashboard responded200 but registration/heartbeat/feed were not performed. Curated local/Git checkpoints preserve these gaps.
+PR69 later advanced to reviewed `2582d8c` (typographic-apostrophe normalization
+and scorer hashes); its exact CI passed, but frozen112 contains original90 only.
+That nonurgent delta remains a separate integration batch; PR70 is merged.
 Remaining priorities: Attendance scoped Insight/summary invalidation; independent
 artifact input-day/timestamps/prompt versions; full grading policies; native
 production adoption/drain/rollback/domain cutover; dedicated IAM and real
