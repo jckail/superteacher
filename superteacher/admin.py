@@ -188,6 +188,36 @@ def _identifier(value: str) -> str:
     return value
 
 
+def _limit(value: str) -> int:
+    try:
+        limit = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Limit must be an integer between 1 and 1000.") from exc
+    if not 1 <= limit <= 1000:
+        raise argparse.ArgumentTypeError("Limit must be an integer between 1 and 1000.")
+    return limit
+
+
+def _list_users(conn: sqlite3.Connection, *, limit: int, after: str | None) -> dict:
+    where = "id != ?"
+    parameters: list = [PASSCODE_OWNER_ID]
+    if after is not None:
+        where += " AND id > ?"
+        parameters.append(after)
+    parameters.append(limit + 1)
+    with closing(
+        conn.execute(
+            "SELECT id,email,disabled,created_at,last_login_at FROM users WHERE " + where + " ORDER BY id LIMIT ?",
+            tuple(parameters),
+        )
+    ) as cursor:
+        rows = cursor.fetchall()
+    users = [dict(row) for row in rows[:limit]]
+    for user in users:
+        user["disabled"] = bool(user["disabled"])
+    return {"users": users, "next_cursor": users[-1]["id"] if len(rows) > limit else None}
+
+
 def _day(value: str) -> str:
     try:
         parsed = date.fromisoformat(value)
@@ -202,7 +232,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", required=True, type=Path, help="Existing native-head SQLite file; no env default")
     commands = parser.add_subparsers(dest="action", required=True)
-    commands.add_parser("list", help="List account IDs, email addresses, state and timestamps (private output)")
+    listing = commands.add_parser(
+        "list", help="List account IDs, email addresses, state and timestamps (private output)"
+    )
+    listing.add_argument("--limit", type=_limit, default=100, help="Page size: 1-1000 (default: 100)")
+    listing.add_argument("--after", type=_identifier, help="Continue after this account ID, not an email address")
     usage = commands.add_parser("usage", help="Inspect used counts only; limits come from runtime configuration")
     usage.add_argument("user_id", type=_identifier)
     usage.add_argument("--day", type=_day, default=datetime.now(UTC).date().isoformat())
@@ -216,16 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         database, conn = _open_database(args.database, writable=args.action in MUTATIONS)
         with closing(conn):
             if args.action == "list":
-                users = [
-                    dict(row)
-                    for row in conn.execute(
-                        "SELECT id,email,disabled,created_at,last_login_at FROM users WHERE id != ? ORDER BY id",
-                        (PASSCODE_OWNER_ID,),
-                    )
-                ]
-                for user in users:
-                    user["disabled"] = bool(user["disabled"])
-                result = {"users": users}
+                result = _list_users(conn, limit=args.limit, after=args.after)
             elif args.action == "usage":
                 _user(conn, args.user_id)
                 used = {"chat": 0, "insight": 0, "parent_update": 0}

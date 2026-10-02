@@ -24,7 +24,23 @@ python -m superteacher.admin --database /verified/path/superteacher.db usage ACC
 
 Replace the path and ID with verified values; these are examples, not deployment commands.
 `list` prints account IDs, **email addresses**, disabled state and UTC timestamps. Keep stdout private;
-do not paste it into public tickets or CI logs. The implicit shared-passcode owner is excluded.
+do not paste it into public tickets or CI logs. The implicit shared-passcode owner is excluded. Each invocation returns a JSON object with
+`users` and `next_cursor`. The default page contains at most 100 accounts; `--limit` accepts
+1-1000. If `next_cursor` is non-null, supply that exact account ID with `--after` on the next call:
+
+```sh
+python -m superteacher.admin --database /verified/path/superteacher.db list --limit 100 --after ACCOUNT_ID
+```
+
+Accounts are ordered by ID, not email. The cursor accepts the same 1-64 character ASCII ID syntax
+as mutation targets; it need not name a surviving account. A final or empty page has
+`next_cursor: null`; no total count is calculated. Each query fetches at most `limit + 1` rows.
+Pages are live reads without a shared snapshot: an insertion with an ID after the cursor may appear
+later, an insertion at or before it is missed, and a deleted account disappears. Deleting the cursor
+account does not invalidate continuation. Restart the listing if a fresh traversal is needed; even
+that traversal does not promise a snapshot. Treat cursor IDs and all account output as private;
+never use an email address as a cursor.
+
 `usage` prints the target account's used counts for `chat`, `insight` and `parent_update` on a UTC day
 (today by default). Counts include failed model attempts when the service has charged them. This
 command does not infer configured limits or remaining allowance: inspect the serving revision's
