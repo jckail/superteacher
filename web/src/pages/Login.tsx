@@ -1,10 +1,11 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { api, ApiError } from '../api';
 import DemoNoticeLink from '../components/DemoNoticeLink';
 import '../login.css';
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
+  const errorId = useId();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,13 +30,14 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
         <div className="brand"><span className="brand-mark">🦸</span> Super Teacher</div>
         <h1>Sign in</h1>
         <p className="muted" style={{ margin: 0 }}>Enter the shared passcode to continue.</p>
-        <form onSubmit={submit}>
+        <form onSubmit={submit} aria-busy={busy}>
           <label>
             Passcode
             <input className="input" type="password" autoComplete="current-password" autoFocus required
+              aria-describedby={error ? errorId : undefined}
               value={password} onChange={(e) => setPassword(e.target.value)} />
           </label>
-          {error && <div className="error" role="alert">{error}</div>}
+          {error && <div id={errorId} className="error" role="alert">{error}</div>}
           <button className="btn primary" type="submit" disabled={busy || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
         <DemoNoticeLink />

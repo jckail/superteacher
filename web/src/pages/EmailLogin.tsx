@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api } from '../api';
 import DemoNoticeLink from '../components/DemoNoticeLink';
@@ -8,6 +8,7 @@ const COOLDOWN = 60;
 
 /** Accounts mode: ask for an email, then show a "check your email" state with a rate-limit-aware resend. */
 export default function EmailLogin() {
+  const errorId = useId();
   const [email, setEmail] = useState('');
   const [sentTo, setSentTo] = useState('');
   const [error, setError] = useState('');
@@ -52,7 +53,7 @@ export default function EmailLogin() {
             If <strong>{sentTo}</strong> can receive mail, a sign-in link is on its way. It works once and expires in 15 minutes.
           </p>
           <p className="muted" style={{ margin: 0 }}>Nothing arrived? Check spam, or send another link.</p>
-          {error && <div className="error" role="alert">{error}</div>}
+          {error && <div id={errorId} className="error" role="alert">{error}</div>}
           <button type="button" className="btn" disabled={busy || wait > 0} onClick={() => request(sentTo)}>
             {busy ? 'Sending…' : wait > 0 ? `Send again in ${wait}s` : 'Send the link again'}
           </button>
@@ -74,13 +75,14 @@ export default function EmailLogin() {
         <p className="demo-note" style={{ margin: 0 }}>
           This is a demo with <strong>synthetic data only</strong>. Don&apos;t enter real student information.
         </p>
-        <form onSubmit={submit}>
+        <form onSubmit={submit} aria-busy={busy}>
           <label>
             Email address
             <input className="input" type="email" name="email" autoComplete="email" autoFocus required disabled={busy} maxLength={254}
+              aria-describedby={error ? errorId : undefined}
               value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
-          {error && <div className="error" role="alert">{error}</div>}
+          {error && <div id={errorId} className="error" role="alert">{error}</div>}
           <button className="btn primary" type="submit" disabled={busy || !email.trim()}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
         </form>
         <DemoNoticeLink />
