@@ -1,0 +1,14 @@
+name: Feature or improvement
+description: An idea for Super Teacher
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Who needs this and why, description: "The teacher task or pain point. One or two sentences." }
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes: { label: Proposal }
+  - type: textarea
+    id: done
+    attributes: { label: Done when, description: "Observable acceptance criteria." }

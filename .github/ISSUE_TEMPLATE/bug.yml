@@ -1,0 +1,14 @@
+name: Bug
+description: Something is wrong or broken
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: "What you saw vs. what you expected. Include the page or endpoint." }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: How to reproduce, description: "Steps, and whether it is production, staging or local." }
+  - type: textarea
+    id: evidence
+    attributes: { label: Evidence, description: "Request id (X-Request-ID), log line, screenshot. Never paste real student data, passcodes, tokens or API keys." }

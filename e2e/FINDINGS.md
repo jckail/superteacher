@@ -15,6 +15,7 @@ The old browser UTC/server-local mismatch is addressed by the configured IANA sc
 ## Open or mitigated findings
 
 ### 2. Removing a student logs two 404s in the console and briefly refetches a deleted record
+**Resolved** (polish PR): the delete handler removes the student's own queries before invalidating; the 404 console allowance is gone from `student.spec.ts`.
 - Page: `/students/:id` -> "Remove student" -> confirm.
 - Where: `web/src/pages/Student.jsx:69` (`onSuccess: () => { qc.invalidateQueries(); ...; nav('/roster'); }`).
 - Cause: `invalidateQueries()` refetches the still-mounted `['student', id]` and `['insight', id]` queries before the route changes; both 404.
@@ -31,6 +32,7 @@ The old browser UTC/server-local mismatch is addressed by the configured IANA sc
   Then delete `allowConsole(/status of 404/)` from `specs/student.spec.ts`.
 
 ### 4. `heading-order` (moderate, best-practice): empty states skip from h1 to h3
+**Resolved** (polish PR): `EmptyState` renders an `h2`.
 - Pages: `/roster`, `/gradebook`, `/attendance` when a section has no students (axe label `empty:*`; 3 pages x 4 viewport/theme combinations = 12).
 - Selector: `.card.empty > h3`; `web/src/components/ui.jsx:68` (`<h3>{title}</h3>`).
 - Patch: `<h2>{title}</h2>` (CSS `.empty h3` selector at `styles.css` then needs `.empty h2`/`h3`).

@@ -58,3 +58,26 @@ def test_httpx_is_a_declared_runtime_dependency():
 
 def test_calendar_and_postgresql_runtime_dependencies_remain_declared():
     assert {"tzdata", "psycopg"} <= declared()
+
+
+def _locked() -> set[str]:
+    return {
+        m.group(1).lower().replace("_", "-")
+        for m in re.finditer(r"^([A-Za-z0-9_.-]+)==", (ROOT / "requirements.lock").read_text(), re.MULTILINE)
+    }
+
+
+def test_every_declared_requirement_is_pinned_with_hashes_in_the_lock():
+    lock = (ROOT / "requirements.lock").read_text()
+    missing = declared() - _locked()
+    assert not missing, (
+        f"requirements.txt lists packages that requirements.lock does not pin: {missing}. Run scripts/update_lock.sh"
+    )
+    pins = len(re.findall(r"^[A-Za-z0-9_.-]+==", lock, re.MULTILINE))
+    assert pins and lock.count("--hash=sha256:") >= pins  # every pin carries at least one hash
+
+
+def test_the_image_installs_from_the_lock_with_hash_checking_and_never_seeds_demo_data():
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "pip install --require-hashes --no-deps -r requirements.lock" in dockerfile
+    assert "ENV SEED_DEMO_DATA=false" in dockerfile
