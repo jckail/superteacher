@@ -5,10 +5,10 @@ verification. The native overhaul is merged and isolated staging is deployed;
 this release operator has not changed production traffic or custom-domain mappings. Private
 backup artifacts stay outside Git and hosted project memory.
 
-Latest verified source is `fbaf3a6` (all seven combined CI jobs passed).
+Latest verified source is `2bf9a5c` (all seven combined CI jobs passed).
 The latest successful immutable build is sourcefbaf; the existing private
 candidate is frozen at source257 with runtime acceptance still pending.
-See [the latest integration checkpoint](#account-pagination-and-assessment-analysis-integrated-2026-10-02)
+See [the latest integration checkpoint](#score-field-accessibility-integrated-2026-10-02)
 and [candidate verification](#prepared-synthetic-candidate-verifier-2026-10-02).
 
 ## Attendance report freshness follow-up (2026-10-02)
@@ -1179,9 +1179,37 @@ stages. Those tests use invented responses and temporary receipts; they create
 no actual platform, synthetic, feature or restore proof. Genuine continuation
 and canonical synthetic receipts are required before its runtime phase.
 
-PR80 score-field accessibility is a separate unmerged batch. Its initial head
+At the frozen fbaf artifact checkpoint, PR80 score-field accessibility was a
+separate unmerged batch. Its initial head
 failed mobile E2E because the gradebook expanded the page horizontally. The
-author owns the correction and exact-head requalification; the frozen fbaf
-artifact excludes that change. Production lineage adoption, writer drain,
+author subsequently corrected and qualified it in the checkpoint below; the
+frozen fbaf artifact excludes that change. Production lineage adoption, writer drain,
 restore, rollback, provider/SMTP, domain and actual assistive-technology gates
 remain open. No production traffic or domain mapping was changed here.
+
+## Score-field accessibility integrated (2026-10-02)
+
+PR80 corrected head `3ba8d2482fb2dd9399089accf93332d01187ce7f` passed
+independent root and source-peer SPEC/QUALITY reviews, all seven exact
+[CI37066046367](https://github.com/jckail/superteacher/actions/runs/37066046367)
+jobs and Bugbot before merge `2bf9a5c48be474e3d7c945f7d2db56c62e6ec654`.
+Each gradebook score input now has its own stable maximum, blank-score and
+extra-credit description, plus field-associated invalid feedback. Warning status
+identifies the student and assignment. Saving, navigation, rollback and numeric
+validation are preserved. The author qualified29 focused tests plus lint/types.
+
+The initial head failed existing mobile E2E because absolute screen-reader text
+escaped the scrolling table's containing block. A relative inline-block wrapper
+contains that text; corrected mobile E2E passes. The original failed run remains
+preserved. Actual screen-reader acceptance and the broader JCK-71 audit stay open.
+
+Combined-main [CI37066616144](https://github.com/jckail/superteacher/actions/runs/37066616144)
+passed all seven jobs, including1585 API tests in179.28s and259 Docker tests
+in32.57s. Root captured private metadata/full logs; CI-state SHA256 is
+`31075cb4d96d8e63618dc4faade6bcaadca273f28d33de51b6b2fd3625b256b9`.
+Source2bf is qualified source; the latest successful immutable image remains
+sourcefbaf `sha256:203afd66dcb5e9bdb8f193915176002bf9c372aa4fc9cdd3525b3f5bbe797ba8`.
+No image or runtime promotion is claimed for the new source. The frozen257
+candidate and its genuine continuation/synthetic/restore prerequisites are
+unchanged. Insight cutoff/refresh work under JCK-70 is a subsequent isolated
+iteration; broader teacher-confirmed intervention plans remain open.
