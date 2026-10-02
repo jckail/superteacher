@@ -40,6 +40,7 @@ from sqlalchemy.exc import IntegrityError
 
 from . import accounts, mailer
 from .accounts import CurrentUser
+from .client_address import rate_limit_client
 from .config import Settings
 from .models import OWNER_EMAIL, OWNER_ID, AuthSession, User
 
@@ -316,8 +317,8 @@ def _accounts_only(st: AuthState) -> None:
         raise HTTPException(404, "Not Found")
 
 
-def _ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+def _ip(request: Request, st: AuthState) -> str:
+    return rate_limit_client(request, trusted_hops=st.settings.auth_forwarded_for_trusted_hops)
 
 
 @router.get("/config")
@@ -339,7 +340,7 @@ def login(body: LoginBody, request: Request, response: Response):
         raise HTTPException(404, "Not Found")
     if st.disabled:
         return {"authenticated": True, "auth_required": False}
-    client = _ip(request)
+    client = _ip(request, st)
     wait = st.retry_after(client)
     if wait:
         raise HTTPException(429, f"Too many attempts. Try again in {wait}s.", headers={"Retry-After": str(wait)})
@@ -413,7 +414,7 @@ def request_link(body: RequestLinkBody, request: Request, background: Background
     transferred = False
     try:
         s = st.settings
-        ip = _ip(request)
+        ip = _ip(request, st)
         for window, key in ((st.link_ip, ip), (st.link_global, "*")):
             if not window.allow(key):
                 wait = window.retry_after(key)
@@ -472,7 +473,7 @@ def verify(body: VerifyBody, request: Request, response: Response):
     st = _state(request)
     _csrf(request, st)
     _accounts_only(st)
-    if not st.verify_ip.allow(accounts.hash_ip(st.key, _ip(request))):
+    if not st.verify_ip.allow(accounts.hash_ip(st.key, _ip(request, st))):
         raise HTTPException(429, "Too many attempts. Try again later.", headers={"Retry-After": "600"})
     bad = HTTPException(400, "This sign-in link is invalid or has expired. Request a new one.")
     with request.app.state.session_factory() as db:

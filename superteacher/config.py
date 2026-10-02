@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     auth_password: str | None = None
     # Explicit opt-out for local development / tests. Never the implicit default.
     auth_disabled: bool = False
+    # 0 = Uvicorn's request.client. Positive = verified proxy-appended XFF suffix
+    # length, including the client address; configure only after ingress review.
+    auth_forwarded_for_trusted_hops: int = Field(default=0, ge=0, le=8)
     # HMAC key for session cookies. If unset, one is generated and persisted next to the SQLite file
     # (or kept in memory with a warning when the DB is not file based).
     session_secret: str | None = None
