@@ -78,6 +78,74 @@ jobs:
       - name: Reproduce private release archive directory permissions
         run: find superteacher alembic -type d -exec chmod 0700 {} +
       - run: docker build -t superteacher:ci .
+      - name: Verify built runtime version, imports and non-root user
+        run: |
+          docker run --rm -i --entrypoint python superteacher:ci - <<'PY'
+          import importlib
+          import importlib.metadata
+          import json
+          import os
+          import sqlite3
+          import ssl
+          import sys
+
+          assert sys.version_info[:3] == (3, 12, 15), sys.version
+          assert os.getuid() == 10001, os.getuid()
+          for name in ("fastapi", "sqlalchemy", "psycopg", "anthropic", "uvicorn"):
+              importlib.import_module(name)
+          print(json.dumps({
+              "python": sys.version,
+              "uid": os.getuid(),
+              "openssl": ssl.OPENSSL_VERSION,
+              "sqlite": sqlite3.sqlite_version,
+              "packages": sorted(
+                  (distribution.metadata["Name"], distribution.version)
+                  for distribution in importlib.metadata.distributions()
+              ),
+          }, sort_keys=True))
+          PY
+      - name: Check focused compatibility on the built Python runtime
+        timeout-minutes: 5
+        run: |
+          docker run --rm -i --entrypoint sh \
+            --mount "type=bind,source=$PWD/tests,target=/app/tests,readonly" \
+            --workdir /app -e AUTH_DISABLED=true superteacher:ci -s <<'SH'
+          set -eu
+          runtime_test_dir=$(mktemp -d)
+          trap 'rm -rf "$runtime_test_dir"' EXIT
+          python -m pip freeze --all > "$runtime_test_dir/constraints.txt"
+          python - "$runtime_test_dir/production.json" <<'PY'
+          import importlib.metadata
+          import json
+          import sys
+
+          with open(sys.argv[1], "w") as output:
+              json.dump({d.metadata["Name"]: d.version for d in importlib.metadata.distributions()}, output)
+          PY
+          python -m venv --system-site-packages --without-pip "$runtime_test_dir/venv"
+          "$runtime_test_dir/venv/bin/python" -m pip install \
+            --constraint "$runtime_test_dir/constraints.txt" 'pytest>=8'
+          "$runtime_test_dir/venv/bin/python" - "$runtime_test_dir/production.json" <<'PY'
+          import importlib.metadata
+          import json
+          import os
+          import sys
+
+          assert sys.version_info[:3] == (3, 12, 15), sys.version
+          assert os.getuid() == 10001, os.getuid()
+          with open(sys.argv[1]) as source:
+              expected = json.load(source)
+          for name, version in expected.items():
+              actual = importlib.metadata.version(name)
+              assert actual == version, (name, version, actual)
+          print(f"Verified {len(expected)} production package versions unchanged in test environment")
+          PY
+          "$runtime_test_dir/venv/bin/python" -m pytest -q -p no:cacheprovider \
+            --basetemp "$runtime_test_dir/pytest" \
+            tests/test_security_injection.py tests/test_accounts_tokens.py \
+            tests/test_legacy_archive_viewer.py tests/test_legacy_archive_import.py \
+            tests/test_export_streaming.py tests/test_account_export_streaming.py
+          SH
       - name: Smoke test the image (auth on, health public, API gated)
         run: |
           docker run -d --name st -p 8080:8080 -e AUTH_PASSWORD=ci-secret -e SEED_DEMO_DATA=false superteacher:ci
