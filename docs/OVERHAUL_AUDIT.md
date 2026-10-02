@@ -240,3 +240,45 @@ aggregation fix; 19 backup cases, nine scale/tenant attack cases, 45 quota/groun
 cases and 13 tool-scale cases passed. The new candidate script records synthetic
 writes in a private receipt and supports readback after a separate isolated restore.
 Its syntax/contract checks do not establish a deployment; no live run occurred.
+
+
+### Verified merge and isolated staging release
+
+PR15 merged as8ceb050 after all six required CI gates passed for7166813; API963
+passed/oneknownxfail. Merged-main CI36971521702 also passed. CloudBuild8e3a2ff4
+succeeded and its immutable digest was deployed as isolated staging00001-7kx.
+Health/readiness/auth/calendar/version/SPA/logout and synthetic CRUD/precise extra
+credit/transfer history/active metrics all passed. Exact artifact, URL, version map
+and private receipt locations are recorded in DEPLOYMENT_STATUS.md. Public domain
+still reportsv0.1.0; existing direct service remainsdae26a5. No productioncutover.
+
+Bugbot's FK/autobegin warning was reproduced as a false positive: SQLAlchemy
+logical transactions differ from SQLite physical transactions for PRAGMA reads.
+Nine focused physical-transaction/file-preservation/startup/CLI cases passed;
+runtime source was unchanged. Added regression coverage is being committed with
+this evidence. Operator-endpoint review found no global backup/seed/reset/debug
+HTTP routes; accounts cannot access global metrics without the operator bearer.
+Five focused route/export/metrics cases and transient accounts probes passed.
+
+Remaining release work: inspect the existing recovery-only execution (do not
+launch duplicate retries), verify replica-restored synthetic records, obtain and
+validate a private consistent production backup/adopted copy, coordinate writer
+drain, preserve legacy domain data, and perform the final domain cutover. Production
+passwordless email/provider/owner settings, least-privilege runtime identity,
+academic terms/grading policy, true API pagination, bounded large exports and
+real-provider evaluation remain open under the original active overhaul goal.
+
+Staged replica recovery succeeded in execution9jlsw: integrity/FKs/native0003,
+synthetic transfer metadata and exact grades all verified in a fresh copy.
+Subsequent candidate receipt readback passed. Production-copy adoption rehearsal
+execution5wggt is pending; it is read/restore/clone-only, with no serving writes.
+
+Production-copy rehearsal failed closed: first restored sidecars were correctly
+refused; a diagnosed preparation fix uses validated standalone backup. Second
+executionvtgs9 then found genuine schema drift against exact publishedaccounts0002.
+Live DB remained unchanged; schema-only diagnosis is next, before extending mapping.
+Legacy API archive saved privately outsideGit, mode0600 in0700directory; shape,
+identity/reference and repeated-payload checks passed. It is non-atomic and cannot
+prove complete legacyDB preservation. LEGACY_CUTOVER.md records the artifact and
+faithful importer/rollback prerequisites. Preserve records by default; do not infer
+no user data from demo seeding. No production/domain cutover was attempted.

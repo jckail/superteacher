@@ -6,6 +6,56 @@ public health/version/schema inspection. It did not deploy, retrieve secret
 payloads or database contents, send email, or change traffic/resources. The root
 agent owns release execution and verification.
 
+## Verified native staging release
+
+PR15 merged as `8ceb050` from tested source `7166813`. Exact source CI
+[36970806343](https://github.com/jckail/superteacher/actions/runs/36970806343)
+and merged-main CI
+[36971521702](https://github.com/jckail/superteacher/actions/runs/36971521702)
+passed every release gate. Source API evidence: **963 passed, one known xfail**.
+
+Cloud Build `8e3a2ff4-19a1-421d-a0e8-c0de66687f29` succeeded. Image:
+`gcr.io/portfolio-383615/superteacher@sha256:5d3c85dfb754bf5382ca7f196d86b108d878c2a85ccf2425702d22b0df7bcde6`.
+Its exposed VERSION is the build ID, mapped to source `7166813`; it is not a Git SHA.
+
+Isolated service `superteacher-overhaul-staging`, revision
+`superteacher-overhaul-staging-00001-7kx`, is deployed at
+https://superteacher-overhaul-staging-vbufkr2qma-uc.a.run.app.
+It uses a separate replica prefix
+`overhaul-staging/8e3a2ff4-19a1-421d-a0e8-c0de66687f29`, demo/AI disabled,
+UTC calendar, passcode auth, max one instance and no minimum instances.
+Health, readiness, actual login/calendar/version/SPA/logout passed. The reusable
+candidate check passed synthetic course/initial-section/student/assessment/note/
+attendance creation, exact raw 20.123456789/10, name edit, transfer/history,
+active-section averages, rosters and authenticated logout. Private credentials and
+receipts remain outside Git, mode0600; values are not included here.
+
+Recovery-only job `superteacher-overhaul-recovery-8e3a2ff4`, execution
+`superteacher-overhaul-recovery-8e3a2ff4-9jlsw`, restores the isolated prefix into a
+fresh transient SQLite copy and checks the receipt. It overrides the entrypoint,
+never starts the server or replication, and cannot write the serving database.
+Execution succeeded at06:03:56 UTC. Its structured result confirms native0003,
+integrity/FK success and preserved synthetic transfer history/records. The
+candidate receipt readback also passed. This proves the staged replica can restore
+the checked records; it does not prove a production restart or a zero-loss RPO.
+
+A separate rehearsal job `superteacher-overhaul-adoption-8e3a2ff4`, execution
+`superteacher-overhaul-adoption-8e3a2ff4-5wggt`, restores the existing service's
+replica into a private transient copy and runs the adoption bridge there. It never
+starts replication/server or writes the production prefix. The first execution correctly rejected restore-created SQLite sidecars. After
+preparing a validated standalone backup, execution `vtgs9` reached exact-schema
+validation and refused the copy because its schema differs from the frozen
+published accounts0002 baseline. No output copy was published and no live schema
+changed. Schema-only diagnosis is required before extending the adoption mapping;
+do not relax the guard or retry unchanged.
+
+Public recheck after staging: www.the-super-teacher.com reports `v0.1.0`;
+the existing direct superteacher service reports `dae26a5`, revision00006-cjv at
+100% traffic. No production/domain/serving-prefix changes were made. Existing
+accounts-0002 adoption, tested restored copy, single-writer drain and data-preserving
+custom-domain cutover remain required. Request-based CPU may stall background
+replication between requests; the pilot's documented RPO caveat remains.
+
 ## Latest release continuation
 
 Later read-only metadata reported `superteacher-00006-cjv` at 100% traffic,
