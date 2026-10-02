@@ -210,11 +210,6 @@ def test_malformed_login_bodies_are_not_oracles_and_never_500():
             assert r.status_code in (400, 422), body
 
 
-@pytest.mark.xfail(
-    reason="F-03: a lone surrogate in the passcode makes check_password() raise UnicodeEncodeError -> 500 "
-    "(auth.py; patch in docs/SECURITY_REVIEW.md)",
-    strict=False,
-)
 def test_lone_surrogate_passcode_is_a_401_not_a_500():
     with build(raise_server_exceptions=False) as c:
         r = c.post(

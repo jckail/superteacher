@@ -2,9 +2,11 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exception_handlers import request_validation_exception_handler  # noqa: F401
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -33,6 +35,35 @@ def _security_headers() -> dict[str, str]:
         "Cross-Origin-Opener-Policy": "same-origin",
     }
     return h
+
+
+MAX_BODY_BYTES = 4 * 1024 * 1024  # CSV import is capped at 500k characters (<= ~3 MB once JSON-escaped)
+
+
+class BodyLimitMiddleware:
+    """Reject oversized request bodies before they are buffered (the 401 for anonymous callers comes after parsing)."""
+
+    def __init__(self, app, limit: int = MAX_BODY_BYTES):
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        declared = dict(scope["headers"]).get(b"content-length")
+        if declared and declared.isdigit() and int(declared) > self.limit:
+            return await JSONResponse({"detail": "Request body too large"}, status_code=413)(scope, receive, send)
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body", b""))
+                if seen > self.limit:
+                    raise HTTPException(413, "Request body too large")
+            return msg
+
+        return await self.app(scope, limited, send)
 
 
 def create_app(
@@ -66,6 +97,14 @@ def create_app(
         redoc_url=None,
         openapi_url="/api/openapi.json" if docs else None,
     )
+    app.add_middleware(BodyLimitMiddleware)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_request: Request, exc: RequestValidationError):
+        # Drop "input"/"ctx": echoing the offending value can be huge, deeply nested or un-encodable (-> 500).
+        errs = [{"type": e["type"], "loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]
+        return JSONResponse({"detail": errs}, status_code=422)
+
     app.state.session_factory = session_factory
     app.state.auth = auth_state
     app.add_middleware(
@@ -113,6 +152,10 @@ def create_app(
 
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str):
+            if path == "api" or path.startswith("api/"):
+                raise HTTPException(404, "Not Found")  # unknown API routes are JSON 404s, never the SPA shell
+            if "\x00" in path:
+                raise HTTPException(404, "Not Found")
             f = (dist / path).resolve()
             if path and f.is_file() and dist.resolve() in f.parents:
                 return FileResponse(f)
