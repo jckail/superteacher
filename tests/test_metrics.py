@@ -107,3 +107,22 @@ def test_trend_window_and_ties_deterministic():
     ]
     assert compute_from(pts, [], TODAY).trend == pytest.approx(-30)
     assert compute_from(list(reversed(pts)), [], TODAY).trend == pytest.approx(-30)
+
+
+@pytest.mark.parametrize(
+    "average, risk, reason",
+    [
+        (64.999, "at_risk", "Grade average is below the 65% support threshold"),
+        (65, "watch", "Grade average is below the 72% watch threshold"),
+        (71, "watch", "Grade average is below the 72% watch threshold"),
+        (71.999, "watch", "Grade average is below the 72% watch threshold"),
+        (72, "on_track", None),
+    ],
+)
+def test_grade_risk_explains_its_threshold_without_claiming_another_letter(average, risk, reason):
+    point = make_point("risk", "Risk fixture", AssessmentKind.test, TODAY, 100, average)
+    result = compute_from([point], [], TODAY)
+    assert result.average == pytest.approx(average)
+    assert result.letter == letter_and_gpa(average)[0]
+    assert result.risk == risk
+    assert result.risk_reasons == ([] if reason is None else [reason])

@@ -137,7 +137,16 @@ export function ScoreCell({ value, max, onSave, label, onNav, cell = '' }: Score
   );
 }
 
-const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+const mean = (xs: (number | null | undefined)[]) => {
+  const values = xs.filter((x): x is number => x != null);
+  if (!values.length) return null;
+  const sum = values.reduce((total, value) => total + value, 0);
+  if (Number.isFinite(sum)) return sum / values.length;
+  // Accepted finite extra credit can overflow a sum even when its mean is finite.
+  const scale = values.reduce((maximum, value) => Math.max(maximum, Math.abs(value)), 0);
+  const normalized = values.reduce((total, value) => total + value / scale, 0) / values.length;
+  return Math.max(-1, Math.min(1, normalized)) * scale;
+};
 
 export default function Gradebook() {
   const section = useActiveSection();

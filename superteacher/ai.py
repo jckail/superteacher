@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from fractions import Fraction
 from typing import Any
 
 import anthropic
@@ -100,6 +101,13 @@ def client() -> AsyncAnthropic | None:
 
 
 # ── context ─────────────────────────────────────────────────────────────
+@dataclass
+class _SectionContext:
+    students: int = 0
+    summed: Fraction = Fraction()
+    graded: int = 0
+
+
 def build_context_parts(
     db: Session, student_id: str | None = None, *owner_focus: str | None, owner_id: str = OWNER_ID
 ) -> tuple[str, str]:
@@ -112,17 +120,18 @@ def build_context_parts(
     cap = max(1, min(setting_int("chat_roster_cap", 60), 200))
     count = flagged = 0
     counts: Counter = Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})
-    by_sec: dict[str, list[float]] = {}
+    by_sec: dict[str, _SectionContext] = {}
     first_lines: list[str] = []
     attention: list[tuple[tuple, str]] = []
     for s, m in iter_summaries(db, owner_id=owner_id, retain_scores=False, today=as_of):
         count += 1
         counts[m.risk] += 1
-        section = by_sec.setdefault(section_label(s), [0, 0, 0])
-        section[0] += 1
+        section = by_sec.setdefault(section_label(s), _SectionContext())
+        section.students += 1
         if m.average is not None:
-            section[1] += m.average
-            section[2] += 1
+            # Keep finite extra-credit averages finite without retaining roster rows.
+            section.summed += Fraction(m.average)
+            section.graded += 1
         line = student_line(s, m)
         if len(first_lines) < cap:
             first_lines.append(line)
@@ -143,9 +152,9 @@ def build_context_parts(
             "Large roster: showing a summary. "
             "Per-section summary, then only the students needing attention (use find_students for anyone else)."
         )
-        for name, (total, summed, graded) in sorted(by_sec.items()):
-            avg = summed / graded if graded else None
-            out.append(f"- {name}: {int(total)} students" + ("" if avg is None else f", avg {avg:.0f}%"))
+        for name, section in sorted(by_sec.items()):
+            avg = float(section.summed / section.graded) if section.graded else None
+            out.append(f"- {name}: {section.students} students" + ("" if avg is None else f", avg {avg:.0f}%"))
         out += [line for _, line in attention]
         if flagged > cap:
             out.append(f"... and {flagged - cap} more students flagged; use find_students.")

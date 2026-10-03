@@ -155,10 +155,10 @@ def _assess_risk(m: StudentMetrics) -> None:
     if m.average is not None:
         if m.average < 65:
             points += 3
-            why.append(f"Average {m.average:.0f}% is failing")
+            why.append("Grade average is below the 65% support threshold")
         elif m.average < 72:
             points += 2
-            why.append(f"Average {m.average:.0f}% is below C-")
+            why.append("Grade average is below the 72% watch threshold")
     if m.trend is not None and m.trend <= -8:
         points += 2 if m.trend <= -15 else 1
         why.append(f"Recent work is {abs(m.trend):.0f} points below earlier work")

@@ -59,3 +59,47 @@ def test_status_metadata_precedes_untrusted_roster_boundary(client, monkeypatch,
         assert "students flagged" not in body and " (id " not in body
     else:
         assert body.startswith("- ") and body.count("status unknown") == 2
+
+
+@pytest.mark.parametrize(
+    "scores, expected",
+    [([1e308, 1e308], 1e308), ([10, 90], 50), ([None, None], None), ([0, None], 0)],
+)
+def test_section_snapshot_mean_is_finite_and_excludes_ungraded(client, monkeypatch, scores, expected):
+    """The compact AI snapshot must agree with finite accepted gradebook values."""
+    from superteacher.calendar import school_today
+
+    course = client.post("/api/courses", json={"name": "Mean fixture"}).json()
+    section = client.post("/api/sections", json={"course_id": course["id"], "name": "Section"}).json()
+    students = [
+        client.post(
+            "/api/students",
+            json={"name": f"Synthetic {i}", "grade_level": 7, "section_id": section["id"]},
+        ).json()
+        for i in range(len(scores))
+    ]
+    response = client.post(
+        f"/api/sections/{section['id']}/assessments",
+        json={"title": "Due work", "max_points": 100, "due_date": school_today().isoformat()},
+    )
+    assert response.status_code == 201
+    assessment = response.json()["assessments"][0]
+    response = client.put(
+        f"/api/assessments/{assessment['id']}/scores",
+        json={
+            "scores": [
+                {"student_id": student["id"], "points": value} for student, value in zip(students, scores, strict=True)
+            ]
+        },
+    )
+    assert response.status_code == 200
+    monkeypatch.setenv("CHAT_ROSTER_CAP", "1")
+    with client.app.state.session_factory() as db:
+        roster, focus = ai.build_context_parts(db)
+    line = next(line for line in roster.splitlines() if line.startswith("- Mean fixture / Section:"))
+    assert "inf%" not in line and "nan%" not in line
+    expected_line = f"- Mean fixture / Section: {len(scores)} students"
+    if expected is not None:
+        expected_line += f", avg {expected:.0f}%"
+    assert line == expected_line
+    assert focus == ""
