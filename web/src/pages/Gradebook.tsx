@@ -284,8 +284,9 @@ export default function Gradebook() {
       ))}
       {gb && gb.rows.length > 0 && gb.assessments.length > 0 && <SmallGroupBuilder
         gradebook={gb} sectionId={section.id} schoolDay={schoolDay ?? null}
+        calendarRefreshing={calendar.isFetching} schoolTimezone={calendar.data?.timezone ?? null}
         settled={ready && !scopeLoading && !scopeError && !q.isFetching && !q.isPaused && !q.error &&
-          !calendar.isFetching && !calendar.isPaused && !calendar.error && pendingScores === 0 &&
+          !calendar.isPaused && !calendar.error && pendingScores === 0 &&
           !adding && !(editing?.section_id === section.id)}
       />}
       {adding && calendar.data && <NewAssessment schoolDay={calendar.data.today} sectionId={section.id} onClose={() => setAdding(false)} />}

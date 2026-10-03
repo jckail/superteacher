@@ -93,13 +93,13 @@ it('hides cached actions while a real gradebook refresh is pending and failed', 
   expect(builder().queryByRole('checkbox')).not.toBeInTheDocument();
 });
 
-it('withholds cached groups while a real offline query is paused', async () => {
+it.each(['gradebook', 'school-calendar'])('withholds cached groups while a real offline %s query is paused', async query => {
   const { client } = setup(); await plan();
   let done!: Promise<void>;
   try {
     onlineManager.setOnline(false);
-    act(() => { done = client.invalidateQueries({ queryKey: ['gradebook'] }); });
-    await waitFor(() => expect(client.getQueryState(['gradebook', 'class'])?.fetchStatus).toBe('paused'));
+    act(() => { done = client.invalidateQueries({ queryKey: [query] }); });
+    await waitFor(() => expect(client.getQueryState(query === 'gradebook' ? [query, 'class'] : [query])?.fetchStatus).toBe('paused'));
     expect(builder().queryByRole('checkbox')).not.toBeInTheDocument();
   } finally {
     await act(async () => { onlineManager.setOnline(true); await done; });
@@ -121,4 +121,59 @@ it('recomputes current evidence after a successful due-date metadata edit', asyn
   await waitFor(() => expect(builder().getByRole('combobox', { name: 'Due assignment' })).toHaveTextContent('No due assignments'));
   expect(builder().queryByRole('checkbox')).not.toBeInTheDocument();
   expect(builder().queryByRole('region', { name: 'Suggested reteach plan' })).not.toBeInTheDocument();
+});
+
+it('preserves a reviewed plan after a same-day calendar poll while withholding actions during the read', async () => {
+  const { client } = setup(); await plan();
+  const pending = deferred<{ timezone: string; today: string }>();
+  vi.mocked(api).mockImplementation(path => (path === '/calendar' ? pending.promise : Promise.resolve(data)) as never);
+  let done!: Promise<void>;
+  act(() => { done = client.refetchQueries({ queryKey: ['school-calendar'] }); });
+  await waitFor(() => expect(builder().queryByRole('checkbox')).not.toBeInTheDocument());
+  await act(async () => { pending.resolve({ timezone: 'UTC', today: data.as_of }); await done; });
+  await waitFor(() => expect(builder().getByRole('checkbox')).toBeChecked());
+  expect(builder().getByRole('region', { name: 'Suggested reteach plan' })).toHaveTextContent('09:00–09:15');
+});
+
+it.each(['day', 'timezone'] as const)('clears a reviewed plan when a calendar poll changes the %s and does not revive it on restoration', async change => {
+  const { client } = setup(); await plan();
+  const calendar = { timezone: change === 'timezone' ? 'America/Los_Angeles' : 'UTC', today: change === 'day' ? '2026-10-03' : data.as_of };
+  vi.mocked(api).mockImplementation(async path => (path === '/calendar' ? calendar : data) as never);
+  await act(async () => { await client.refetchQueries({ queryKey: ['school-calendar'] }); });
+  if (change === 'day') await waitFor(() => expect(builder().queryByRole('checkbox')).not.toBeInTheDocument());
+  else await waitFor(() => expect(builder().getByRole('checkbox')).not.toBeChecked());
+  vi.mocked(api).mockImplementation(async path => (path === '/calendar' ? { timezone: 'UTC', today: data.as_of } : data) as never);
+  await act(async () => { await client.refetchQueries({ queryKey: ['school-calendar'] }); });
+  await waitFor(() => expect(builder().getByRole('checkbox')).not.toBeChecked());
+  expect(builder().queryByRole('region', { name: 'Suggested reteach plan' })).not.toBeInTheDocument();
+});
+it('a failed calendar poll discards the review even after same-day recovery', async () => {
+  const { client } = setup(); await plan();
+  vi.mocked(api).mockImplementation(path => (path === '/calendar' ? Promise.reject(new Error('Calendar poll failed')) : Promise.resolve(data)) as never);
+  await act(async () => { await client.refetchQueries({ queryKey: ['school-calendar'] }); });
+  await screen.findByText('Calendar poll failed');
+  expect(builder().queryByRole('checkbox')).not.toBeInTheDocument();
+  vi.mocked(api).mockImplementation(async path => (path === '/calendar' ? { timezone: 'UTC', today: data.as_of } : data) as never);
+  await act(async () => { await client.refetchQueries({ queryKey: ['school-calendar'] }); });
+  await waitFor(() => expect(builder().getByRole('checkbox')).not.toBeChecked());
+  expect(builder().queryByRole('region', { name: 'Suggested reteach plan' })).not.toBeInTheDocument();
+});
+it('restores a focused group control after an unchanged poll without stealing a new outside focus', async () => {
+  const { client } = setup(); await plan();
+  async function poll(moveOutside: boolean) {
+    const start = builder().getByLabelText('Available start time (school time)');
+    start.focus(); expect(start).toHaveFocus();
+    const pending = deferred<{ timezone: string; today: string }>();
+    vi.mocked(api).mockImplementation(path => (path === '/calendar' ? pending.promise : Promise.resolve(data)) as never);
+    let done!: Promise<void>;
+    act(() => { done = client.refetchQueries({ queryKey: ['school-calendar'] }); });
+    await waitFor(() => expect(builder().queryByRole('checkbox')).not.toBeInTheDocument());
+    const outside = screen.getByRole('textbox', { name: 'Ben, Quiz' });
+    if (moveOutside) outside.focus();
+    await act(async () => { pending.resolve({ timezone: 'UTC', today: data.as_of }); await done; });
+    await waitFor(() => expect(builder().getByRole('checkbox')).toBeChecked());
+    if (moveOutside) expect(outside).toHaveFocus();
+    else expect(builder().getByLabelText('Available start time (school time)')).toHaveFocus();
+  }
+  await poll(false); await poll(true);
 });
