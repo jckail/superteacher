@@ -24,7 +24,17 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
-def candidate_url(value: str) -> str:
+def candidate_url(value: str, *, expected_tag: str | None = None) -> str:
+    prefix = SERVICE
+    if expected_tag is not None:
+        require(
+            isinstance(expected_tag, str)
+            and re.fullmatch(r"[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?", expected_tag) is not None
+            and "---" not in expected_tag,
+            "Expected tag must be an unambiguous lowercase DNS label",
+        )
+        # Selecting a tag must reject the base URL: it serves the old revision.
+        prefix = f"{expected_tag}---{SERVICE}"
     url = httpx.URL(value)
     require(
         url.scheme == "https"
@@ -33,7 +43,7 @@ def candidate_url(value: str) -> str:
         and url.path == "/"
         and not url.query
         and not url.fragment
-        and re.fullmatch(rf"{SERVICE}-[a-z0-9-]+(?:\.[a-z0-9-]+)?\.run\.app", url.host or "") is not None,
+        and re.fullmatch(rf"{re.escape(prefix)}-[a-z0-9-]+(?:\.[a-z0-9-]+)?\.run\.app", url.host or "") is not None,
         "Only the explicitly isolated superteacher-overhaul-staging Cloud Run service is allowed",
     )
     return str(url).rstrip("/")
@@ -172,6 +182,9 @@ def main() -> int:
     parser.add_argument("--url", required=True)
     parser.add_argument("--expected-version", required=True)
     parser.add_argument(
+        "--expected-tag", help="Exact Cloud Run traffic tag; rejects the base service URL and other tags"
+    )
+    parser.add_argument(
         "--credentials", required=True, type=Path, help="Caller-owned 0600 JSON file containing password"
     )
     parser.add_argument(
@@ -191,12 +204,15 @@ def main() -> int:
     receipt = None
     stage = "validate_inputs"
     try:
-        url = candidate_url(args.url)
+        url = candidate_url(args.url, expected_tag=args.expected_tag)
         credentials = private_json(args.credentials)
         require(
             isinstance(credentials.get("password"), str) and bool(credentials["password"]), "Missing private password"
         )
-        require("url" not in credentials or candidate_url(credentials["url"]) == url, "Credential URL mismatch")
+        require(
+            "url" not in credentials or candidate_url(credentials["url"], expected_tag=args.expected_tag) == url,
+            "Credential URL mismatch",
+        )
         require(
             "release" not in credentials or credentials["release"] == args.expected_version,
             "Credential release mismatch",
