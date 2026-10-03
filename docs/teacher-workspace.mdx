@@ -29,6 +29,16 @@ Private notes start unchecked. Select only the notes you intend to share; consen
 
 Use **Refresh summary** if needed, then **Print conference sheet** to print or save a PDF. Printing requires a successful, unpaused read whose cutoff matches the current school day and content that fits the one-page Letter sheet. Include fewer notes or assignments if it exceeds one page. Native print shows a warning instead of the preview when the sheet is not ready. A matching date is a cutoff check, not proof that no same-day record changed after the read; review the preview and handle the saved PDF or paper as private student information.
 
+## Small-group suggestions (PR86 candidate)
+
+[PR86](https://github.com/jckail/superteacher/pull/86) adds the following workflow below the Gradebook score table. It is implemented in the candidate source and awaits local release qualification; confirm the serving revision with the release owner before expecting it in a deployed workspace.
+
+Select a section in **Gradebook** and finish score or assessment edits. Under **Small-group builder**, choose **Shared unscored assignment** and a due assignment, or **Weak assignment type**, an assignment type and a percentage threshold. Unscored means no recorded score; it does not establish that work was not submitted. A recorded zero is scored work. Weak-type percentages use graded assignments weighted by possible points, preserve extra credit and exclude future or unscored work; students without enough evidence are excluded. **Recorded evidence for group** shows the assignments behind each suggestion.
+
+Choose **Maximum students per group** from 1 to 12 and review the members. Check **Include group … in suggested plan** for each group you want. Choose a **Reteach date** on or after the displayed school day, an **Available start time (school time)** and **Minutes per group** from 5 to 60, then select **Suggest reteach slots**. Slots run consecutively and must finish before midnight. The teacher chooses availability; suggestions stay on the page and do not reserve calendar time or save an intervention record.
+
+Changing grouping settings, included groups or scheduling settings removes the suggested plan so it can be regenerated. New score evidence, a section or session change, a school-day or time-zone change, or a failed/paused read clears the review. Actions are withheld while reads or score changes are unsettled. An unchanged background school-calendar check preserves the review and restores the focused control unless focus has moved elsewhere.
+
 ## Authentication modes
 
 ```mermaid
@@ -69,6 +79,7 @@ Use synthetic fixtures and the relevant focused tests before changing these boun
 | Cutoff refresh and retained drafts | `OverviewCalendar.test.tsx`, `ReportsCalendar.test.tsx` |
 | Copy feedback and table semantics | `Operations.test.tsx`, `Accessibility.test.tsx` |
 | Conference identity, note consent, current-day/fit gates and print privacy | [ConferenceSheet.test.tsx](../web/src/test/ConferenceSheet.test.tsx), [conference E2E/PDF fixtures](../e2e/seeded/conference.spec.ts) |
+| Small-group evidence, calendar freshness, pending writes and focus restoration | [smallGroups.test.ts](../web/src/test/smallGroups.test.ts), [SmallGroupBuilder.test.tsx](../web/src/test/SmallGroupBuilder.test.tsx), [SmallGroupIntegration.test.tsx](../web/src/test/SmallGroupIntegration.test.tsx), [seeded browser fixtures](../e2e/seeded/small-groups.spec.ts) |
 | Real mobile/keyboard workflows | [E2E specs](../e2e/specs) and [findings](../e2e/FINDINGS.md) |
 
 Frontend unit tests live in [web/src/test](../web/src/test); CI also builds and drives the actual application. Follow shared-workspace resource limits for installs, builds and broad browser suites. The [architecture guide](architecture.mdx) explains server dependencies; existing deployment and recovery documents remain the authority for operating services.
