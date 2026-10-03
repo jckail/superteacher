@@ -10,12 +10,33 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   const pts = points.filter((p): p is TrendPoint & { pct: number } => p.pct != null && Number.isFinite(p.pct));
   if (pts.length < 2) return <p className="muted">Not enough graded work to chart yet.</p>;
   const W = 420, H = 190, L = 34, R = 12, T = 12, B = 28;
-  const lo = Math.min(60, Math.floor(Math.min(...pts.map((p) => p.pct)) / 10) * 10);
-  const hi = Math.max(100, Math.ceil(Math.max(...pts.map((p) => p.pct)) / 10) * 10);
+  const min = Math.min(...pts.map((p) => p.pct));
+  const max = Math.max(...pts.map((p) => p.pct));
+  const roundedLo = Math.floor(min / 10) * 10;
+  const roundedHi = Math.ceil(max / 10) * 10;
+  const lo = Math.min(60, Number.isFinite(roundedLo) ? roundedLo : min);
+  const hi = Math.max(100, Number.isFinite(roundedHi) ? roundedHi : max);
+  const span = hi - lo;
+  const scale = Math.max(Math.abs(lo), Math.abs(hi));
   const x = (i: number) => L + (i / (pts.length - 1)) * (W - L - R);
-  const y = (v: number) => T + (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (H - T - B);
-  const ticks: number[] = [];
-  for (let t = lo; t <= hi; t += (hi - lo) > 40 ? 20 : 10) ticks.push(t);
+  const y = (v: number) => {
+    const clipped = Math.max(lo, Math.min(hi, v));
+    // Preserve ordinary coordinates; normalize first when opposite signs overflow subtraction.
+    const fraction = Number.isFinite(span)
+      ? (clipped - lo) / span
+      : (clipped / scale - lo / scale) / (hi / scale - lo / scale);
+    return T + (1 - Math.max(0, Math.min(1, fraction))) * (H - T - B);
+  };
+  const step = span > 40 ? 20 : 10;
+  const intervals = Math.floor(span / step);
+  const maxTicks = 12;
+  // A fixed tick count prevents both enormous work and nonprogressing float increments.
+  const ticks = Number.isFinite(intervals) && intervals < maxTicks
+    ? Array.from({ length: intervals + 1 }, (_, i) => lo + i * step)
+    : Array.from({ length: maxTicks }, (_, i) => {
+      const fraction = i / (maxTicks - 1);
+      return i === 0 ? lo : i === maxTicks - 1 ? hi : lo * (1 - fraction) + hi * fraction;
+    });
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.pct).toFixed(1)}`).join(' ');
   const cur = pts[active ?? pts.length - 1] ?? pts[pts.length - 1];
   return (
