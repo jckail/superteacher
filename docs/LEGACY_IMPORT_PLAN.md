@@ -82,7 +82,14 @@ remaining field. Preserve unrecognized fields verbatim in the archive and flag
 them for review; do not drop them from the retention accounting.
 
 Write only to a newly created isolated database migrated through the native
-`0001 -> 0002 -> 0003` chain. The existing
+`0001 -> 0002 -> 0003` archive-format chain. Importer version 2 explicitly targets
+`0003`, even though serving startup now advances to `0004` for limited account
+auditing. The current viewer separately pins its runtime helper source and
+accepts only the reviewed version-1 or version-2 producer digest with the exact
+`0003` schema. A grant and its manifest must name the same producer; existing
+expiry, actor, owner and archive-hash checks still apply. Historical artifacts
+and approvals are preserved; this compatibility does not upgrade them or revive
+expired grants. The existing
 `superteacher/adopt_accounts_snapshot.py` repairs independently published native
 accounts `0002`; it is **not** an EduTrack adapter. Do not stamp, alter, attach for
 writes, or run native migrations against the original EduTrack dataset/archive.
@@ -124,7 +131,7 @@ and manifest reconciliation are implemented and tested.
    updates.
 4. **Rehearse offline.** Run the adapter against the authorized archive into a
    new restricted database. Verify source bytes/hash unchanged, native schema
-   head `0003`, `integrity_check`, `foreign_key_check`, uniqueness and all
+   archive revision `0003`, `integrity_check`, `foreign_key_check`, uniqueness and all
    ownership chains. Check that imported roster counts match the accepted
    source dispositions and that historical fields remain retrievable from the
    archive through the private identity map. For roster-only conversion, assert

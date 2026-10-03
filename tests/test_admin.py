@@ -346,3 +346,74 @@ def test_list_deleted_cursor_and_concurrent_insert_semantics(account_db):
     page = json.loads(run_cli(account_db, "list", "--after", first["next_cursor"]).stdout)
     assert [user["id"] for user in page["users"]] == ["anna", "bob"]
     assert page["next_cursor"] is None
+
+
+def test_audit_reader_pages_retained_events_without_account_lookup(account_db):
+    with sqlite3.connect(account_db) as conn:
+        for index in range(5):
+            conn.execute(
+                "INSERT INTO account_action_audit "
+                "VALUES(?, '2026-10-02 10:00:00', 'deleted-id', 'deleted-id', 'export', 'requested')",
+                (f"{index:032x}",),
+            )
+    seen = []
+    cursor = None
+    while True:
+        args = ["audit", "--limit", "2"] + (["--after", cursor] if cursor else [])
+        result = run_cli(account_db, *args)
+        assert result.returncode == 0, result.stderr
+        page = json.loads(result.stdout)
+        assert len(page["events"]) <= 2 and "@" not in result.stdout and "email" not in result.stdout
+        seen.extend(item["event_id"] for item in page["events"])
+        assert all(item["occurred_at"].endswith("+00:00") for item in page["events"])
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert seen == [f"{index:032x}" for index in range(5)]
+    empty = run_cli(account_db, "audit", "--after", seen[-1])
+    assert json.loads(empty.stdout) == {"events": [], "next_cursor": None}
+    exact = json.loads(run_cli(account_db, "audit", "--limit", "5").stdout)
+    assert len(exact["events"]) == 5 and exact["next_cursor"] is None
+
+
+@pytest.mark.parametrize(
+    "args", [("--after", "a@example.test"), ("--after", "A" * 32), ("--limit", "0"), ("--limit", "1001")]
+)
+def test_audit_reader_rejects_invalid_options_before_database_open(tmp_path, args):
+    missing = tmp_path / "not-created.db"
+    result = run_cli(missing, "audit", *args)
+    assert result.returncode == 2 and "Cannot open" not in result.stderr
+    assert not missing.exists()
+
+
+def test_audit_reader_fetches_only_limit_plus_one_and_binds_cursor():
+    from superteacher.admin import _audit_events
+
+    class Cursor:
+        def fetchall(self):
+            return [
+                {
+                    "event_id": f"{i:032x}",
+                    "occurred_at": "2026-10-02T00:00:00",
+                    "actor_id": "x",
+                    "target_id": "x",
+                    "action": "export",
+                    "outcome": "requested",
+                }
+                for i in range(4)
+            ]
+
+        def close(self):
+            self.closed = True
+
+    class Connection:
+        def execute(self, sql, parameters):
+            assert "ORDER BY event_id LIMIT ?" in sql and "event_id > ?" in sql
+            assert parameters == ("b" * 32, 4)
+            self.cursor = Cursor()
+            return self.cursor
+
+    connection = Connection()
+    page = _audit_events(connection, limit=3, after="b" * 32)
+    assert len(page["events"]) == 3 and page["next_cursor"] == f"{2:032x}"
+    assert connection.cursor.closed

@@ -57,7 +57,7 @@ def test_postgres_migration_persistence_and_grade_constraints(postgres_engine):
     run_migrations(engine)
     with engine.connect() as conn:
         assert conn.execute(text("SELECT name FROM students WHERE id = 'p1'")).scalar_one() == "Synthetic"
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(text("UPDATE students SET grade_level = 13 WHERE id = 'p1'"))
 

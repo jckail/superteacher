@@ -51,16 +51,20 @@ def is_memory(eng: Engine) -> bool:
     return eng.dialect.name == "sqlite" and eng.url.database in (None, "", ":memory:")
 
 
-def run_migrations(eng: Engine) -> None:
+def run_migrations(eng: Engine, *, target_revision: str = "head") -> None:
     """Bring the schema to the latest revision. Never drops data.
 
     * In-memory SQLite (tests): ``create_all``.
-    * File/server DBs: ``alembic upgrade head``. A database created before Alembic was introduced
+    * File/server DBs: ``alembic upgrade head`` by default. Archive generation explicitly
+      selects its frozen ``0003`` format; it does not follow the runtime head.
+      A database created before Alembic was introduced
       (tables present, no ``alembic_version``) is stamped at the baseline revision first.
     """
     from . import models  # noqa: F401  (register tables)
 
     if is_memory(eng):
+        if target_revision != "head":
+            raise ValueError("An explicit migration target requires a file or server database.")
         Base.metadata.create_all(eng)
         return
 
@@ -87,7 +91,7 @@ def run_migrations(eng: Engine) -> None:
                 if "alembic_version" not in tables and tables & set(Base.metadata.tables):
                     _validate_legacy_schema(conn)
                     command.stamp(cfg, BASELINE_REVISION)
-                command.upgrade(cfg, "head")
+                command.upgrade(cfg, target_revision)
                 if sqlite_fk is not None and conn.exec_driver_sql("PRAGMA foreign_key_check").first() is not None:
                     raise RuntimeError("Migration found foreign key violations; refusing to accept the database.")
         finally:

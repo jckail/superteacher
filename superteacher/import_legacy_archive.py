@@ -30,7 +30,7 @@ from .db import run_migrations
 from .models import Course, Section, Student, User
 from .schemas import CourseIn, SectionIn, StudentIn
 
-IMPORTER_VERSION = "1"
+IMPORTER_VERSION = "2"
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 PROVENANCE = {
     "kind": "legacy_public_api_archive_non_atomic",
@@ -410,7 +410,7 @@ def _database(path, rows, owner_id, email, disabled):
     os.close(fd)
     engine = create_engine(URL.create("sqlite", database=str(path)), hide_parameters=True)
     try:
-        run_migrations(engine)
+        run_migrations(engine, target_revision="0003")
         with engine.connect() as connection:
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
             connection.commit()

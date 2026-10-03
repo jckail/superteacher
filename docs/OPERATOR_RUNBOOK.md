@@ -93,7 +93,10 @@ Litestream tool into a new private file, without launching a server or replica
 writer on the source prefix. Verify integrity, foreign keys, migration lineage
 and expected reference records. See [deployment recovery evidence](DEPLOYMENT_STATUS.md)
 and [identity adoption](IDENTITY_INTEGRATION.md) for the native integrity `0002`
-and accounts `0003` chain. An independently published accounts-`0002` database is
+and accounts `0003` chain. Current native startup then adds revision `0004`'s
+limited account-action audit table; see [account operations](ACCOUNT_ADMIN.md).
+The offline adoption bridge and approved archive format remain `0003`.
+An independently published accounts-`0002` database is
 ambiguous to native startup: use the reviewed offline adoption path on a copy,
 not an Alembic stamp or a reused migration ID.
 

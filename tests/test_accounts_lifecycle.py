@@ -39,7 +39,9 @@ def test_delete_removes_every_row_of_the_user(tmp_path, monkeypatch):
         r = c.request("DELETE", "/api/account", json={"email": " GONE@example.com "}, headers=H)
         assert r.status_code == 204
         after = counts(c)
-        assert {t: n for t, n in after.items() if n and t != "ai_budget"} == {}, after  # ai_budget: anonymous aggregate
+        assert {t: n for t, n in after.items() if n and t not in {"ai_budget", "account_action_audit"}} == {}, (
+            after
+        )  # ai_budget: anonymous aggregate
         assert c.get("/api/overview").status_code == 401  # session gone with the account
         assert "st_session" not in c.cookies or c.cookies.get("st_session") in (None, "")
         with c.app.state.session_factory() as db:  # also without FK enforcement: no orphans anywhere
