@@ -300,7 +300,12 @@ def import_students(
         if not row or not "".join(row).strip():
             continue
         name = unicodedata.normalize("NFC", " ".join(row[0].split()))
-        if i == 1 and name.lower() in {"name", "student", "student name"}:
+        if (
+            i == 1
+            and name.lower() in {"name", "student", "student name"}
+            and len(row) > 1
+            and " ".join(row[1].split()).lower() in {"grade_level", "grade level", "grade"}
+        ):
             continue
         try:
             level = int(row[1]) if len(row) > 1 and row[1].strip() else 9

@@ -1,5 +1,5 @@
 import { test, expect, useClassroom } from '../support/fixtures';
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import type { Gradebook } from '../../web/src/types';
 const section = { id: 'small-group-section', course_id: 'small-group-course', name: 'Group practice' };
 const data: Gradebook = { as_of: '2026-10-02', section, assessments: [
@@ -74,4 +74,49 @@ test('actual optimistic score save hides grouping actions and cannot restore the
   await expect(cell).toHaveValue('5');
   await expect(builder.getByRole('checkbox', { name: 'Include group 1 in suggested plan' })).not.toBeChecked();
   await expect(builder.getByRole('region', { name: 'Suggested reteach plan' })).toHaveCount(0);
+});
+
+for (const label of ['Available start time (school time)', 'Reteach date']) test(`unchanged calendar poll restores native ${label} focus without stealing outside focus at 390px`, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  // Advance the actual 60-second query interval; real timers continue for query notifications.
+  await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
+  const writes: string[] = [];
+  page.on('request', request => { if (request.method() !== 'GET') writes.push(`${request.method()} ${new URL(request.url()).pathname}`); });
+  const builder = await arrange(page);
+  await builder.getByRole('checkbox', { name: 'Include group 1 in suggested plan' }).check();
+  await builder.getByLabel('Available start time (school time)').fill('09:00');
+  await builder.getByRole('button', { name: 'Suggest reteach slots', exact: true }).click();
+  const native = builder.getByLabel(label, { exact: true });
+  const outside = page.getByRole('textbox', { name: 'Ben, Quiz', exact: true });
+  for (const moveOutside of [false, true]) {
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    let intercepted = false;
+    const hold = async (route: Route) => {
+      expect(route.request().method()).toBe('GET');
+      intercepted = true;
+      await pending;
+      await route.fulfill({ json: { today: data.as_of, timezone: 'UTC' } });
+    };
+    await page.route('**/api/calendar', hold);
+    try {
+      await native.focus();
+      await expect(native).toBeFocused();
+      await page.clock.fastForward(60_001);
+      await expect.poll(() => intercepted).toBe(true);
+      await expect(builder.getByRole('checkbox')).toHaveCount(0);
+      await expect(builder.getByRole('region', { name: 'Suggested reteach plan' })).toHaveCount(0);
+      if (moveOutside) { await outside.focus(); await expect(outside).toBeFocused(); }
+      finish();
+      await expect(builder.getByRole('checkbox', { name: 'Include group 1 in suggested plan' })).toBeChecked();
+      await expect(builder.getByRole('region', { name: 'Suggested reteach plan' })).toContainText('09:00–09:15 · Ada, Cara');
+      await expect(builder.getByLabel('Available start time (school time)')).toHaveValue('09:00');
+      await expect(builder.getByLabel('Reteach date')).toHaveValue(data.as_of);
+      await expect(moveOutside ? outside : native).toBeFocused();
+    } finally {
+      finish();
+      await page.unroute('**/api/calendar', hold);
+    }
+  }
+  expect(writes).toEqual([]);
 });

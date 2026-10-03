@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable
 from fractions import Fraction
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -75,6 +75,11 @@ def student_block(
         lines.append("  flags: " + "; ".join(m.risk_reasons))
     lines.append(f"  absences {m.absences}, tardies {m.tardies}")
     scores = m.scores if max_scores is None else m.scores[-max_scores:]
+    if len(scores) < len(m.scores):
+        lines.append(
+            f"  Showing the latest {len(scores)} of {len(m.scores)} assessments; "
+            "earlier assessment details omitted. Summary metrics include all work due through the cutoff."
+        )
     for p in scores:
         got = (
             ("NOT YET DUE" if p.due_date > m.as_of else "MISSING")
@@ -142,25 +147,31 @@ TOOLS: list[dict[str, Any]] = [
 TOOL_NAMES = {t["name"] for t in TOOLS}
 
 
-class FindStudentsArgs(BaseModel):
+class ToolArgs(BaseModel):
+    """Reject unsupported filters instead of silently broadening a lookup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class FindStudentsArgs(ToolArgs):
     section: str | None = Field(None, max_length=80)
     risk: Literal["unknown", "on_track", "watch", "at_risk"] | None = None
     name_contains: str | None = Field(None, max_length=80)
-    max_average: float | None = None
-    min_average: float | None = None
-    max_attendance: float | None = None
+    max_average: FiniteFloat | None = None
+    min_average: FiniteFloat | None = None
+    max_attendance: FiniteFloat | None = None
     min_missing: int | None = Field(None, ge=0)
     sort_by: Literal["name", "average", "attendance", "trend", "missing"] = "name"
     descending: bool = False
     limit: int = Field(15, ge=1)
 
 
-class GetStudentArgs(BaseModel):
+class GetStudentArgs(ToolArgs):
     student_id: str | None = Field(None, max_length=40)
     name: str | None = Field(None, max_length=80)
 
 
-class ClassStatsArgs(BaseModel):
+class ClassStatsArgs(ToolArgs):
     section: str | None = Field(None, max_length=80)
 
 
@@ -279,12 +290,17 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
         letters[m.letter or "n/a"] += 1
         if not a.section:
             label = section_label(s)
-            if label not in sections:
-                sections[label] = [0, _Mean(), Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0})]
-            sec = sections[label]
-            sec[0] += 1
-            sec[1].add(m.average)
-            sec[2][m.risk] += 1
+            if s.section_id not in sections:
+                sections[s.section_id] = [
+                    label,
+                    0,
+                    _Mean(),
+                    Counter({"unknown": 0, "on_track": 0, "watch": 0, "at_risk": 0}),
+                ]
+            sec = sections[s.section_id]
+            sec[1] += 1
+            sec[2].add(m.average)
+            sec[3][m.risk] += 1
     if not count:
         return {"error": "No students in that section."}
     out = {
@@ -299,14 +315,15 @@ def _class_summaries(summaries: Iterable[tuple[Student, metrics.StudentMetrics]]
     if not a.section:
         out["sections"] = [
             {
-                "section": label,
-                "students": sec[0],
-                "average": sec[1].value(),
-                "at_risk": sec[2]["at_risk"],
-                "unknown": sec[2]["unknown"],
-                "status_counts": dict(sec[2]),
+                "section_id": section_id,
+                "section": sec[0],
+                "students": sec[1],
+                "average": sec[2].value(),
+                "at_risk": sec[3]["at_risk"],
+                "unknown": sec[3]["unknown"],
+                "status_counts": dict(sec[3]),
             }
-            for label, sec in sorted(sections.items())
+            for section_id, sec in sorted(sections.items(), key=lambda item: (item[1][0], item[0]))
         ]
     return out
 
@@ -350,6 +367,56 @@ class ToolError(Exception):
     """Raised for bad tool name/arguments; the message is safe to show the model."""
 
 
+def _serialize_result(result: dict[str, Any] | list[Any] | str) -> str:
+    """Fit complete structured rows to the tool budget; retain aggregate counts."""
+
+    def encode(value):
+        return json.dumps(value, separators=(",", ":"), default=str, ensure_ascii=False)
+
+    if isinstance(result, str):
+        return (
+            result
+            if len(result) <= MAX_TOOL_RESULT_CHARS
+            else encode(
+                {
+                    "error": "Student record exceeds the output limit; no partial record was returned.",
+                    "truncated": True,
+                }
+            )
+        )
+
+    text = encode(result)
+    if len(text) <= MAX_TOOL_RESULT_CHARS:
+        return text
+    payload = {"items": result, "returned": len(result)} if isinstance(result, list) else dict(result)
+    row_key = next(
+        (key for key in ("students", "candidates", "sections", "items") if isinstance(payload.get(key), list)), None
+    )
+    if row_key is None:
+        return encode({"error": "Tool result metadata exceeds the output limit.", "truncated": True})
+    rows = payload[row_key]
+
+    def prefix(count):
+        bounded = {**payload, row_key: rows[:count], "truncated": True, "omitted": {row_key: len(rows) - count}}
+        if "returned" in payload:
+            bounded["returned"] = count
+        return encode(bounded)
+
+    # Whole-record prefixes preserve ranking and avoid quadratic repeated tail removal.
+    text = prefix(0)
+    if len(text) > MAX_TOOL_RESULT_CHARS:
+        return encode({"error": "Tool result metadata exceeds the output limit.", "truncated": True})
+    low, high = 0, len(rows)
+    while low < high:
+        middle = (low + high + 1) // 2
+        trial = prefix(middle)
+        if len(trial) <= MAX_TOOL_RESULT_CHARS:
+            low, text = middle, trial
+        else:
+            high = middle - 1
+    return text
+
+
 def execute(db: Session, name: str, raw_input: object, *owner_input: object, owner_id: str = OWNER_ID) -> str:
     """Run one tool and return the string for the tool_result block (always bounded in size)."""
     if owner_input:
@@ -358,9 +425,11 @@ def execute(db: Session, name: str, raw_input: object, *owner_input: object, own
         owner_id, name, raw_input = name, raw_input, owner_input[0]
     if name not in _HANDLERS:
         raise ToolError(f"Unknown tool {name!r}.")
+    if not isinstance(raw_input, dict):
+        raise ToolError("Invalid arguments: expected an object.")
     model, _ = _HANDLERS[name]
     try:
-        args = model.model_validate(raw_input if isinstance(raw_input, dict) else {})
+        args = model.model_validate(raw_input)
     except ValidationError as e:
         raise ToolError(
             "Invalid arguments: " + "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors())
@@ -378,7 +447,4 @@ def execute(db: Session, name: str, raw_input: object, *owner_input: object, own
         result = _class_summaries(
             iter_summaries(db, owner_id=owner_id, section=args.section, retain_scores=False), args
         )
-    text = result if isinstance(result, str) else json.dumps(result, separators=(",", ":"), default=str)
-    if len(text) > MAX_TOOL_RESULT_CHARS:
-        text = text[:MAX_TOOL_RESULT_CHARS] + "\n[truncated]"
-    return text
+    return _serialize_result(result)

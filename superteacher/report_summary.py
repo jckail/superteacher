@@ -8,7 +8,7 @@ Reads are live across statements, not a snapshot or disconnect-interruptible wor
 
 from collections.abc import Iterator
 from datetime import date, timedelta
-from statistics import mean, median
+from statistics import mean
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -102,7 +102,7 @@ def _stat(assessment, percentages, submitted, student_count, today):
         max_points=assessment.max_points,
         graded=len(percentages),
         average=reports._pct(mean(percentages)) if percentages else None,
-        median=reports._pct(median(percentages)) if percentages else None,
+        median=reports._pct(reports._finite_median(percentages)) if percentages else None,
         min=reports._pct(min(percentages)) if percentages else None,
         max=reports._pct(max(percentages)) if percentages else None,
         missing_pct=reports._pct((student_count - submitted) / student_count * 100)

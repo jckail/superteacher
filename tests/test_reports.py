@@ -420,3 +420,17 @@ def test_expected_section_id_is_bounded(client):
         f"/api/reports/students/{student['id']}/parent-update", json={"expected_section_id": "x" * 65}
     )
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("values,expected", [([1e308, 1e308], 1e308), ([10, 90], 50), ([10, 20, 90], 20)])
+def test_summary_assessment_median_remains_finite(client, values, expected):
+    sec = mk_class(client)
+    ids = [mk_student(client, sec, f"Student {i}")["id"] for i in range(len(values))]
+    mk_student(client, sec, "Ungraded")
+    assessment = mk_assessment(client, sec, "Median", max_points=100)
+    set_scores(client, assessment, dict(zip(ids, values, strict=True)))
+    response = client.get(f"/api/reports/sections/{sec['id']}/summary")
+    assert response.status_code == 200, response.text
+    stat = next(row for row in response.json()["assessments"] if row["id"] == assessment["id"])
+    assert stat["median"] == expected
+    assert stat["graded"] == len(values)

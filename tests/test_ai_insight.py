@@ -158,3 +158,63 @@ def test_injection_in_note_stays_inside_record(seeded, monkeypatch):
     prompt = fake.create_calls[0]["messages"][0]["content"]
     assert prompt.count("</student_record>") == 1 and prompt.startswith("<student_record>")
     assert "untrusted" in fake.create_calls[0]["system"]
+
+
+def test_insight_requests_bounded_assignment_details(seeded, monkeypatch):
+    original = ai.student_block
+    limits = []
+
+    def bounded(student, metric, **kwargs):
+        limits.append(kwargs["max_scores"])
+        return original(student, metric, **kwargs)
+
+    monkeypatch.setattr(ai, "student_block", bounded)
+    fake = FakeAI(creates=[GOOD])
+    (insight,), _ = go(seeded, fake, monkeypatch)
+    assert insight.source == "ai"
+    assert limits == [ai.INSIGHT_SCORE_LIMIT]
+    assert len(fake.create_calls) == 1
+
+
+def test_oversized_insight_input_uses_rules_without_provider(seeded, monkeypatch):
+    monkeypatch.setattr(ai, "student_block", lambda *args, **kwargs: "x" * ai.INSIGHT_PROMPT_CHAR_LIMIT)
+    fake = FakeAI(creates=[GOOD])
+    (insight,), _ = go(seeded, fake, monkeypatch)
+    assert insight.source == "rules"
+    assert fake.create_calls == []
+
+
+@pytest.mark.parametrize("count", [0, 1, 30, 31, 2000])
+def test_student_block_keeps_complete_bounded_details_and_omission_count(count):
+    from datetime import date
+    from types import SimpleNamespace
+
+    from superteacher import ai_tools
+    from superteacher.metrics import ScorePoint, StudentMetrics
+    from superteacher.models import AssessmentKind
+
+    today = date(2026, 10, 2)
+    student = SimpleNamespace(
+        name="Ada",
+        id="ada",
+        grade_level=9,
+        notes=[],
+        section=SimpleNamespace(name="P1", course=SimpleNamespace(name="Math")),
+    )
+    metric = StudentMetrics(
+        as_of=today,
+        average=90,
+        letter="A-",
+        risk="on_track",
+        scores=[ScorePoint(str(i), f"Assignment {i}", AssessmentKind.test, today, 100, 90, 90) for i in range(count)],
+    )
+    text = ai_tools.student_block(student, metric, max_scores=ai.INSIGHT_SCORE_LIMIT)
+    assert text.count("  · ") == min(count, ai.INSIGHT_SCORE_LIMIT)
+    assert len(text) < ai.INSIGHT_PROMPT_CHAR_LIMIT
+    if count > ai.INSIGHT_SCORE_LIMIT:
+        assert f"latest 30 of {count} assessments" in text
+        assert "Summary metrics include all work due through the cutoff" in text
+        assert "Assignment 0:" not in text
+        assert f"Assignment {count - 1}:" in text
+    else:
+        assert "details omitted" not in text

@@ -6,7 +6,7 @@ import type { ReteachSlot } from '../smallGroups';
 
 interface Props { gradebook: Gradebook; sectionId: string; schoolDay: string | null; settled: boolean; calendarRefreshing?: boolean; schoolTimezone?: string | null }
 const kinds: AssessmentKind[] = ['quiz', 'test', 'homework', 'project'];
-const percent = (value: number) => `${Number(value.toFixed(1))}%`;
+const percent = (value: number) => { const rounded = Number(value.toFixed(1)); return `${rounded === value ? '' : '≈'}${rounded}%`; };
 
 /** Suggestions only: the parent must gate current reads and pending score mutations. */
 export default function SmallGroupBuilder({ gradebook, sectionId, schoolDay, settled, calendarRefreshing = false, schoolTimezone = null }: Props) {
@@ -73,7 +73,7 @@ export default function SmallGroupBuilder({ gradebook, sectionId, schoolDay, set
     {result.error && <p role="status">{result.error}</p>}
     {!result.error && !result.groups.length && <p>No students match this evidence.</p>}
     {result.withoutEvidence > 0 && <p>{result.withoutEvidence} {result.withoutEvidence === 1 ? 'student lacks' : 'students lack'} enough score evidence for this choice and {result.withoutEvidence === 1 ? 'is' : 'are'} excluded.</p>}
-    {current.mode === 'weak' && <p className="muted">Percentages weight each graded assignment by its possible points. Unscored and future work are excluded; extra credit is preserved.</p>}
+    {current.mode === 'weak' && <p className="muted">Percentages weight each graded assignment by its possible points. Unscored and future work are excluded; extra credit is preserved. Membership uses unrounded percentages; ≈ marks rounded values.</p>}
     {result.groups.map((group, index) => <div key={group.id} role="group" aria-label={`Suggested group ${index + 1}`}>
       <h3>Group {index + 1} · {group.label}</h3>
       <label><input type="checkbox" checked={current.selected.includes(group.id)} onChange={e => change({ selected: e.target.checked ? [...current.selected, group.id] : current.selected.filter(id => id !== group.id) })} /> Include group {index + 1} in suggested plan</label>

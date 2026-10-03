@@ -11,6 +11,7 @@ import csv
 import io
 import json
 import logging
+import math
 import re
 from collections.abc import Callable
 from datetime import date, timedelta
@@ -127,6 +128,16 @@ def _pct(x: float | None) -> float | None:
     return None if x is None else round(x, 1)
 
 
+def _finite_median(values: list[float]) -> float:
+    """Preserve ordinary medians and avoid overflow for finite extra credit."""
+    result = median(values)
+    if math.isfinite(result):
+        return result
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return mean(ordered[middle - 1 : middle + 1])
+
+
 def class_summary(section: Section, students: list[Student], today: date | None = None) -> ClassSummary:
     today = today or school_today()
     computed = [(s, metrics.compute(s, today)) for s in students]
@@ -149,7 +160,7 @@ def class_summary(section: Section, students: list[Student], today: date | None 
             id=a.id, title=a.title, kind=a.kind, due_date=a.due_date, max_points=a.max_points,
             graded=len(pcts),
             average=_pct(mean(pcts)) if pcts else None,
-            median=_pct(median(pcts)) if pcts else None,
+            median=_pct(_finite_median(pcts)) if pcts else None,
             min=_pct(min(pcts)) if pcts else None,
             max=_pct(max(pcts)) if pcts else None,
             missing_pct=_pct(missing / len(students) * 100) if due and students else None,

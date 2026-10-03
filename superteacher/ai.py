@@ -103,6 +103,7 @@ def client() -> AsyncAnthropic | None:
 # ── context ─────────────────────────────────────────────────────────────
 @dataclass
 class _SectionContext:
+    label: str
     students: int = 0
     summed: Fraction = Fraction()
     graded: int = 0
@@ -126,7 +127,7 @@ def build_context_parts(
     for s, m in iter_summaries(db, owner_id=owner_id, retain_scores=False, today=as_of):
         count += 1
         counts[m.risk] += 1
-        section = by_sec.setdefault(section_label(s), _SectionContext())
+        section = by_sec.setdefault(s.section_id, _SectionContext(label=section_label(s)))
         section.students += 1
         if m.average is not None:
             # Keep finite extra-credit averages finite without retaining roster rows.
@@ -152,7 +153,11 @@ def build_context_parts(
             "Large roster: showing a summary. "
             "Per-section summary, then only the students needing attention (use find_students for anyone else)."
         )
-        for name, section in sorted(by_sec.items()):
+        label_counts = Counter(section.label for section in by_sec.values())
+        for section_id, section in sorted(by_sec.items(), key=lambda item: (item[1].label, item[0])):
+            name = section.label
+            if label_counts[name] > 1:
+                name += f" (section id {clean(section_id, 40)})"
             avg = float(section.summed / section.graded) if section.graded else None
             out.append(f"- {name}: {section.students} students" + ("" if avg is None else f", avg {avg:.0f}%"))
         out += [line for _, line in attention]
@@ -403,6 +408,8 @@ def parse_insight(text: str) -> InsightPayload:
 
 _TRANSIENT = (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.InternalServerError)
 INSIGHT_ATTEMPTS = 3
+INSIGHT_SCORE_LIMIT = 30
+INSIGHT_PROMPT_CHAR_LIMIT = 12_000
 
 
 @dataclass
@@ -487,7 +494,9 @@ async def ai_insight(
         except (ValidationError, TypeError):
             log.warning("cached insight for %s is malformed; regenerating", s.id)
 
-    prompt = "<student_record>\n" + student_block(s, m) + "\n</student_record>"
+    prompt = "<student_record>\n" + student_block(s, m, max_scores=INSIGHT_SCORE_LIMIT) + "\n</student_record>"
+    if len(prompt) > INSIGHT_PROMPT_CHAR_LIMIT:
+        return rule_insight(s, m)
 
     # Keep deduplication within the same loop/database/model, including during tests and reloads.
     key = (asyncio.get_running_loop(), db.get_bind(), owner_id, model, s.id, fp)
