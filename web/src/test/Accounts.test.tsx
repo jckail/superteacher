@@ -1,10 +1,11 @@
 import { StrictMode } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EmailLogin from '../pages/EmailLogin';
 import VerifyEmail from '../pages/VerifyEmail';
 import DemoBanner from '../components/DemoBanner';
+import { DeleteAccount } from '../components/AccountMenu';
 import { ApiError, CHAT_STORE, clearSessionPrivacy } from '../api';
 import { AuthGate } from '../auth';
 
@@ -121,5 +122,25 @@ describe('quota errors and privacy', () => {
     sessionStorage.setItem(CHAT_STORE, '[{"role":"user","text":"hi"}]');
     clearSessionPrivacy();
     expect(sessionStorage.getItem(CHAT_STORE)).toBeNull();
+  });
+});
+
+
+describe('account deletion disclosure', () => {
+  it('discloses retained security metadata and requires confirmation to delete the account', async () => {
+    const email = 'ada@example.test';
+    fetchMock.mockImplementation((url: string) => url === '/api/auth/config'
+      ? json(200, { auth_mode: 'accounts' })
+      : json(200, { auth_required: true, auth_mode: 'accounts', email }));
+    render(<AuthGate><DeleteAccount email={email} onClose={vi.fn()} /></AuthGate>);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete your account?' });
+    expect(dialog).toHaveTextContent('Limited security records of account actions are retained: account IDs, action, outcome and time.');
+    expect(dialog).toHaveTextContent('These records do not contain your email or classroom content.');
+    expect(within(dialog).queryByRole('button', { name: 'Delete everything' })).not.toBeInTheDocument();
+    const remove = within(dialog).getByRole('button', { name: /^Delete account$/ });
+    expect(remove).toBeDisabled();
+    await userEvent.setup().type(within(dialog).getByRole('textbox'), email);
+    expect(remove).toBeEnabled();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/auth/config', '/api/auth/me']);
   });
 });

@@ -30,11 +30,16 @@ MAX_REPORT = 256 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 1_000_000
 MEMBERS = {"native.db": 64 * 1024 * 1024, "manifest.json": 32 * 1024 * 1024, "original_archive.json": 32 * 1024 * 1024}
-SUPPORTED_IMPORTER = "79784f1179f71be2772affadc1539ec56ee5f420c7f50d9a192434c9e06f6f37"
+HISTORICAL_IMPORTER_SHA = "79784f1179f71be2772affadc1539ec56ee5f420c7f50d9a192434c9e06f6f37"
+CURRENT_RUNTIME_IMPORTER_SHA = "0036b0eee79d520c3920e5b650d957c051d0f3441589352817298fb539819047"
 # Canonical 0001 -> 0003 synthetic importer DB: ordered sqlite_master
 # (type,name,tbl_name,sql), canonical whitespace/independent constraint order.
 # Includes every type/nullability/constraint/index expression; literals unchanged.
 SUPPORTED_SQLITE_SCHEMA = "63db03652786bc231455830870cbf6a9cab85eb8ec18e62067b7f8bd7e8f335c"
+SUPPORTED_PRODUCERS = {
+    HISTORICAL_IMPORTER_SHA: ("1", "0003", SUPPORTED_SQLITE_SCHEMA),
+    CURRENT_RUNTIME_IMPORTER_SHA: ("2", "0003", SUPPORTED_SQLITE_SCHEMA),
+}
 AGGREGATES = {
     "gpa",
     "academic_performance.rank",
@@ -103,6 +108,15 @@ def _hash(value):
     return value
 
 
+def _producer(digest, version, revision):
+    producer = SUPPORTED_PRODUCERS.get(_hash(digest))
+    _require(
+        producer is not None and producer == (version, revision, SUPPORTED_SQLITE_SCHEMA),
+        "Unsupported importer/schema evidence.",
+    )
+    return producer
+
+
 def _runtime_compatibility():
     """Source-available packaging only; this is compatibility, not attestation."""
     try:
@@ -121,7 +135,7 @@ def _runtime_compatibility():
         def identity(info):
             return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
-        if len(raw) > 128 * 1024 or identity(before) != identity(after) or _digest(raw) != SUPPORTED_IMPORTER:
+        if len(raw) > 128 * 1024 or identity(before) != identity(after) or _digest(raw) != CURRENT_RUNTIME_IMPORTER_SHA:
             raise ValueError
     except Exception:
         raise ViewerError("Unsupported runtime importer source.") from None
@@ -270,12 +284,7 @@ def _grant(request, grant, bundle_hash, receipt_hash):
         grant["purpose"] == "operator_history_review" and grant["identity_disposition"] == "verified_archive_review",
         "Unsupported approval purpose/disposition.",
     )
-    _require(
-        grant["importer_version"] == "1"
-        and grant["importer_sha256"] == SUPPORTED_IMPORTER
-        and grant["native_revision"] == "0003",
-        "Unsupported importer/schema evidence.",
-    )
+    _producer(grant["importer_sha256"], grant["importer_version"], grant["native_revision"])
 
 
 def _evidence(parts, budget, grant, *, select_student=True):
@@ -288,6 +297,15 @@ def _evidence(parts, budget, grant, *, select_student=True):
     _require(_digest(raw) == grant["source_sha256"], "Source digest mismatch.")
     archive = budget.parse(raw)
     manifest = budget.parse(parts["manifest.json"])
+    _require(isinstance(manifest, dict), "Manifest evidence mismatch.")
+    producer = _producer(
+        manifest.get("importer_sha256"), manifest.get("importer_version"), manifest.get("native_revision")
+    )
+    if select_student:
+        _require(
+            all(manifest.get(key) == grant[key] for key in ("importer_sha256", "importer_version", "native_revision")),
+            "Approved producer mismatch.",
+        )
     # Every body is guarded before _parse decodes it again with recursive helpers.
     _require(isinstance(archive, dict) and isinstance(archive.get("responses"), list))
     for response in archive["responses"]:
@@ -298,11 +316,11 @@ def _evidence(parts, budget, grant, *, select_student=True):
         classes, sections, students, grant["source_sha256"], grant["owner_id"]
     )
     expected = {
-        "importer_version": "1",
-        "importer_sha256": SUPPORTED_IMPORTER,
+        "importer_version": producer[0],
+        "importer_sha256": manifest["importer_sha256"],
         "source_schema": "reviewed-edutrack-public-api-v1",
         "archive_field_dispositions": dict.fromkeys(importer._field_paths(archive), "retained_original_archive"),
-        "native_revision": "0003",
+        "native_revision": producer[1],
         "source_sha256": grant["source_sha256"],
         "capture": {k: v for k, v in archive.items() if k != "responses"},
         "selected_response_indices": selected,

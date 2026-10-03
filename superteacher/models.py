@@ -75,6 +75,25 @@ class User(Base):
     disabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class AccountActionAudit(Base):
+    """Limited security metadata retained independently of deleted account rows."""
+
+    __tablename__ = "account_action_audit"
+    __table_args__ = (
+        CheckConstraint(
+            "(action = 'delete' AND outcome = 'committed') OR (action = 'export' AND outcome = 'requested')",
+            name="ck_account_action_audit_event",
+        ),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(12), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(12), nullable=False)
+    action: Mapped[str] = mapped_column(String(12), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(12), nullable=False)
+
+
 class AuthSession(Base):
     """Server-side, revocable browser session. Only the SHA-256 of the 256-bit cookie value is stored."""
 

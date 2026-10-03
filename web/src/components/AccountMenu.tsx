@@ -79,8 +79,9 @@ export function DeleteAccount({ email, onClose }: { email: string; onClose: () =
     <Modal title="Delete your account?" role="alertdialog" onClose={close}>
       <form onSubmit={submit} style={{ display: 'grid', gap: 12 }}>
         <p style={{ margin: 0 }}>
-          This permanently deletes your account and <strong>everything in it</strong>: courses, students, grades, attendance and notes.
-          It can&apos;t be undone. Consider exporting your data first.
+          This permanently deletes your account and classroom data: courses, students, grades, attendance and notes.
+          It can&apos;t be undone. Consider exporting your data first. Limited security records of account actions
+          are retained: account IDs, action, outcome and time. These records do not contain your email or classroom content.
         </p>
         <label style={{ display: 'grid', gap: 6 }}>
           Type <strong>{email}</strong> to confirm
@@ -89,7 +90,7 @@ export function DeleteAccount({ email, onClose }: { email: string; onClose: () =
         <div role="alert">{error && <span className="error">{error}</span>}</div>
         <div className="confirm-actions">
           <button type="button" className="btn" disabled={busy} onClick={close}>Cancel</button>
-          <button type="submit" className="btn danger-solid" disabled={!ok || busy}>{busy ? 'Deleting…' : 'Delete everything'}</button>
+          <button type="submit" className="btn danger-solid" disabled={!ok || busy}>{busy ? 'Deleting…' : 'Delete account'}</button>
         </div>
       </form>
     </Modal>

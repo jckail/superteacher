@@ -103,6 +103,42 @@ Securely retain/rotate the log according to the deployment's actual approved ret
 The CLI does not upload it or invent a retention period. Keep the private mapping of operator IDs
 and incident records separate from account/student exports.
 
+## Retained self-service action records
+
+Native revision `0004` adds `account_action_audit`. Authenticated account export records a
+`requested` event before response headers; it is not evidence that serialization finished or a
+client received the download. Self-service deletion records a `committed` event in the same
+transaction as the account/classroom purge. Failure to persist the event prevents the deletion;
+a rolled-back deletion does not leave a committed event. Events contain only UTC time, a random
+event ID, authenticated actor/target account IDs, fixed action and fixed outcome. They contain no
+email, IP, session/token hashes or classroom content. These pseudonymous IDs are still private
+security metadata; the audit table has no user foreign key and survives account deletion. It is
+not part of the classroom export. The deletion dialog discloses this limited retention.
+
+Read the retained records with the existing private operator authority:
+
+```sh
+python -m superteacher.admin --database /verified/path/superteacher.db audit --limit 100
+python -m superteacher.admin --database /verified/path/superteacher.db audit --limit 100 --after EVENT_ID
+```
+
+The read-only query fetches at most `limit + 1` rows; limit defaults to 100 and accepts 1–1000.
+Events are ordered by the 32-character lowercase hexadecimal event ID. Supply the exact `next_cursor`
+when non-null; final/empty pages return null. No account lookup is needed for deleted IDs. Pages
+are live, not a snapshot: concurrent insertions at or before the cursor can be missed. Audit
+output is IDs-only but remains private; do not publish it or attempt to correlate it with emails
+in public tickets. Disable/enable/sign-out retain their separate private JSONL intent/outcome
+trail described above; the native reader does not read that file or combine the two stores.
+
+Operators must apply the approved retention/access/backup policy to both stores; this feature
+does not invent a retention period, erase old backups, or provide tamper evidence. A schema
+downgrade from `0004` to `0003` explicitly drops the native audit table and its retained records;
+review preservation before a downgrade. Archives retain their fixed `0003` schema and the
+adoption bridge still produces `0003`; current startup subsequently adds the audit table.
+See [archive compatibility](LEGACY_IMPORT_PLAN.md) for the reviewed producer versions.
+Release owners must qualify the `0003` → `0004` upgrade before
+upgrading a serving database. No quota-reset or retired-identity enforcement is added.
+
 ## Abuse procedure
 
 1. Identify the serving writer and affected account IDs through protected operator access. Inspect
@@ -118,6 +154,7 @@ and incident records separate from account/student exports.
 Account self-deletion removes the account's usage counters. The current service does not retain a
 retired-identity quota ledger, so delete-and-re-register can evade a per-account daily allowance.
 This CLI does not solve that bypass. Avoid deleting an abusive account as containment; shared
-global budget/sign-up controls limit exposure, subject to the serving configuration. Full auditing
-of user-requested account deletion/export and durable re-registration abuse controls remain open
-in #27. This local mutation audit must not be represented as coverage of those self-service routes.
+global budget/sign-up controls limit exposure, subject to the serving configuration. Durable
+re-registration abuse controls remain separate work in #27. Self-service action auditing
+is the limited native trail above; it does not prevent re-registration or prove export delivery.
+The local mutation JSONL alone must not be represented as coverage of those self-service routes.

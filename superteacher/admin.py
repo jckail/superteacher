@@ -28,6 +28,7 @@ PASSCODE_OWNER_ID = "owner0000000"
 MUTATIONS = {"disable", "enable", "sign-out"}
 REQUIRED_COLUMNS = {
     "users": {"id", "email", "disabled", "created_at", "last_login_at"},
+    "account_action_audit": {"event_id", "occurred_at", "actor_id", "target_id", "action", "outcome"},
     "sessions": {"id_hash", "user_id"},
     "login_tokens": {"token_hash", "email", "consumed_at"},
     "usage_counters": {"user_id", "day", "kind", "count"},
@@ -218,6 +219,37 @@ def _list_users(conn: sqlite3.Connection, *, limit: int, after: str | None) -> d
     return {"users": users, "next_cursor": users[-1]["id"] if len(rows) > limit else None}
 
 
+def _audit_cursor(value: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{32}", value):
+        raise argparse.ArgumentTypeError("Audit cursor must be a 32-character lowercase hexadecimal event ID.")
+    return value
+
+
+def _audit_events(conn: sqlite3.Connection, *, limit: int, after: str | None) -> dict:
+    parameters: list = []
+    where = ""
+    if after is not None:
+        where = " WHERE event_id > ?"
+        parameters.append(after)
+    parameters.append(limit + 1)
+    with closing(
+        conn.execute(
+            "SELECT event_id,occurred_at,actor_id,target_id,action,outcome FROM account_action_audit"
+            + where
+            + " ORDER BY event_id LIMIT ?",
+            tuple(parameters),
+        )
+    ) as cursor:
+        rows = cursor.fetchall()
+    events = [dict(row) for row in rows[:limit]]
+    for event in events:
+        timestamp = datetime.fromisoformat(event["occurred_at"])
+        event["occurred_at"] = (
+            (timestamp.replace(tzinfo=UTC) if timestamp.tzinfo is None else timestamp).astimezone(UTC).isoformat()
+        )
+    return {"events": events, "next_cursor": events[-1]["event_id"] if len(rows) > limit else None}
+
+
 def _day(value: str) -> str:
     try:
         parsed = date.fromisoformat(value)
@@ -237,6 +269,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     listing.add_argument("--limit", type=_limit, default=100, help="Page size: 1-1000 (default: 100)")
     listing.add_argument("--after", type=_identifier, help="Continue after this account ID, not an email address")
+    audit_reader = commands.add_parser(
+        "audit", help="Read retained IDs-only self-service action events (private output)"
+    )
+    audit_reader.add_argument("--limit", type=_limit, default=100)
+    audit_reader.add_argument("--after", type=_audit_cursor)
     usage = commands.add_parser("usage", help="Inspect used counts only; limits come from runtime configuration")
     usage.add_argument("user_id", type=_identifier)
     usage.add_argument("--day", type=_day, default=datetime.now(UTC).date().isoformat())
@@ -251,6 +288,8 @@ def main(argv: list[str] | None = None) -> int:
         with closing(conn):
             if args.action == "list":
                 result = _list_users(conn, limit=args.limit, after=args.after)
+            elif args.action == "audit":
+                result = _audit_events(conn, limit=args.limit, after=args.after)
             elif args.action == "usage":
                 _user(conn, args.user_id)
                 used = {"chat": 0, "insight": 0, "parent_update": 0}

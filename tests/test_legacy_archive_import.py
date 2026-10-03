@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -99,6 +100,8 @@ def test_faithful_roster_and_standalone_bundle(tmp_path, capture):
         for member in bundle.infolist():
             assert (member.external_attr >> 16) & 0o777 == 0o600
         manifest = json.loads(bundle.read("manifest.json"))
+        assert manifest["importer_version"] == "2"
+        assert manifest["importer_sha256"] == hashlib.sha256(Path(importer.__file__).read_bytes()).hexdigest()
         assert len(set(manifest["id_maps"]["students"].values())) == 2
         assert manifest["normalization_changes"][0]["native"] == "Mathematics"
         assert all(
@@ -112,6 +115,7 @@ def test_faithful_roster_and_standalone_bundle(tmp_path, capture):
         assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [("0003",)]
+        assert not connection.execute("SELECT name FROM sqlite_master WHERE name='account_action_audit'").fetchall()
         assert connection.execute("SELECT id,disabled FROM users").fetchall() == [("rehearsal001", 1)]
         assert connection.execute("SELECT name,grade_level FROM students").fetchall() == [("Same Name", 7)] * 2
         assert connection.execute("SELECT DISTINCT owner_id FROM courses").fetchall() == [("rehearsal001",)]
