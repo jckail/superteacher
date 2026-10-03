@@ -104,3 +104,22 @@ it('refuses invalid group capacity, past date and slots spilling into tomorrow',
   fireEvent.change(screen.getByLabelText('Available start time (school time)'), { target: { value: '23:50' } });
   expect(planButton()).toBeDisabled();
 });
+
+it('marks rounded weak-type percentages without changing exact threshold membership', async () => {
+  const { user, update } = setup();
+  update({ gradebook: { ...data, assessments: [{ ...data.assessments[0], max_points: 300 }], rows: [
+    { student_id: 'boundary', name: 'Boundary', average: null, letter: null, points: { a: 209.9 } },
+    { student_id: 'exact', name: 'Exact', average: null, letter: null, points: { a: 210 } },
+    { student_id: 'zero', name: 'Zero', average: 0, letter: 'F', points: { a: 0 } },
+    { student_id: 'bonus', name: 'Bonus', average: 125, letter: 'A', points: { a: 375 } },
+  ] } });
+  await user.selectOptions(screen.getByLabelText('Group by'), 'weak');
+  expect(group().getByText('Boundary · ≈70%')).toBeInTheDocument();
+  expect(group().getByText('Zero · 0%')).toBeInTheDocument();
+  expect(group().queryByText('Exact · 70%')).not.toBeInTheDocument();
+  expect(screen.getByText(/Membership uses unrounded percentages/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Below (%)'), { target: { value: '100' } });
+  expect(group().getByText('Exact · 70%')).toBeInTheDocument();
+  expect(group().queryByText('Bonus · 125%')).not.toBeInTheDocument();
+  expect(screen.getByText(/extra credit is preserved/)).toBeInTheDocument();
+});
