@@ -64,7 +64,7 @@ jobs:
         working-directory: web
       - run: npm run test:e2e
         working-directory: web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-failure-artifacts
@@ -204,7 +204,7 @@ jobs:
       - run: npx playwright test
         working-directory: e2e
         env: { CI: 'true' }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
@@ -225,7 +225,7 @@ jobs:
       - run: python scripts/check_bench_budgets.py bench-1k.json
       - run: if [ -f bench-1k.md ]; then cat bench-1k.md >> "$GITHUB_STEP_SUMMARY"; fi
         if: always()
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bench-1k
