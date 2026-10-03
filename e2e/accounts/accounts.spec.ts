@@ -102,7 +102,7 @@ test('passwordless sign-in, starter classroom, single-use link, export, sign out
   await page.getByRole('button', { name: new RegExp(EMAIL, 'i') }).click();
   await page.getByRole('button', { name: /delete account/i }).click();
   const dialog = page.getByRole('alertdialog');
-  const confirm = dialog.getByRole('button', { name: 'Delete everything' });
+  const confirm = dialog.getByRole('button', { name: 'Delete account' });
   await expect(confirm).toBeDisabled();
   await dialog.getByLabel(/type .* to confirm/i).fill(EMAIL);
   await confirm.click();

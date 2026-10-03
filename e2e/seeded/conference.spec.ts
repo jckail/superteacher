@@ -109,7 +109,7 @@ test('native conference print excludes an actual accounts dialog portal and leav
   const dialog = page.getByRole('alertdialog', { name: 'Delete your account?' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText(email);
-  await expect(dialog.getByRole('button', { name: 'Delete everything' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
   await expect(page.locator('body > .scrim')).toBeVisible();
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('body > .scrim')).toBeHidden();
@@ -118,7 +118,7 @@ test('native conference print excludes an actual accounts dialog portal and leav
   expect(printedText).toContain(student.name);
   expect(printedText).not.toContain(email);
   expect(printedText).not.toContain('Delete your account?');
-  expect(printedText).not.toContain('Delete everything');
+  expect(printedText).not.toContain('Delete account');
   const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
   expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
   await info.attach('conference-with-account-portal.pdf', { body: pdf, contentType: 'application/pdf' });
