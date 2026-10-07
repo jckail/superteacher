@@ -59,6 +59,8 @@ def run_migrations(eng: Engine, *, target_revision: str = "head") -> None:
       selects its frozen ``0003`` format; it does not follow the runtime head.
       A database created before Alembic was introduced
       (tables present, no ``alembic_version``) is stamped at the baseline revision first.
+    * PostgreSQL takes a transaction advisory lock before that revision check so
+      overlapping processes apply DDL one at a time. SQLite does not.
     """
     from . import models  # noqa: F401  (register tables)
 
@@ -85,6 +87,11 @@ def run_migrations(eng: Engine, *, target_revision: str = "head") -> None:
             conn.commit()
         try:
             with conn.begin():
+                if eng.dialect.name == "postgresql":
+                    conn.exec_driver_sql(
+                        "SELECT pg_advisory_xact_lock(CAST(%s AS bigint))",
+                        (POSTGRES_MIGRATION_ADVISORY_LOCK,),
+                    )
                 cfg.attributes["connection"] = conn
                 tables = set(inspect(conn).get_table_names())
                 validate_revision_identity(conn)
@@ -101,6 +108,10 @@ def run_migrations(eng: Engine, *, target_revision: str = "head") -> None:
 
 
 BASELINE_REVISION = "0001"
+# Database-wide, transaction-scoped. Overlapping PostgreSQL boots take this before
+# reading alembic_version so they cannot apply the same DDL together. It releases
+# on commit or rollback and works behind a transaction-mode pooler.
+POSTGRES_MIGRATION_ADVISORY_LOCK = 838_338_091
 
 
 def validate_revision_identity(conn) -> None:
