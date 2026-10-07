@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
-from .. import accounts
+from .. import accounts, metrics
 from .. import reports as svc
 from ..accounts import CurrentUser
 from ..auth import current_user, settings_of
@@ -77,5 +77,8 @@ async def parent_update(
         except accounts.QuotaExceeded as e:
             raise accounts.quota_http_error(e) from None
 
-    draft, source = await svc.parent_update(student, body.tone, before_call=charge)
+    if settings_of(request).public_demo:
+        draft, source = svc.template_draft(student, metrics.compute(student), body.tone), "template"
+    else:
+        draft, source = await svc.parent_update(student, body.tone, before_call=charge)
     return ParentUpdateOut(subject=draft.subject, body=draft.body, source=source)

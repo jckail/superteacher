@@ -38,8 +38,9 @@ COPY --from=web /web/dist ./web/dist
 RUN chmod -R a+rX /app/superteacher /app/alembic /app/web
 
 # Non-root; data lives on a volume. Secrets (AUTH_PASSWORD, SESSION_SECRET, ANTHROPIC_API_KEY) are injected at
-# runtime and never baked into the image. AUTH_PASSWORD is REQUIRED: the container refuses to start without it
-# (set AUTH_DISABLED=true only for throwaway local runs).
+# runtime and never baked into the image. Private passcode deployments require AUTH_PASSWORD.
+# PUBLIC_DEMO=true explicitly opens the synthetic workspace while keeping CSRF and AI spend limits.
+# AUTH_DISABLED=true remains only for throwaway local runs.
 RUN useradd --system --uid 10001 --create-home app && mkdir -p /data && chown app /data
 USER app
 ENV PORT=8080 DATABASE_URL=sqlite:////data/superteacher.db STATIC_DIR=web/dist

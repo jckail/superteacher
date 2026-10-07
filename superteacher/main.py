@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from . import auth, observability
+from . import auth, demo, observability
 from . import db as database
 from .calendar import SchoolCalendarMiddleware, school_calendar
 from .config import Settings, get_settings
@@ -174,6 +174,7 @@ def create_app(
         return {"version": settings.version, "git_commit": settings.git_commit}
 
     app.include_router(auth.router, prefix="/api")
+    app.include_router(demo.router, prefix="/api")
     for r in (system, roster, gradebook, attendance, ai, reports, account):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(auth.current_user)])
 
