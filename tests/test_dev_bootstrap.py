@@ -98,6 +98,12 @@ def test_demo_overrides_real_data_credentials(checkout, monkeypatch):
         assert env[name] == ""
 
 
+def test_unsupported_platform_points_at_manual_setup_guide(monkeypatch):
+    monkeypatch.setattr(dev.sys, "platform", "darwin")
+    with pytest.raises(RuntimeError, match=r"docs/LOCAL_DEVELOPMENT\.md"):
+        dev.preflight()
+
+
 @pytest.mark.parametrize("version", ["v20.19.0", "v22.11.0"])
 def test_rejects_unsupported_node(monkeypatch, version):
     monkeypatch.setattr(dev.shutil, "which", lambda tool: tool)
