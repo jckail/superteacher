@@ -83,8 +83,9 @@ them for review; do not drop them from the retention accounting.
 
 Write only to a newly created isolated database migrated through the native
 `0001 -> 0002 -> 0003` archive-format chain. Importer version 2 explicitly targets
-`0003`, even though serving startup now advances to `0004` for limited account
-auditing. The current viewer separately pins its runtime helper source and
+`0003`, even though serving startup now advances through `0004` (account
+auditing) and `0005` (case-insensitive section names). `0005` refuses existing
+case-variant section names with a listing. The current viewer separately pins its runtime helper source and
 accepts only the reviewed version-1 or version-2 producer digest with the exact
 `0003` schema. A grant and its manifest must name the same producer; existing
 expiry, actor, owner and archive-hash checks still apply. Historical artifacts

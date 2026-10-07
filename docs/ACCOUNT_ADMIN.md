@@ -134,7 +134,9 @@ Operators must apply the approved retention/access/backup policy to both stores;
 does not invent a retention period, erase old backups, or provide tamper evidence. A schema
 downgrade from `0004` to `0003` explicitly drops the native audit table and its retained records;
 review preservation before a downgrade. Archives retain their fixed `0003` schema and the
-adoption bridge still produces `0003`; current startup subsequently adds the audit table.
+adoption bridge still produces `0003`; current startup subsequently adds the audit table
+and revision `0005`, a unique index on `(course_id, lower(name))`. That upgrade stops
+with a listing when a course already has section names that differ only by case.
 See [archive compatibility](LEGACY_IMPORT_PLAN.md) for the reviewed producer versions.
 Release owners must qualify the `0003` → `0004` upgrade before
 upgrading a serving database. No quota-reset or retired-identity enforcement is added.

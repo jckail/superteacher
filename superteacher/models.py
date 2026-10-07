@@ -170,6 +170,10 @@ class Section(Base):
     )
 
 
+# Case-insensitive per course, matching courses. The table unique constraint stays exact-match.
+Index("uq_sections_course_lower_name", Section.course_id, func.lower(Section.name), unique=True)
+
+
 class Student(Base):
     __tablename__ = "students"
     __table_args__ = (
