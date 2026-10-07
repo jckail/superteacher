@@ -146,7 +146,7 @@ def test_legacy_adoption_uses_frozen_baseline_with_new_revisions(tmp_path):
         _baseline(eng)
         database.run_migrations(eng)
         with eng.connect() as conn:
-            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0004"
+            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0005"
         assert len(inspect(eng).get_check_constraints("assessments")) == 2
     finally:
         eng.dispose()
@@ -198,7 +198,7 @@ def test_integrity_upgrade_preserves_every_row_with_foreign_keys_enabled(tmp_pat
         with eng.connect() as conn:
             assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
             assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
-            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004"
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0005"
     finally:
         eng.dispose()
 
@@ -379,8 +379,69 @@ def test_explicit_archive_target_is_distinct_from_runtime_head(tmp_path):
         assert "account_action_audit" not in inspect(eng).get_table_names()
         database.run_migrations(eng)
         with eng.connect() as conn:
-            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004"
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0005"
         assert "account_action_audit" in inspect(eng).get_table_names()
+    finally:
+        eng.dispose()
+
+
+def test_section_names_are_case_insensitive_per_course(tmp_path):
+    eng = create_engine(f"sqlite:///{tmp_path / 'sections.db'}")
+    database.run_migrations(eng)
+    with eng.begin() as c:
+        for course_id in ("c1", "c2"):
+            c.execute(
+                text("insert into users (id, email, disabled, created_at) values (:id, :email, 0, CURRENT_TIMESTAMP)"),
+                {"id": course_id, "email": f"{course_id}@x.co"},
+            )
+            c.execute(
+                text("insert into courses (id, name, owner_id) values (:id, 'Math', :owner)"),
+                {"id": course_id, "owner": course_id},
+            )
+            c.execute(
+                text("insert into sections (id, course_id, name) values (:id, :course, 'Period 1')"),
+                {"id": f"s-{course_id}", "course": course_id},
+            )
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError), eng.begin() as c:
+        c.execute(text("insert into sections (id, course_id, name) values ('s3', 'c1', 'period 1')"))
+    with eng.connect() as c:
+        assert c.execute(text("select count(*) from sections where course_id = 'c1'")).scalar() == 1
+        assert c.execute(text("select name from sqlite_master where name = 'uq_sections_course_lower_name'")).scalar()
+
+
+def test_section_case_duplicates_stop_migration_before_ddl(tmp_path):
+    eng = database.make_engine(f"sqlite:///{tmp_path / 'dupes.db'}")
+    try:
+        upgrade_to(eng, "0004")
+        with eng.begin() as c:
+            c.execute(
+                text(
+                    "insert into users (id, email, disabled, created_at) values ('u1', 'a@b.co', 0, CURRENT_TIMESTAMP)"
+                )
+            )
+            c.execute(text("insert into courses (id, name, owner_id) values ('c1', 'Math', 'u1')"))
+            c.execute(
+                text(
+                    "insert into sections (id, course_id, name) values "
+                    "('s1', 'c1', 'Period 1'), ('s2', 'c1', 'period 1')"
+                )
+            )
+        before = _rows(eng)
+        with pytest.raises(RuntimeError, match="Cannot apply 0005") as raised:
+            database.run_migrations(eng)
+        message = str(raised.value)
+        assert "Period 1" in message and "period 1" in message
+        assert "s1" in message and "s2" in message
+        assert _rows(eng) == before
+        with eng.connect() as c:
+            assert c.execute(text("select version_num from alembic_version")).scalar() == "0004"
+            index = c.execute(
+                text("select name from sqlite_master where name = 'uq_sections_course_lower_name'")
+            ).scalar()
+            assert index is None
+            assert c.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
     finally:
         eng.dispose()
 

@@ -834,7 +834,7 @@ def test_current_audit_schema_cannot_masquerade_as_archive_0003(approved):
         try:
             database.run_migrations(engine)
             with engine.begin() as connection:
-                assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0004"
+                assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0005"
                 connection.exec_driver_sql("UPDATE alembic_version SET version_num='0003'")
         finally:
             engine.dispose()

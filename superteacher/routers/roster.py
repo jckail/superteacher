@@ -119,6 +119,8 @@ def create_section(body: schemas.SectionIn, db: Session = Depends(get_db), user:
     try:
         db.commit()
     except IntegrityError:
+        # Exact matches and case variants both hit a unique index. A race that passed
+        # _name_taken must be the same 409, not a 500.
         db.rollback()
         raise HTTPException(409, "That section already exists in this course") from None
     return section
