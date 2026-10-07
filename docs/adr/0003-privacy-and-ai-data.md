@@ -14,7 +14,7 @@ commit bb23101, 2026-10-02), what Anthropic retains, what the browser stores, wh
 ### What leaves the system today (exact fields)
 
 All AI traffic goes server-side to `api.anthropic.com` from `superteacher/ai.py` and `reports.py` using `ANTHROPIC_API_KEY` (Secret Manager
-`anthropic-api-key`). Models by default (`config.py`): chat `claude-sonnet-5-5`, insights and parent drafts `claude-haiku-4-5-20251001`. All free text passes
+`anthropic-api-key`). Models by default (`config.py`): chat `claude-sonnet-5-5`, insights and parent drafts `claude-haiku-5-5`. All free text passes
 through `ai_tools.clean()` (control characters stripped, `<`/`>` defanged, truncated) to blunt prompt injection; it does not remove personal data.
 
 1. **Chat system prompt, roster snapshot** (`ai.build_context_parts`, rendered by `ai_tools.student_line`), sent on every chat turn (prompt-cached):

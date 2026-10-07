@@ -130,7 +130,7 @@ def test_every_websocket_route_requires_a_session(app_client):
 
 def test_public_routes_leak_nothing_sensitive(app_client):
     assert set(app_client.get("/api/health").json()) == {"status", "database", "ai"}
-    assert app_client.get("/api/version").json().keys() == {"version"}
+    assert app_client.get("/api/version").json().keys() == {"version", "git_commit"}
     assert app_client.get("/api/auth/me").status_code == 401
 
 

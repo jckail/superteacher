@@ -441,12 +441,20 @@ async def _generate(model: str, prompt: str, lease: ai_capacity.Lease) -> Insigh
             lease.release()
 
 
+def short_output_options(model: str) -> dict:
+    """Reserve short JSON budgets for text on Haiku 5.5; leave overrides unchanged."""
+    if model == "claude-haiku-5-5":
+        return {"thinking": {"type": "disabled"}, "output_config": {"effort": "medium"}}
+    return {}
+
+
 async def _generate_payload(ai: AsyncAnthropic, model: str, prompt: str) -> InsightPayload | None:
     for attempt in range(INSIGHT_ATTEMPTS):
         try:
             resp = await ai.messages.create(
                 model=model, max_tokens=700, system=INSIGHT_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
+                **short_output_options(model),
             )  # fmt: skip
             text = next((b.text for b in resp.content if getattr(b, "type", "") == "text"), "")
             return parse_insight(text)

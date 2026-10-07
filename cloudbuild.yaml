@@ -1,9 +1,12 @@
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ['build', '--build-arg', 'VERSION=$BUILD_ID', '-t', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID', '.']
+    args: ['build', '--build-arg', 'VERSION=$BUILD_ID', '--build-arg', 'GIT_COMMIT=${_SOURCE_COMMIT}', '-t', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID', '.']
   - name: gcr.io/cloud-builders/docker
     args: ['push', 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID']
 # Build only. Stage and promote separately after replica/backup/drain verification;
 # automatic Cloud Run promotion can start overlapping SQLite writers.
 images:
   - 'gcr.io/$PROJECT_ID/superteacher:$BUILD_ID'
+
+substitutions:
+  _SOURCE_COMMIT: development

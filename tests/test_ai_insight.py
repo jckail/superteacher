@@ -218,3 +218,18 @@ def test_student_block_keeps_complete_bounded_details_and_omission_count(count):
         assert f"Assignment {count - 1}:" in text
     else:
         assert "details omitted" not in text
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-5-5", "claude-haiku-4-5-20251001", "custom-model"])
+def test_short_json_request_options_follow_configured_model(seeded, monkeypatch, model):
+    monkeypatch.setattr(ai.get_settings(), "anthropic_insight_model", model)
+    fake = FakeAI(creates=[GOOD])
+    (ins,), _ = go(seeded, fake, monkeypatch)
+    assert ins.source == "ai" and ins.model == model
+    call = fake.create_calls[0]
+    assert call["model"] == model
+    if model == "claude-haiku-5-5":
+        assert call["thinking"] == {"type": "disabled"}
+        assert call["output_config"] == {"effort": "medium"}
+    else:
+        assert "thinking" not in call and "output_config" not in call

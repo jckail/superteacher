@@ -92,3 +92,18 @@ check found no configured AI provider credential (only its presence was checked;
 no secret values were displayed). Real-provider grounding, tool and injection
 acceptance therefore remain unexecuted. Existing fake-provider and offline
 fixture results must not be presented as real-provider evaluation.
+
+## Provider configuration review (2026-10-07)
+
+The defaults now select `claude-sonnet-5-5` for chat and
+`claude-haiku-5-5` for insight cards and parent drafts. The official
+[model overview](https://platform.claude.com/docs/en/models/overview) and
+[Haiku 5.5 migration guide](https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide)
+confirm these current IDs. Deployment variables `ANTHROPIC_MODEL` and
+`ANTHROPIC_INSIGHT_MODEL` can override the defaults and must be inspected separately.
+Haiku 5.5 uses adaptive thinking by default and a newer tokenizer. Short JSON
+requests explicitly disable thinking at medium effort, an allowed setting in the
+[effort guide](https://platform.claude.com/docs/en/build-with-claude/effort),
+to reserve their output budget for the response. Other model overrides retain
+their existing request options. Model-ID support and fake-provider checks do not
+establish live availability or output quality; real-provider acceptance remains required.
