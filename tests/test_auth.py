@@ -241,3 +241,12 @@ def test_lockout_is_shared_when_proxy_headers_are_not_trusted():
 def test_untrusted_forwarded_proto_does_not_bypass_origin_scheme():
     with make() as base, _behind_tls_proxy(base, trusted=False) as proxied:
         assert proxied.post("/api/auth/login", json={"password": PW}, headers=BROWSER).status_code == 403
+
+
+def test_public_version_reports_source_commit(client, monkeypatch):
+    from superteacher.config import get_settings
+
+    sha = "a" * 40
+    monkeypatch.setattr(get_settings(), "version", "build-identifier")
+    monkeypatch.setattr(get_settings(), "git_commit", sha)
+    assert client.get("/api/version").json() == {"version": "build-identifier", "git_commit": sha}

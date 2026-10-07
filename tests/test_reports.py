@@ -434,3 +434,18 @@ def test_summary_assessment_median_remains_finite(client, values, expected):
     stat = next(row for row in response.json()["assessments"] if row["id"] == assessment["id"])
     assert stat["median"] == expected
     assert stat["graded"] == len(values)
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-5-5", "claude-haiku-4-5-20251001", "custom-model"])
+def test_parent_short_json_options_follow_configured_model(seeded, monkeypatch, model):
+    monkeypatch.setattr(get_settings(), "anthropic_insight_model", model)
+    fake = FakeClient('{"subject": "Update", "body": "Review the recorded class work."}')
+    response, fake = _post(seeded, monkeypatch, fake)
+    assert response.status_code == 200 and response.json()["source"] == "ai"
+    call = fake.prompts[0]
+    assert call["model"] == model
+    if model == "claude-haiku-5-5":
+        assert call["thinking"] == {"type": "disabled"}
+        assert call["output_config"] == {"effort": "medium"}
+    else:
+        assert "thinking" not in call and "output_config" not in call

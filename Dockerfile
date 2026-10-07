@@ -10,7 +10,8 @@ RUN npm run build
 # --- runtime ---
 FROM python:3.12.15-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
 ARG VERSION=dev
-ENV VERSION=$VERSION
+ARG GIT_COMMIT=development
+ENV VERSION=$VERSION GIT_COMMIT=$GIT_COMMIT
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 # Production must never seed fake demo students into a real database (the app default stays true for local dev).
 ENV SEED_DEMO_DATA=false

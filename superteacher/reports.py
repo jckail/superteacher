@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from . import accounts, ai_capacity, metrics, observability
+from .ai import short_output_options
 from .ai_tools import clean
 from .calendar import school_today
 from .config import get_settings
@@ -362,6 +363,7 @@ async def parent_update(
                     max_tokens=700,
                     system=PARENT_PROMPT.format(tone=tone),
                     messages=[{"role": "user", "content": _context(s, m)}],
+                    **short_output_options(get_settings().anthropic_insight_model),
                 )
                 text = next((b.text for b in resp.content if isinstance(getattr(b, "text", None), str)), "")
                 raw = json.loads(text[text.index("{") : text.rindex("}") + 1])

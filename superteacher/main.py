@@ -171,7 +171,7 @@ def create_app(
 
     @app.get("/api/version", tags=["system"])
     def version():
-        return {"version": settings.version}
+        return {"version": settings.version, "git_commit": settings.git_commit}
 
     app.include_router(auth.router, prefix="/api")
     for r in (system, roster, gradebook, attendance, ai, reports, account):
