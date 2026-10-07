@@ -237,8 +237,17 @@ class AnthropicModel(Model):
 
 
 def _tools(model: AnthropicModel, session_factory, owner_id: str, tool_runner=None) -> list[FunctionTool]:
+    # The SDK may schedule returned FunctionTools concurrently even when the model
+    # setting discourages parallel calls. Preserve sequential classroom lookups,
+    # including session factories backed by a shared SQLite connection.
+    lookup_lock = asyncio.Lock()
+
     def make_invoke(name):
         async def invoke(ctx, arguments):
+            async with lookup_lock:
+                return await execute(ctx, arguments)
+
+        async def execute(ctx, arguments):
             args = json.loads(arguments)
             lookup_name = name
             if name == _UNKNOWN_TOOL:

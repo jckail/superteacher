@@ -20,7 +20,7 @@ from starlette.requests import HTTPConnection
 
 from . import accounts
 from .auth import AuthState, _csrf, _secure, current_user
-from .client_address import rate_limit_client
+from .client_address import UNVERIFIED_CLIENT, rate_limit_client
 from .config import Settings
 from .db import get_db
 from .models import AiBudget, DemoUsageCounter
@@ -51,6 +51,8 @@ def visitor_subject(st: AuthState, cookie: str | None) -> str | None:
 
 def network_subject(conn: HTTPConnection, st: AuthState) -> str:
     client = rate_limit_client(conn, trusted_hops=st.settings.auth_forwarded_for_trusted_hops)
+    if client == UNVERIFIED_CLIENT:
+        raise HTTPException(400, "Unable to verify this network for the demo allowance.")
     return hmac.new(st.key, ("demo-network:" + client).encode(), hashlib.sha256).hexdigest()
 
 

@@ -209,3 +209,22 @@ def test_verified_suffix_survives_uvicorn_proxy_headers():
 
     asyncio.run(check())
     assert len(set(identities)) == 1
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        [],
+        [(b"x-forwarded-for", b"192.0.2.1"), (b"x-forwarded-for", b"192.0.2.2")],
+        [(b"x-forwarded-for", b"x" * 4097)],
+        [(b"x-forwarded-for", b"not-an-address")],
+    ],
+)
+def test_unverifiable_forwarding_cannot_allocate_an_alternate_allowance(headers):
+    from fastapi import HTTPException
+
+    st = AuthState(settings(auth_forwarded_for_trusted_hops=1))
+    conn = HTTPConnection({"type": "http", "headers": headers, "client": ("127.0.0.1", 1234)})
+    with pytest.raises(HTTPException) as rejected:
+        demo.network_subject(conn, st)
+    assert rejected.value.status_code == 400

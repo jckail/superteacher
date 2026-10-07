@@ -229,3 +229,32 @@ def test_injected_tool_runner_preserves_lookup_error_contract():
     collect(harness(client, fake_session, tool_runner=execute))
     assert calls == [(fake_session, "synthetic-owner", "a", "class_stats", {})]
     assert client.stream_calls[1]["messages"][-1]["content"][0]["is_error"] is True
+
+
+def test_sdk_multiple_lookups_are_serialized_before_database_access():
+    active = 0
+    maximum = 0
+    calls = []
+
+    async def execute(factory, owner, block):
+        nonlocal active, maximum
+        active += 1
+        maximum = max(maximum, active)
+        await asyncio.sleep(0.01)
+        calls.append(block.name)
+        active -= 1
+        return {"content": "{}"}
+
+    client = FakeAI(
+        [
+            FakeStream(
+                [],
+                "tool_use",
+                [tool_block("a", "class_stats", {}), tool_block("b", "get_student", {"student_id": "synthetic"})],
+            ),
+            end_turn("done"),
+        ]
+    )
+    collect(harness(client, fake_session, tool_runner=execute))
+    assert maximum == 1
+    assert calls == ["class_stats", "get_student"]
