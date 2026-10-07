@@ -69,7 +69,7 @@ def ready():
 
 def preflight():
     if sys.platform != "linux":
-        raise RuntimeError("Use Linux/WSL, or the manual setup in README.md.")
+        raise RuntimeError("Use Linux/WSL, or the manual setup in docs/LOCAL_DEVELOPMENT.md.")
     for tool in ("uv", "node", "npm"):
         if not shutil.which(tool):
             raise RuntimeError(f"Missing {tool}; install it using its official instructions first.")
