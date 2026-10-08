@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     auth_password: str | None = None
     # Explicit opt-out for local development / tests. Never the implicit default.
     auth_disabled: bool = False
+    # Public synthetic-data demo: open owner workspace while retaining origin/CSRF checks.
+    public_demo: bool = False
+    public_demo_chat_per_day: int = Field(default=5, ge=1, le=5)
+    demo_chat_max_model_calls: int = Field(default=3, ge=1, le=6)
+    demo_chat_max_output_tokens: int = Field(default=1024, ge=256, le=4096)
     # 0 = Uvicorn's request.client. Positive = verified proxy-appended XFF suffix
     # length, including the client address; configure only after ingress review.
     auth_forwarded_for_trusted_hops: int = Field(default=0, ge=0, le=8)

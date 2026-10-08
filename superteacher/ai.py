@@ -27,7 +27,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import ai_capacity, ai_tools, metrics, observability, schemas
+from . import agent_harness, ai_capacity, ai_tools, metrics, observability, schemas
 from .ai_tools import clean, section_label, student_block, student_line
 from .calendar import school_today
 from .config import get_settings
@@ -258,50 +258,35 @@ async def _run_chat_client(
     max_iterations: int | None,
     owner_id: str | None,
 ) -> AsyncIterator[dict]:
+    settings = get_settings()
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
-    system = system_blocks(roster, focus)
-    tools = ai_tools.TOOLS if session_factory is not None else []
-    messages: list[dict] = list(history)
-    model = get_settings().anthropic_model
-
-    for _ in range(limit):
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "max_tokens": MAX_OUTPUT_TOKENS,
-            "system": system,
-            "messages": messages,
-        }
-        if tools:
-            kwargs["tools"] = tools
-        try:
-            async with ai.messages.stream(**kwargs) as stream:
-                async for text in stream.text_stream:
-                    yield {"type": "delta", "text": text}
-                final = await stream.get_final_message()
-        except (anthropic.APIError, OSError) as e:
-            log.warning("chat upstream error: %s: %s", type(e).__name__, getattr(e, "status_code", ""))
-            raise ChatError(friendly_error(e)) from None
-
-        if final.stop_reason == "refusal":
-            yield {"type": "delta", "text": "\n\nI can't help with that request."}
-            return
-        if final.stop_reason == "max_tokens":
-            yield {"type": "delta", "text": "\n\n_(Reply cut short; ask me to continue.)_"}
-            return
-        if final.stop_reason not in ("tool_use", "pause_turn"):
-            return
-
-        messages.append({"role": "assistant", "content": [_block_param(b) for b in final.content]})
-        results = []
-        for b in final.content:
-            if b.type != "tool_use":
-                continue
-            yield {"type": "tool", "name": b.name}
-            results.append(await _run_tool(session_factory, owner_id, b))
-        if results:
-            messages.append({"role": "user", "content": results})  # all results in ONE user message
-
-    yield {"type": "delta", "text": "\n\n_(I stopped looking things up after several steps; ask a narrower question.)_"}
+    output_tokens = MAX_OUTPUT_TOKENS
+    request_options = None
+    if settings.public_demo:
+        limit = min(limit, settings.demo_chat_max_model_calls)
+        output_tokens = settings.demo_chat_max_output_tokens
+        if settings.anthropic_model == "claude-sonnet-5-5":
+            request_options = {"thinking": {"type": "between_tools"}, "output_config": {"effort": "medium"}}
+    try:
+        async with aclosing(
+            agent_harness.run_streamed(
+                ai,
+                history,
+                system_blocks(roster, focus),
+                session_factory,
+                owner_id,
+                limit,
+                settings.anthropic_model,
+                output_tokens,
+                request_options=request_options,
+                tool_runner=_run_tool,
+            )
+        ) as events:
+            async for event in events:
+                yield event
+    except (anthropic.APIError, OSError) as exc:
+        log.warning("chat upstream error: %s: %s", type(exc).__name__, getattr(exc, "status_code", ""))
+        raise ChatError(friendly_error(exc)) from None
 
 
 async def _run_tool(session_factory, owner_id: str, block: Any) -> dict:

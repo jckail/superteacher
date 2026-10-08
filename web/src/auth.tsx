@@ -37,7 +37,7 @@ export function AuthGate({ children, onLogout }: { children: ReactNode; onLogout
     advanceApiSession();
     let mode: AuthMode = 'passcode';
     try {
-      try { mode = (await api<AuthConfig>('/auth/config')).auth_mode === 'accounts' ? 'accounts' : 'passcode'; }
+      try { const config = await api<AuthConfig>('/auth/config'); mode = config.auth_mode === 'accounts' || config.auth_mode === 'public_demo' ? config.auth_mode : 'passcode'; }
       catch (error) { if (!(error instanceof ApiError && error.status === 404)) throw error; /* legacy servers expose only /auth/me */ }
       if (current !== generation.current) return;
       const me = await api<AuthMe>('/auth/me');

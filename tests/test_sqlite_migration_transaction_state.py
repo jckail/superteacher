@@ -83,7 +83,7 @@ def test_real_file_migration_disables_fks_outside_physical_transaction(baseline_
         if entrypoint != "cli_engine":
             assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
         assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0004"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0005demo"
 
 
 def test_actual_caller_sqlite_transaction_is_rejected_before_migration(baseline_file):
