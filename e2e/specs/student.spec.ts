@@ -7,6 +7,17 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
   const aid = a.assessments[0].id;
   await page.request.put(`/api/assessments/${aid}/scores`, { data: { scores: [{ student_id: c.students[0].id, points: 41 }] }, headers: { 'X-Requested-With': 'superteacher' } });
 
+  const studentId = c.students[0].id;
+  let removed = false;
+  const detailGetsAfterDelete: string[] = [];
+  page.on('request', (request) => {
+    if (!removed || request.method() !== 'GET') return;
+    if (new URL(request.url()).pathname === `/api/students/${studentId}`) detailGetsAfterDelete.push(request.url());
+  });
+  page.on('response', (response) => {
+    if (response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/api/students/${studentId}` && response.ok()) removed = true;
+  });
+
   await page.goto('/roster');
   await page.getByRole('link', { name, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/students/${c.students[0].id}$`));
@@ -40,7 +51,9 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove student' }).click();
   await expect(page).toHaveURL(/\/roster/);
   await expect(page.getByText('Student removed')).toBeVisible();
-  expect((await page.request.get(`/api/students/${c.students[0].id}`)).status()).toBe(404);
+  await page.waitForTimeout(750);
+  expect(detailGetsAfterDelete).toEqual([]);
+  expect((await page.request.get(`/api/students/${studentId}`)).status()).toBe(404);
 });
 
 test('a student that does not exist shows a friendly not-found state', async ({ page, allowConsole }) => {

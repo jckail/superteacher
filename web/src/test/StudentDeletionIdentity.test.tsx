@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter, useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../api';
 import { ConfirmProvider } from '../components/Confirm';
@@ -51,6 +51,7 @@ function setup() {
 }
 function deletes() { return vi.mocked(api).mock.calls.filter(([, options]) => options?.method === 'DELETE'); }
 function reads(id: string) { return vi.mocked(api).mock.calls.filter(([path, options]) => !options?.method && (path === `/students/${id}` || path === `/students/${id}/insight`)); }
+function detailReads(id: string) { return vi.mocked(api).mock.calls.filter(([path, options]) => path === `/students/${id}` && !options?.method); }
 async function ready(id = 'ada', hidden = false) {
   await screen.findByRole('heading', { name: new RegExp(id === 'ada' ? 'Ada' : 'Ben'), level: 1, hidden });
   await screen.findByText(`${id} independent insight`);
@@ -83,6 +84,31 @@ it('same lifecycle submits exactly A and removes its detail/Insight before inval
   expect(client.getQueryData(['insight', 'ada'])).toBeUndefined();
   expect(reads('ada')).toHaveLength(before);
   expect(locations.filter((path) => path === '/roster')).toHaveLength(1);
+});
+
+it('does not GET the deleted student when the page stays mounted after DELETE', async () => {
+  const deletion = transport();
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1, refetchOnWindowFocus: false }, mutations: { retry: false } } });
+  function StayMounted() {
+    useBlocker(true);
+    return <Student />;
+  }
+  const router = createMemoryRouter([
+    { path: '/students/:id', element: <StayMounted /> },
+    { path: '/roster', element: <h1>Roster</h1> },
+  ], { initialEntries: ['/students/ada'] });
+  render(<QueryClientProvider client={client}><ToastProvider><ConfirmProvider><RouterProvider router={router} /></ConfirmProvider></ToastProvider></QueryClientProvider>);
+  const user = userEvent.setup();
+  await ready();
+  const before = detailReads('ada').length;
+  await user.click(within(await openRemoval(user)).getByRole('button', { name: 'Remove student' }));
+  await waitFor(() => expect(deletes()).toHaveLength(1));
+  await act(async () => { deletion.resolve(null); });
+  await screen.findByText('Student removed');
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+  expect(detailReads('ada')).toHaveLength(before);
+  expect(client.getQueryData(['student', 'ada'])).toBeUndefined();
+  expect(client.getQueryData(['insight', 'ada'])).toBeUndefined();
 });
 
 it('cancels an A confirmation after committed B navigation instead of deleting B', async () => {
