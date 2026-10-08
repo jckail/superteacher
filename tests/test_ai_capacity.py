@@ -139,6 +139,8 @@ def test_chat_deadline_cancels_stream_and_recovers_capacity(monkeypatch):
         with pytest.raises(ai.ChatError, match="too long"):
             await collect(ai.run_chat([], "roster"))
         assert stream.closed and fake.close_calls == 1
+        # Recovery verifies admission cleanup, not a second 20ms SDK scheduling benchmark.
+        monkeypatch.setattr(get_settings(), "ai_chat_timeout_seconds", 1.0)
         assert (await collect(ai.run_chat([], "roster")))[0]["text"] == "ok"
 
     asyncio.run(check())
@@ -183,7 +185,7 @@ def test_chat_deadline_spans_all_tool_rounds(monkeypatch):
 
     monkeypatch.setattr(ai, "_run_tool", tool)
     with pytest.raises(ai.ChatError, match="too long"):
-        asyncio.run(collect(ai.run_chat([], "roster")))
+        asyncio.run(collect(ai.run_chat([], "roster", session_factory=lambda: None, owner_id="owner0000000")))
     assert len(fake.stream_calls) == 2
     assert all(stream.closed for stream in fake.streams)
     assert fake.close_calls == 1

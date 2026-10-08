@@ -81,9 +81,9 @@ def test_published_accounts_snapshot_adopts_on_a_clone_without_record_changes(pu
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0003"
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
         database.run_migrations(engine)  # Native startup accepts the explicitly adopted output.
-        assert rows(destination) == {**original_rows, "account_action_audit": []}
+        assert rows(destination) == {**original_rows, "account_action_audit": [], "demo_usage_counters": []}
         with engine.connect() as connection:
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0004"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0005demo"
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
         assert source.read_bytes() == original_bytes
     finally:

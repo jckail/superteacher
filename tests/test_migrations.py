@@ -146,7 +146,7 @@ def test_legacy_adoption_uses_frozen_baseline_with_new_revisions(tmp_path):
         _baseline(eng)
         database.run_migrations(eng)
         with eng.connect() as conn:
-            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0004"
+            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0005demo"
         assert len(inspect(eng).get_check_constraints("assessments")) == 2
     finally:
         eng.dispose()
@@ -198,7 +198,7 @@ def test_integrity_upgrade_preserves_every_row_with_foreign_keys_enabled(tmp_pat
         with eng.connect() as conn:
             assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
             assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
-            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004"
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0005demo"
     finally:
         eng.dispose()
 
@@ -379,7 +379,7 @@ def test_explicit_archive_target_is_distinct_from_runtime_head(tmp_path):
         assert "account_action_audit" not in inspect(eng).get_table_names()
         database.run_migrations(eng)
         with eng.connect() as conn:
-            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004"
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0005demo"
         assert "account_action_audit" in inspect(eng).get_table_names()
     finally:
         eng.dispose()

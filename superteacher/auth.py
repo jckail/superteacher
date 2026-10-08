@@ -83,12 +83,15 @@ class AuthState:
     def __init__(self, settings: Settings, secret_dir: Path | None = None):
         self.settings = settings
         self.disabled = settings.auth_disabled
+        self.public_demo = settings.public_demo
         self.accounts = settings.auth_mode == "accounts"
+        if self.public_demo and (self.accounts or self.disabled):
+            raise RuntimeError("PUBLIC_DEMO requires passcode mode and AUTH_DISABLED=false.")
         if self.accounts and self.disabled:
             raise RuntimeError("AUTH_DISABLED cannot be combined with AUTH_MODE=accounts.")
         if self.accounts:
             mailer.validate_settings(settings)
-        if not self.disabled and not self.accounts and not settings.auth_password:
+        if not self.disabled and not self.public_demo and not self.accounts and not settings.auth_password:
             raise RuntimeError(
                 "AUTH_PASSWORD is not set. Set AUTH_PASSWORD (and ideally SESSION_SECRET), or set "
                 "AUTH_DISABLED=true to run WITHOUT authentication (local development only)."
@@ -98,6 +101,7 @@ class AuthState:
         secret = settings.session_secret or self._load_or_create_secret(secret_dir)
         key = hmac.new(secret.encode(), (settings.auth_password or "").encode(), hashlib.sha256).hexdigest()
         self.serializer = URLSafeTimedSerializer(key, salt="superteacher-session")
+        self.demo_serializer = URLSafeTimedSerializer(secret, salt="superteacher-demo-visitor-v1")
         self._roster_cursor_serializer = URLSafeSerializer(key, salt="superteacher-roster-page-v1")
         self.key = hmac.new(secret.encode(), b"accounts-ip-hash", hashlib.sha256).digest()
         self.link_ip = accounts.SlidingWindow(settings.accounts_link_per_ip_hour)
@@ -238,7 +242,7 @@ def _resolve(st: AuthState, factory, cookie: str | None, *, touch: bool = True) 
     if st.accounts:
         with factory() as db:
             return accounts.resolve_session(db, st.settings, cookie, touch=touch)
-    if st.disabled:
+    if st.disabled or st.public_demo:
         return _owner(st, factory)
     if st.valid(cookie):
         with factory() as db:
@@ -326,7 +330,7 @@ def auth_config(request: Request):
     """Public and fixed-shape: tells the sign-in screen which form to show."""
     st = _state(request)
     return {
-        "auth_mode": "accounts" if st.accounts else "passcode",
+        "auth_mode": "public_demo" if st.public_demo else ("accounts" if st.accounts else "passcode"),
         # False while sign-in email delivery is failing (see mailer.DeliveryHealth). Says nothing about any address.
         "email_available": mailer.email_available() if st.accounts else True,
     }
@@ -338,6 +342,8 @@ def login(body: LoginBody, request: Request, response: Response):
     _csrf(request, st)
     if st.accounts:
         raise HTTPException(404, "Not Found")
+    if st.public_demo:
+        return {"authenticated": True, "auth_required": False, "auth_mode": "public_demo"}
     if st.disabled:
         return {"authenticated": True, "auth_required": False}
     client = _ip(request, st)
@@ -523,6 +529,8 @@ def logout_all(request: Request, response: Response, user: CurrentUser = Depends
 @router.get("/me")
 def me(request: Request):
     st = _state(request)
+    if st.public_demo:
+        return {"authenticated": True, "auth_required": False, "auth_mode": "public_demo"}
     if st.disabled:
         return {"authenticated": True, "auth_required": False}
     user = _resolve(st, request.app.state.session_factory, request.cookies.get(COOKIE))
