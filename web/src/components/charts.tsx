@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AttendanceOut } from '../types';
 import { gradeColor } from './ui';
 
@@ -63,7 +63,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   );
 }
 
-export const BANDS: [string, string][] = [['A', 'var(--good)'], ['B', '#5bb98c'], ['C', '#e8a33d'], ['D', '#e0703c'], ['F', 'var(--bad)']];
+export const BANDS: [string, string][] = [['A', 'var(--green)'], ['B', 'var(--band-b)'], ['C', 'var(--band-c)'], ['D', 'var(--band-d)'], ['F', 'var(--red)']];
 
 /** Grade distribution as bars, with a screen-reader table carrying the same numbers. */
 export function Distribution({ dist }: { dist: Record<string, number> }) {
@@ -123,8 +123,37 @@ export function AttendanceHeat({ days }: { days: AttendanceOut[] }) {
         <tbody>{[...days].sort((a, b) => a.day.localeCompare(b.day)).map((day) => <tr key={day.day}><th scope="row">{day.day}</th><td>{day.status}</td></tr>)}</tbody>
       </table>
       <div className="legend">
-        {[['present', 'var(--good)'], ['tardy', '#e8a33d'], ['absent', 'var(--bad)'], ['excused', 'var(--muted)']].map(([k, c]) => <span key={k}><i style={{ background: c }} />{k}</span>)}
+        {[['present', 'var(--green)'], ['tardy', 'var(--band-c)'], ['absent', 'var(--red)'], ['excused', 'var(--ink-2)']].map(([k, c]) => <span key={k}><i style={{ background: c }} />{k}</span>)}
       </div>
     </div>
+  );
+}
+
+export interface RingSpec { label: string; value: number | null; color: string }
+
+/**
+ * Concentric activity rings (outer to inner). Each arc is the share of the way to 100%, drawn clockwise from 12 o'clock.
+ * The arcs animate in once on mount; the same numbers are in the legend and in the SVG's accessible name.
+ */
+export function ActivityRings({ rings }: { rings: RingSpec[] }) {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => { const id = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(id); }, []);
+  const size = 168, stroke = 16, gap = 4, c = size / 2;
+  const name = rings.map((r) => `${r.label} ${r.value == null ? 'not available' : `${Math.round(r.value)} percent`}`).join(', ');
+  return (
+    <svg className="rings" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={name}>
+      {rings.map((r, i) => {
+        const radius = c - stroke / 2 - i * (stroke + gap) - 2;
+        const len = 2 * Math.PI * radius;
+        const share = r.value == null ? 0 : Math.max(0, Math.min(100, r.value)) / 100;
+        return (
+          <g key={r.label} transform={`rotate(-90 ${c} ${c})`}>
+            <circle className="track" cx={c} cy={c} r={radius} fill="none" strokeWidth={stroke} />
+            {share > 0 && <circle className="arc" cx={c} cy={c} r={radius} fill="none" stroke={r.color} strokeWidth={stroke} strokeLinecap="round"
+              strokeDasharray={len} strokeDashoffset={drawn ? len * (1 - share) : len} />}
+          </g>
+        );
+      })}
+    </svg>
   );
 }

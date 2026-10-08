@@ -47,8 +47,9 @@ test('dark-theme overlong note prints a readable warning without private data an
   await page.goto(`/students/${student.id}/conference`);
   await page.getByRole('button', { name: 'Switch to dark theme' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('body')).toHaveCSS('color', 'rgb(239, 237, 250)');
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 28)');
+  // Capture the live dark-theme screen colors rather than pinning a palette: the point is that print and restore return to these.
+  const screenColors = await page.evaluate(() => ({ color: getComputedStyle(document.body).color, background: getComputedStyle(document.body).backgroundColor }));
+  expect(screenColors.background).not.toBe('rgb(255, 255, 255)');
   const print = page.getByRole('button', { name: 'Print conference sheet' });
   await expect(print).toBeEnabled();
   const note = page.getByRole('checkbox', { name: long.notes[0].body });
@@ -78,8 +79,8 @@ test('dark-theme overlong note prints a readable warning without private data an
   await page.emulateMedia({ media: 'screen' });
   await expect(warning).toBeHidden();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('body')).toHaveCSS('color', 'rgb(239, 237, 250)');
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 28)');
+  await expect(page.locator('body')).toHaveCSS('color', screenColors.color);
+  await expect(page.locator('body')).toHaveCSS('background-color', screenColors.background);
   await note.uncheck();
   await expect(print).toBeEnabled();
 });

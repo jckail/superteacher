@@ -8,6 +8,7 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { AttendanceHeat, TrendChart } from '../components/charts';
 import { EmptyState, ErrorBox, Loading, Modal, RiskChip, Stat, gradeColor } from '../components/ui';
+import Icon from '../components/Icon';
 
 export function Insight({ id }: { id: string }) {
   const q = useQuery({ queryKey: ['insight', id], queryFn: ({ signal }) => api<InsightData>(`/students/${id}/insight`, { signal }), staleTime: 5 * 60_000 });
@@ -27,7 +28,7 @@ export function Insight({ id }: { id: string }) {
   return (
     <section className="card insight">
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h2>✨ Insight</h2>
+        <h2><Icon name="sparkles" className="ico spark-ico" /> Insight</h2>
         {i && <span className="chip neutral">{i.source === 'ai' ? 'AI' : 'Rule-based'}</span>}
       </div>
       {q.isLoading && <Loading />}
