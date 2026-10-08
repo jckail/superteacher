@@ -1,5 +1,7 @@
 # Super Teacher
 
+<img src="brand/logo/lockup-horizontal.svg" alt="Super Teacher" height="56">
+
 A teacher workspace for finding students who need attention and acting on grades, attendance and classroom notes. Built with React, TypeScript and FastAPI.
 
 ![Teacher dashboard](web/public/screen_shot.png)
@@ -70,3 +72,7 @@ python -m pytest
 [Browser suite](e2e/FINDINGS.md) · [Backup and recovery](docs/BACKUP_RECOVERY.md) · [Dependency locking](scripts/update_lock.sh) · [Architecture decisions](docs/adr/README.md)
 
 The accepted Cloud Run pilot uses single-writer SQLite with Litestream/GCS recovery. Release promotion requires verified writer drain, compatible migration lineage and recovery; optional email accounts also need working delivery. Follow the existing [release checklist](docs/RELEASE_CHECKLIST.md). Roles/organisations, shared multi-instance rate limiting and broader grading policies remain roadmap work.
+
+## Brand
+
+Logo, colors, type and voice live in [`brand/`](brand/README.md); open [`brand/brand-guide.html`](brand/brand-guide.html) for the guide.
