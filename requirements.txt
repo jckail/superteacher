@@ -9,3 +9,4 @@ anthropic>=0.60
 tzdata>=2026.4,<2027
 httpx>=0.28.1,<1
 openai-agents==0.23.1
+openai>=3.26.0,<4
