@@ -1,7 +1,7 @@
 # Handoff: brand kit and Apple-style redesign
 
-Written 2026-10-08 for an agent (or person) taking over this work cold. Everything here was verified at commit
-`6d40bcd` on branch `claude/upbeat-volta-k9dtci`; re-check anything marked **verify** before relying on it.
+Written 2026-10-08 for an agent (or person) taking over this work cold. Everything here was verified at the merge of
+`origin/main@b227838` into branch `claude/upbeat-volta-k9dtci`; re-check anything marked **verify** before relying on it.
 Read [agent-architecture.md](agent-architecture.md) first for the repo map.
 
 ## 1. Where things stand
@@ -9,9 +9,9 @@ Read [agent-architecture.md](agent-architecture.md) first for the repo map.
 | Item | State |
 | --- | --- |
 | Branch / PR | `claude/upbeat-volta-k9dtci`, [PR #101](https://github.com/jckail/superteacher/pull/101), **draft** |
-| CI on `6d40bcd` | all 7 jobs green: lint, api, web, browser, e2e, bench-smoke, docker |
+| CI | all 7 jobs green on `6d40bcd`; the later merge of `main` was verified locally (section 4) and CI re-runs on push |
 | Merged? | No. The owner asked for "commit and push", not merge. Merge only when told to |
-| `main` drift | `main` moved after this branch was cut (e.g. `b227838`, public-demo work). **Verify** whether the PR still merges cleanly; if not, merge `origin/main` into the branch (never rebase or force-push a branch with an open PR) |
+| `main` drift | `origin/main` (`b227838`, public demo) was merged into the branch with no conflicts and re-verified (section 4). If `main` moves again, merge it in the same way (never rebase or force-push a branch with an open PR) |
 | Deploy | **Not done and not possible from the sandbox**: no GCP credentials or project. Use only the guarded release path: `scripts/deploy_cloud_run.sh`, [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md) and [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md). The release owner verifies live state first; do not improvise gcloud commands |
 
 ```mermaid
@@ -49,11 +49,11 @@ CI runs axe (WCAG A/AA) in real Chromium after state changes, so anything a chec
 | Check | Command | Last result |
 | --- | --- | --- |
 | Types, lint | `cd web && npm run typecheck && npm run lint` | clean |
-| Unit/UI | `cd web && npx vitest run` | 439 passed (verify: count changes as `main` moves) |
-| Python | `python -m pytest -q` (about 4 min) | 1725 passed, 10 skipped |
+| Unit/UI | `cd web && npx vitest run` | 441 passed (the count moves as `main` moves) |
+| Python | `python -m pytest -q` (about 4 min) | 1758 passed, 10 skipped |
 | Python lint | `ruff check . && ruff format --check .` | clean |
 | Browser (web/e2e) | `cd web && npx playwright test` | 4 passed |
-| Root e2e (3 projects) | `cd e2e && npx playwright test` (about 3 min) | 96 passed |
+| Root e2e (3 projects) | `cd e2e && npx playwright test` (about 3 min) | 96 passed (the student-delete flake in item 2 can stop a run early; re-run once) |
 
 Environment gotchas:
 - `cd web && npm ci` first; a stale `node_modules` fails typecheck. Same for `e2e/`.
@@ -65,7 +65,7 @@ Environment gotchas:
 
 ## 5. Open items, in priority order
 
-1. **Check PR #101 against current `main`** and merge `main` in if needed (see section 1). Re-run section 4 after.
+1. Done: `main` merged and re-verified. Watch CI on the pushed merge commit and fix only what is genuinely red.
 2. **Flaky test, pre-existing:** `e2e/specs/student.spec.ts` "remove asks for confirmation" logs a 404 for the deleted student (reproduces on unmodified `main`: 3 of 16 repeated runs). Tracked as [#102](https://github.com/jckail/superteacher/issues/102) / JCK-478. If CI fails only there, re-run once; do not edit unrelated code to silence it inside this PR.
 3. Tickets filed during this effort (not started): [#91](https://github.com/jckail/superteacher/issues/91) / JCK-338 serialize startup migrations with a Postgres advisory lock; [#92](https://github.com/jckail/superteacher/issues/92) / JCK-339 case-insensitive section-name uniqueness in the DB.
 4. Owner decisions pending: mark PR ready and merge; deploy (needs the owner's GCP access and the release process above).
