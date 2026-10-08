@@ -23,8 +23,8 @@
 :root[data-theme='dark'] {
   --canvas: #000; --surface: #1c1c1e; --field: #323236; --fill: rgb(120 120 128 / .24); --fill-strong: rgb(120 120 128 / .36);
   --ink: #f5f5f7; --ink-2: #a1a1a6; --sep: rgb(84 84 88 / .5);
-  --accent: #0b63e5; --accent-deep: #0847a8; --accent-text: #4aa3ff; --accent-tint: rgb(74 163 255 / .18);
-  --orange: #ff9f3d; --orange-text: #ff9f3d; --orange-tint: rgb(255 159 61 / .18);
+  --accent: #0b63e5; --accent-deep: #0847a8; --accent-text: #4aa3ff; --accent-tint: #16304f;
+  --orange: #ff9f3d; --orange-text: #ff9f3d; --orange-tint: #3b2812;
   --green: #5fd47e; --green-tint: rgb(48 209 88 / .18); --amber: #ffb340; --amber-tint: rgb(255 159 10 / .2);
   --red: #ff7a72; --red-tint: rgb(255 69 58 / .2);
   --ring-attendance: #4aa3ff; --ring-homework: #ff9f3d; --ring-average: #8cc8ff; --ring-track: rgb(120 120 128 / .28);
@@ -183,13 +183,13 @@ th[scope="row"].name { font-size: inherit; color: var(--ink); white-space: norma
 @keyframes pulse { 50% { opacity: .25; } }
 .fab { display: none; }
 
-@media (max-width: 1100px) { .shell.chat-open { grid-template-columns: var(--sidebar) 1fr; } .chat { position: fixed; right: 0; top: 0; width: min(420px, 100%); z-index: 40; box-shadow: var(--shadow-pop); } }
+@media (max-width: 1100px) { .shell.chat-open { grid-template-columns: var(--sidebar) 1fr; } .chat { background: color-mix(in srgb, var(--surface) 94%, transparent); position: fixed; right: 0; top: 0; width: min(420px, 100%); z-index: 40; box-shadow: var(--shadow-pop); } }
 @media (max-width: 800px) {
   .shell, .shell.chat-open { grid-template-columns: 1fr; }
   .main { padding-top: 24px; }
   h1 { font-size: 1.75rem; }
   /* iOS tab bar: frosted, pinned to the bottom edge */
-  .sidebar { position: fixed; inset: auto 0 0 0; top: auto; height: auto; flex-direction: row; padding: 6px; z-index: 30; border-right: 0; border-top: .5px solid var(--sep); }
+  .sidebar { background: color-mix(in srgb, var(--surface) 94%, transparent); position: fixed; inset: auto 0 0 0; top: auto; height: auto; flex-direction: row; padding: 6px; z-index: 30; border-right: 0; border-top: .5px solid var(--sep); }
   .brand, .sidebar .spacer { display: none; }
   /* Sign out + theme toggle stay reachable on phones: a compact second row under the tab bar. */
   .sidebar { flex-wrap: wrap; gap: 4px; }

@@ -62,7 +62,9 @@ test('long student row headers wrap and keep attendance usable on phones', async
   await expect(rowHeader).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Attendance status' })).toBeVisible();
   await expect(rowHeader).toHaveCSS('white-space', 'normal');
-  await expect(rowHeader).toHaveCSS('padding-top', '11px');
+  // Row headers use the body-cell padding (not the column-header style); compare to a sibling cell, not a literal.
+  const cellPadding = await rowHeader.locator('xpath=following-sibling::td[1]').evaluate((cell) => getComputedStyle(cell).paddingTop);
+  await expect(rowHeader).toHaveCSS('padding-top', cellPadding);
   await expect(rowHeader).toHaveCSS('border-bottom-width', '0px');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const group = page.getByRole('group', { name: `Attendance for ${name}` });
