@@ -1,7 +1,7 @@
 /* Design tokens. iOS/macOS idiom: system colors, grouped surfaces, hairlines, materials only where content scrolls beneath.
    Legacy names (--brand*, --good/--warn/--bad, --surface-2, --line, --muted) stay as aliases so page-level CSS keeps working. */
 :root {
-  --canvas: #f5f5f7; --surface: #fff; --fill: rgb(120 120 128 / .12); --fill-strong: rgb(120 120 128 / .2);
+  --canvas: #f5f5f7; --surface: #fff; --field: #efeff0; --fill: rgb(120 120 128 / .12); --fill-strong: rgb(120 120 128 / .2);
   --ink: #1d1d1f; --ink-2: #5f5f64; --sep: rgb(60 60 67 / .16);
   --accent: #0b63e5; --accent-deep: #0847a8; --accent-text: #0b63e5; --accent-ink: #fff; --accent-tint: #e7f0fe;
   --orange: #ff8a1f; --orange-text: #b34700; --orange-tint: #fff0e0; --midnight: #0a1f44;
@@ -21,7 +21,7 @@
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --canvas: #000; --surface: #1c1c1e; --fill: rgb(120 120 128 / .24); --fill-strong: rgb(120 120 128 / .36);
+  --canvas: #000; --surface: #1c1c1e; --field: #323236; --fill: rgb(120 120 128 / .24); --fill-strong: rgb(120 120 128 / .36);
   --ink: #f5f5f7; --ink-2: #a1a1a6; --sep: rgb(84 84 88 / .5);
   --accent: #0b63e5; --accent-deep: #0847a8; --accent-text: #4aa3ff; --accent-tint: rgb(74 163 255 / .18);
   --orange: #ff9f3d; --orange-text: #ff9f3d; --orange-tint: rgb(255 159 61 / .18);
@@ -91,8 +91,8 @@ a:hover { text-decoration: underline; text-underline-offset: .15em; }
 .btn.danger { color: var(--red); } .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .btn.small { padding: 3px 10px; min-height: 28px; font-size: .8125rem; border-radius: 8px; }
 .input, select.input, textarea.input { width: 100%; padding: 7px 12px; min-height: 34px; border-radius: var(--radius-sm); border: 0;
-  background: var(--fill); transition: box-shadow .15s, background-color .15s; }
-.input::placeholder { color: var(--ink-2); }
+  background: var(--field); transition: box-shadow .15s, background-color .15s; }
+.input::placeholder { color: var(--ink-2); opacity: 1; }
 .input:focus, select.input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
 select.input { appearance: none; -webkit-appearance: none; padding-right: 30px; cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5l3-3' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -160,8 +160,8 @@ th[scope="row"].name { font-size: inherit; color: var(--ink); white-space: norma
 .scrim { position: fixed; inset: 0; background: var(--scrim); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); display: grid; place-items: center; z-index: 50; padding: 16px; animation: fade .2s ease-out; }
 .modal { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; background: var(--surface); border-radius: 20px; padding: 24px; width: min(440px, 100%);
   display: grid; gap: 14px; box-shadow: var(--shadow-pop); animation: sheet-in .32s var(--ease); }
-@keyframes fade { from { opacity: 0; } }
-@keyframes sheet-in { from { opacity: 0; transform: scale(.96) translateY(6px); } }
+@keyframes fade { from { background-color: transparent; } }
+@keyframes sheet-in { from { transform: scale(.96) translateY(6px); } }
 
 /* assistant: iMessage-style conversation */
 .chat { position: sticky; top: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: var(--material);
@@ -205,7 +205,7 @@ th[scope="row"].name { font-size: inherit; color: var(--ink); white-space: norma
   .modal { width: 100%; max-height: 92dvh; border-radius: 20px 20px 0 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); animation: sheet-up .36s var(--ease); }
   .modal::before { content: ''; justify-self: center; width: 36px; height: 5px; border-radius: 3px; background: var(--fill-strong); margin: -10px 0 4px; }
 }
-@keyframes sheet-up { from { transform: translateY(100%); } }
+@keyframes sheet-up { from { transform: translateY(32px); } }
 
 /* a11y + polish */
 .skip-link { position: fixed; left: 12px; top: -60px; z-index: 100; background: var(--accent); color: var(--accent-ink); padding: 8px 14px; border-radius: var(--radius-sm); font-weight: 600; }
