@@ -119,6 +119,20 @@ separate a schema-owning migration user from a runtime DML-only user; the curren
 app's startup migrations require schema ownership. Provision an administrator
 credential outside this module if needed; never expose it to Cloud Run.
 
+## Concurrent startup migrations
+
+Every process runs `alembic upgrade head` from `create_app()`. On PostgreSQL,
+`run_migrations` takes `pg_advisory_xact_lock` inside that migration transaction
+before it reads `alembic_version`. The lock is transaction-scoped, so it releases
+on commit or rollback and still works behind a transaction-mode pooler. Overlapping
+instances wait instead of applying the same DDL together. SQLite startup does not
+take this lock.
+
+Cloud Run stays pinned to `--max-instances 1`. That limit can be raised once the
+other multi-instance items in
+[JCK-56](https://linear.app/jckail/issue/JCK-56/plan-the-move-to-postgres-multi-instance-triggers-and-path)
+are done. This lock does not by itself make a multi-instance deployment safe.
+
 ## State, credentials, and safe dry runs
 
 Requires Terraform `>= 1.11, < 2` and Google provider `>= 7.22, < 8`. The committed
@@ -226,8 +240,11 @@ there is no automatic zero-downtime password-rotation guarantee here.
 6. Attach Cloud SQL and the exact secret version to a staged Cloud Run revision
    with the confirmed runtime account; test migrations, readiness, login, write
    persistence across revision restart, and rollback against synthetic data.
-   Approve production traffic and domain changes separately. An empty new
-   database does not prove legacy records were preserved.
+   Leave `--max-instances 1` until the remaining multi-instance items in JCK-56
+   are done. Startup migrations are serialized on PostgreSQL, and that lock is
+   not the only multi-instance requirement. Approve production traffic and
+   domain changes separately. An empty new database does not prove legacy
+   records were preserved.
 
 ## Validation performed
 
