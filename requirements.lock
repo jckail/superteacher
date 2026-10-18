@@ -464,7 +464,9 @@ httptools==0.8.0 \
 httpx==0.28.1 \
     --hash=sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
-    # via -r requirements.txt
+    # via
+    #   -r requirements.txt
+    #   supermemory
 httpx2==2.13.1 \
     --hash=sha256:6dff50fabc270ee5fd25d845d0b078ed20564579744d6d962850975996d2f9a4 \
     --hash=sha256:e48744a19e3af5ee48313d0ce5fe941d5422fae5705ea922a4aabf94d7800dfa
@@ -726,7 +728,9 @@ mcp-types==2.3.0 \
 openai==3.26.0 \
     --hash=sha256:050597ff71ff4025177405a41fa4019d4f9feae5826645b63b8e35b6e9a3c88b \
     --hash=sha256:73b470c09cf2171dce930e36af01c6632241adda0120ad84302ad229f9130a5a
-    # via openai-agents
+    # via
+    #   -r requirements.txt
+    #   openai-agents
 openai-agents==0.23.1 \
     --hash=sha256:0183e6da7370df80f7cf900379d9f113e664e32b426f51aa7486c9091faf8f2d \
     --hash=sha256:2bbd0a87a42531d25638529396644defd3ff2afd92fd9ec7d2f02167e5458a99
@@ -824,6 +828,7 @@ pydantic==2.13.5 \
     #   openai
     #   openai-agents
     #   pydantic-settings
+    #   supermemory
 pydantic-core==2.46.5 \
     --hash=sha256:013d6f3483d81e02e7c328831808f336c8596ee33b4bd4026b9ffb1e960b8942 \
     --hash=sha256:03b9666e41e35d8909852ba191a0607520f81b74eaf12ccf8737005dbb313821 \
@@ -945,7 +950,9 @@ pydantic-core==2.46.5 \
     --hash=sha256:fc5d783bd4a2387e97b8a2d5ec781cfb92b3d893bf82370548e99db5915935d3 \
     --hash=sha256:fc8515076c11f3cfdf4fb142dcca0fe384b1230a3b5415458ac84f3e0903ec13 \
     --hash=sha256:ff218293c9c806138dca139765e3b067621be52bcd93cdc14c7711be7ddc90a9
-    # via pydantic
+    # via
+    #   pydantic
+    #   supermemory
 pydantic-settings==2.15.0 \
     --hash=sha256:0ba092c291c94baceb5eff768aa0d56400a457585bc0175925a5a5510303da42 \
     --hash=sha256:694b793e84f766ba76a90ebdefc01d0a9a045dab0382bee70393da93712ad117
@@ -1302,6 +1309,10 @@ starlette==1.7.0 \
     #   mcp
     #   openai-agents
     #   sse-starlette
+supermemory==5.0.0 \
+    --hash=sha256:5475e49cc16ae01deab3c16f57704f88af66660295d75332223bad6caddd87cd \
+    --hash=sha256:9422f0b2904793778dc388735776068213f9a9d478bbf0d42e714d7a2c3563d8
+    # via -r requirements.txt
 truststore==0.10.4 ; sys_platform != 'emscripten' \
     --hash=sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301 \
     --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
@@ -1328,6 +1339,7 @@ typing-extensions==4.16.0 \
     #   referencing
     #   sqlalchemy
     #   starlette
+    #   supermemory
     #   typing-inspection
 typing-inspection==0.4.4 \
     --hash=sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47 \

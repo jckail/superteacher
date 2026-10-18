@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     version: str = "dev"
     git_commit: str = "development"
     static_dir: str = "web/dist"
+    # Optional long-term chat memory (Supermemory); see superteacher/memory.py for what is and is not sent.
+    supermemory_enabled: bool = False
+    supermemory_api_key: str | None = None
 
     # --- auth (see docs/DEPLOYMENT.md) ---
     # Single shared passcode. Required unless auth_disabled is explicitly true.
