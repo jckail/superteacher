@@ -181,7 +181,7 @@ def build_context(
     return roster + ("\n\n" + focus if focus else "")
 
 
-def system_blocks(roster: str, focus: str = "") -> list[dict]:
+def system_blocks(roster: str, focus: str = "", memory: str = "") -> list[dict]:
     blocks: list[dict] = [
         {"type": "text", "text": SYSTEM_PROMPT},
         # Large and stable across turns -> cache. Per-view focus text comes after the breakpoint.
@@ -189,6 +189,8 @@ def system_blocks(roster: str, focus: str = "") -> list[dict]:
     ]
     if focus:
         blocks.append({"type": "text", "text": focus})
+    if memory:  # after the cache breakpoint: varies per turn
+        blocks.append({"type": "text", "text": memory})
     return blocks
 
 
@@ -209,6 +211,7 @@ async def run_chat(
     session_factory=None,
     max_iterations: int | None = None,
     owner_id: str | None = None,
+    memory: str = "",
 ) -> AsyncIterator[dict]:
     """Agentic chat turn. Yields {"type":"delta","text"} and {"type":"tool","name"} events.
 
@@ -235,7 +238,7 @@ async def run_chat(
                     }
                     return
                 async with aclosing(
-                    _run_chat_client(ai, history, roster, focus, session_factory, max_iterations, owner_id)
+                    _run_chat_client(ai, history, roster, focus, session_factory, max_iterations, owner_id, memory)
                 ) as events:
                     async for event in events:
                         yield event
@@ -257,6 +260,7 @@ async def _run_chat_client(
     session_factory,
     max_iterations: int | None,
     owner_id: str | None,
+    memory: str = "",
 ) -> AsyncIterator[dict]:
     settings = get_settings()
     limit = max_iterations or setting_int("chat_max_tool_iterations", MAX_TOOL_ITERATIONS)
@@ -272,7 +276,7 @@ async def _run_chat_client(
             agent_harness.run_streamed(
                 ai,
                 history,
-                system_blocks(roster, focus),
+                system_blocks(roster, focus, memory),
                 session_factory,
                 owner_id,
                 limit,
