@@ -140,6 +140,17 @@ class AiBudget(Base):
     count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class DemoUsageCounter(Base):
+    """Anonymous public-demo daily counters; subjects are purpose-separated hashes."""
+
+    __tablename__ = "demo_usage_counters"
+
+    subject: Mapped[str] = mapped_column(String(64), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Course(Base):
     __tablename__ = "courses"
 

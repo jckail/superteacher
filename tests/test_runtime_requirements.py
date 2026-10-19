@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # import name -> distribution name, where they differ
-DIST = {"pydantic_settings": "pydantic-settings", "yaml": "pyyaml"}
+DIST = {"agents": "openai-agents", "pydantic_settings": "pydantic-settings", "yaml": "pyyaml"}
 # Always installed alongside a declared package (fastapi -> starlette + pydantic); importing them directly is fine.
 TRANSITIVE = {"starlette", "pydantic", "typing_extensions", "anyio"}
 

@@ -15,6 +15,7 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
   api:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -40,7 +41,7 @@ jobs:
           mkdir -p "$HOME/.local/bin"
           python scripts/install_litestream.py 0.5.17 cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - run: python -m pytest -q
+      - run: python -m pytest -v -o faulthandler_timeout=30
   web:
     runs-on: ubuntu-latest
     steps:

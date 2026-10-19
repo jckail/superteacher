@@ -150,6 +150,9 @@ healthcheck uses the public `/api/health`.
 
 The accepted pilot uses SQLite replicated by pinned Litestream to the existing
 Cloud Storage bucket. No new paid Cloud SQL instance is needed for this release.
+The image build and CI install that pinned release with `scripts/install_litestream.py`,
+which refuses a download whose SHA-256 does not match; upgrading means changing both
+the version and checksum in the `Dockerfile` and in `.github/workflows/ci.yml`.
 See [current target/configuration evidence and the release sequence](DEPLOYMENT_STATUS.md).
 The direct `superteacher` service and custom domains currently serve different releases;
 choose the intended service explicitly.

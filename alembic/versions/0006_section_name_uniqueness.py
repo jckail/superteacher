@@ -1,7 +1,7 @@
 """Case-insensitive section names within a course.
 
-Revision ID: 0005
-Revises: 0004
+Revision ID: 0006
+Revises: 0005demo
 
 Courses already reject case variants with ``uq_courses_owner_name`` on
 ``(owner_id, lower(name))``. Sections only had the exact ``UNIQUE(course_id, name)``,
@@ -20,8 +20,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0005"
-down_revision = "0004"
+revision = "0006"
+down_revision = "0005demo"
 branch_labels = None
 depends_on = None
 
@@ -54,7 +54,7 @@ def upgrade() -> None:
     if duplicates:
         listing = "; ".join(f"course_id={row.course_id} id={row.id} name={row.name!r}" for row in duplicates)
         raise RuntimeError(
-            "Cannot apply 0005: sections contains case-variant names for the same course. "
+            "Cannot apply 0006: sections contains case-variant names for the same course. "
             "Existing data has not been changed; rename the colliding sections explicitly before retrying. "
             f"Collisions: {listing}"
         )

@@ -2,12 +2,12 @@
 
 import hmac
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .. import account_audit, account_export, accounts
+from .. import account_audit, account_export, accounts, memory
 from ..accounts import CurrentUser
 from ..auth import clear_cookie, current_user
 from ..db import get_db
@@ -78,6 +78,7 @@ def purge_user(db: Session, user_id: str, email: str) -> None:
 def delete_account(
     body: DeleteAccountIn,
     request: Request,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(current_user),
 ):
@@ -95,6 +96,7 @@ def delete_account(
     except Exception:
         db.rollback()
         raise
+    background.add_task(memory.forget_user, user.id)  # no-op unless Supermemory is enabled; never raises
     done = Response(status_code=204)
     clear_cookie(done, request, st)
     return done

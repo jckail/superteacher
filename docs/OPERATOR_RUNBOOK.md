@@ -94,8 +94,8 @@ writer on the source prefix. Verify integrity, foreign keys, migration lineage
 and expected reference records. See [deployment recovery evidence](DEPLOYMENT_STATUS.md)
 and [identity adoption](IDENTITY_INTEGRATION.md) for the native integrity `0002`
 and accounts `0003` chain. Current native startup then adds revision `0004`'s
-limited account-action audit table and revision `0005`'s case-insensitive
-section-name index. `0005` stops and lists existing case-variant section names
+limited account-action audit table and revision `0006`'s case-insensitive
+section-name index. `0006` stops and lists existing case-variant section names
 instead of merging them. See [account operations](ACCOUNT_ADMIN.md).
 The offline adoption bridge and approved archive format remain `0003`.
 An independently published accounts-`0002` database is

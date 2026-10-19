@@ -1,10 +1,19 @@
-import { CHAT_STORE } from '../api';
+import { api, CHAT_STORE } from '../api';
+import { useAuth } from '../auth';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDialogFocus } from './ui';
 import Markdown, { type Components } from 'react-markdown';
 
 interface Message { role: 'user' | 'assistant'; text: string }
+interface DemoBudget { used: number; limit: number; remaining: number; resets_at: string }
+function isBudget(value: unknown): value is DemoBudget {
+  return typeof value === 'object' && value !== null
+    && 'used' in value && typeof value.used === 'number'
+    && 'limit' in value && typeof value.limit === 'number'
+    && 'remaining' in value && typeof value.remaining === 'number'
+    && 'resets_at' in value && typeof value.resets_at === 'string';
+}
 interface ChatProps { studentId?: string | null; onClose: () => void }
 function isMessage(value: unknown): value is Message {
   return typeof value === 'object' && value !== null && 'text' in value && typeof value.text === 'string' && 'role' in value && (value.role === 'user' || value.role === 'assistant');
@@ -69,6 +78,20 @@ function CopyButton({ text }: { text: string }) {
 
 /** Streaming assistant. The server builds the roster context; we only send the question and which student is on screen. */
 export default function Chat({ studentId, onClose }: ChatProps) {
+  const publicDemo = useAuth().mode === 'public_demo';
+  const [budget, setBudget] = useState<DemoBudget | null>(null);
+  const [budgetError, setBudgetError] = useState('');
+  const [budgetRetry, setBudgetRetry] = useState(0);
+  const budgetBlocked = publicDemo && (!budget || budget.remaining === 0 || !!budgetError);
+  useEffect(() => {
+    if (!publicDemo) return;
+    const controller = new AbortController();
+    setBudgetError('');
+    void api<DemoBudget>('/demo/session', { method: 'POST', signal: controller.signal })
+      .then((value) => { if (controller.signal.aborted) return; if (!isBudget(value)) throw new Error("Invalid demo allowance"); setBudget(value); })
+      .catch(() => { if (!controller.signal.aborted) setBudgetError('Could not load your demo allowance.'); });
+    return () => controller.abort();
+  }, [publicDemo, budgetRetry]);
   const [overlay, setOverlay] = useState(() => window.matchMedia('(max-width: 1100px)').matches);
   const panel = useRef<HTMLElement>(null);
   const [messages, setMessages] = useState<Message[]>(loadHistory);
@@ -121,10 +144,12 @@ export default function Chat({ studentId, onClose }: ChatProps) {
       catch { connectionLost(); }
     };
     socket.onmessage = (event: MessageEvent<unknown>) => {
-      if (ws.current !== socket || !busyRef.current || typeof event.data !== 'string') return;
+      if (ws.current !== socket || typeof event.data !== 'string') return;
       let value: unknown;
       try { value = JSON.parse(event.data); } catch { return; }
       if (typeof value !== 'object' || value === null || !('type' in value)) return;
+      if (value.type === 'quota' && isBudget(value)) { setBudget(value); return; }
+      if (!busyRef.current) return;
       switch (value.type) {
         case 'delta': {
           if (!('text' in value) || typeof value.text !== 'string') return;
@@ -182,7 +207,7 @@ export default function Chat({ studentId, onClose }: ChatProps) {
 
   const send = (value: string) => {
     const text = value.trim();
-    if (!text || busyRef.current) return;
+    if (!text || busyRef.current || budgetBlocked) return;
     const payload = JSON.stringify({ content: text, student_id: studentId ?? undefined, tool_events: true });
     setMessages((messages) => [...messages, { role: 'user', text }, { role: 'assistant', text: '' }]);
     setInput('');
@@ -226,13 +251,20 @@ export default function Chat({ studentId, onClose }: ChatProps) {
           <button type="button" className="btn small" onClick={onClose} aria-label="Close assistant">✕</button>
         </div>
       </header>
+      {publicDemo && <div className="muted" role="status">
+        {budgetError ? <>{budgetError} <button type="button" className="btn small" onClick={() => setBudgetRetry((value) => value + 1)}>Retry</button></>
+          : budget ? <>{budget.remaining} of {budget.limit} assistant turns left today.
+            {budget.remaining === 0 ? ' Daily demo limit reached. Classroom features are still available.' : ' New chat keeps the same daily allowance.'}
+            <span> Resets {new Date(budget.resets_at).toLocaleString()}.</span></>
+            : 'Preparing your five-turn demo allowance…'}
+      </div>}
       {contextReset && <p className="muted" role="status">Earlier messages are saved for reference. The assistant has started a new conversation; include any needed details in your next question.</p>}
       <div className="log-wrap">
         <div className="log" ref={log} onScroll={onScroll} role="log" aria-live="polite" aria-busy={busy} tabIndex={0} aria-label="Conversation">
           {messages.length === 0 && (
             <>
               <p className="muted">I can see your roster, grades, attendance and notes. Ask me anything.</p>
-              <div className="suggestions">{SUGGESTIONS.map((s) => <button type="button" key={s} onClick={() => send(s)}>{s}</button>)}</div>
+              <div className="suggestions">{SUGGESTIONS.map((s) => <button type="button" key={s} disabled={budgetBlocked} onClick={() => send(s)}>{s}</button>)}</div>
             </>
           )}
           {messages.map((m, i) => (
@@ -247,10 +279,10 @@ export default function Chat({ studentId, onClose }: ChatProps) {
         {!atBottom && busy && <button type="button" className="btn small jump" onClick={jump}>↓ Latest</button>}
       </div>
       <form onSubmit={(e) => { e.preventDefault(); send(input); }}>
-        <input ref={inputRef} className="input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your students…" aria-label="Message" maxLength={4000} onKeyDown={(event) => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault(); }} />
+        <input ref={inputRef} disabled={budgetBlocked} className="input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your students…" aria-label="Message" maxLength={4000} onKeyDown={(event) => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault(); }} />
         {busy
           ? <button type="button" className="btn" onClick={stop}>Stop</button>
-          : <button className="btn primary" disabled={!input.trim()}>Send</button>}
+          : <button className="btn primary" disabled={!input.trim() || budgetBlocked}>Send</button>}
       </form>
     </aside>
   );

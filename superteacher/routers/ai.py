@@ -3,14 +3,15 @@ import contextlib
 import json
 import logging
 import time
+import uuid
 from collections import deque
 from collections.abc import Callable
 
 from anyio import CancelScope
-from fastapi import APIRouter, Depends, Request, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
 from sqlalchemy.orm import Session
 
-from .. import accounts, ai, schemas
+from .. import accounts, ai, demo, memory, metrics, schemas
 from ..accounts import CurrentUser
 from ..auth import current_user, settings_of, ws_session_active
 from ..calendar import school_calendar, school_timezone
@@ -52,6 +53,8 @@ async def student_insight(
     user: CurrentUser = Depends(current_user),
 ):
     student = get_student_or_404(db, user.id, student_id)
+    if settings_of(request).public_demo:
+        return ai.rule_insight(student, metrics.compute(student))
 
     def charge() -> None:
         try:
@@ -94,8 +97,17 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
     Server -> (tool* | delta*)* then done | error. ``tool`` events ({"type":"tool","name"}) are only sent
     when the client opts in with ``tool_events: true``, so older clients keep working.
     """
+    demo_subjects = None
+    if settings_of(ws).public_demo:
+        try:
+            demo_subjects = demo.subjects(ws)
+        except HTTPException:
+            await ws.close(code=1008, reason="Start a demo session before using the assistant.")
+            return
     await ws.accept()
     history: list[dict] = []
+    memory_session = f"chat-{uuid.uuid4().hex}"  # one Supermemory document per connection
+    memory_tasks: set[asyncio.Task] = set()
     factory = ws.app.state.session_factory
     settings = settings_of(ws)
     limiter = RateLimiter(ai.setting_int("chat_rate_limit_per_min", 12))
@@ -106,6 +118,25 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
     async def send(payload: dict) -> None:
         async with send_lock:
             await ws.send_json(payload)
+
+    def demo_status() -> dict:
+        with factory() as db:
+            return demo.quota_status(db, settings, *demo_subjects)
+
+    async def recall_memory(content: str) -> str:
+        if not memory.enabled():
+            return ""
+        try:
+
+            def load_names() -> list[str]:
+                with factory() as db:
+                    return memory.student_names(db, user.id)
+
+            names = await asyncio.to_thread(load_names)
+            return await memory.recall(user.id, content, names)
+        except Exception as exc:
+            log.warning("supermemory recall skipped: %s", type(exc).__name__)
+            return ""
 
     async def turn(content: str, student_id: str | None, tool_events: bool) -> None:
         history.append({"role": "user", "content": content})
@@ -123,8 +154,10 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
                             return ai.build_context_parts(db, student_id, owner_id=user.id)
 
                     roster, focus = await asyncio.to_thread(snapshot)
+                    remembered = await recall_memory(content)
+                    extra = {"memory": remembered} if remembered else {}  # unchanged call when memory is off
                     async with contextlib.aclosing(
-                        ai.run_chat(list(history), roster, focus, factory, owner_id=user.id)
+                        ai.run_chat(list(history), roster, focus, factory, owner_id=user.id, **extra)
                     ) as events:
                         async for ev in events:
                             if ev["type"] == "delta":
@@ -134,6 +167,7 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
                                 await send({"type": "tool", "name": ev["name"]})
             history.append({"role": "assistant", "content": "".join(reply)})
             await send({"type": "done"})
+            _remember_turn(content, "".join(reply))
         except asyncio.CancelledError:
             _drop_unanswered(history)
             raise
@@ -148,6 +182,27 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
             _drop_unanswered(history)
             with contextlib.suppress(Exception):  # client already gone
                 await send({"type": "error", "message": ai.friendly_error(RuntimeError())})
+
+    def _remember_turn(user_text: str, reply_text: str) -> None:
+        """Fire-and-forget so memory never delays the reply; see memory.py for the privacy contract."""
+        if not memory.enabled():
+            return
+
+        async def work() -> None:
+            try:
+
+                def load_names() -> list[str]:
+                    with factory() as db:
+                        return memory.student_names(db, user.id)
+
+                names = await asyncio.to_thread(load_names)
+                await memory.remember(user.id, memory_session, user_text, reply_text, names)
+            except Exception as exc:
+                log.warning("supermemory remember failed: %s", type(exc).__name__)
+
+        task = asyncio.create_task(work())
+        memory_tasks.add(task)
+        task.add_done_callback(memory_tasks.discard)
 
     running: asyncio.Task | None = None
     getter: asyncio.Task | None = None
@@ -172,6 +227,8 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
 
     watcher = asyncio.create_task(watch_session())
     try:
+        if demo_subjects is not None:
+            await send({"type": "quota", **await asyncio.to_thread(demo_status)})
         while True:
             getter = getter or asyncio.create_task(inbox.get())
             await asyncio.wait({getter, *([running] if running else [])}, return_when=asyncio.FIRST_COMPLETED)
@@ -216,9 +273,13 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
             elif not await ws_session_active(ws, user, touch=True):
                 await ws.close(code=1008, reason="Session ended")
                 break
-            elif (quota_error := await asyncio.to_thread(_charge_chat, factory, settings, user.id)) is not None:
-                await send(quota_error)
             else:
+                quota_error = await asyncio.to_thread(_charge_chat, factory, settings, user.id, demo_subjects)
+                if demo_subjects is not None:
+                    await send({"type": "quota", **await asyncio.to_thread(demo_status)})
+                if quota_error is not None:
+                    await send(quota_error)
+                    continue
                 sid = msg.get("student_id")
                 running = asyncio.create_task(
                     turn(content, sid if isinstance(sid, str) else None, msg.get("tool_events") is True)
@@ -235,11 +296,16 @@ async def chat_ws(ws: WebSocket, user: CurrentUser = Depends(current_user)):
             await asyncio.gather(*(t for t in (running, getter, reader, watcher) if t), return_exceptions=True)
 
 
-def _charge_chat(factory, settings, user_id: str) -> dict | None:
+def _charge_chat(factory, settings, user_id: str, demo_subjects: tuple[str, str] | None = None) -> dict | None:
     """Count one chat message against the daily quota; the error frame to send when it is used up."""
     with factory() as db:
         try:
-            accounts.consume_quota(db, settings, user_id, "chat")
+            if settings.public_demo:
+                if demo_subjects is None:
+                    raise ValueError("Public demo chat requires a verified visitor identity")
+                demo.consume_chat(db, settings, *demo_subjects)
+            else:
+                accounts.consume_quota(db, settings, user_id, "chat")
         except accounts.QuotaExceeded as e:
             return {
                 "type": "error",

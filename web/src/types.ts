@@ -34,7 +34,7 @@ export interface AttendanceSheet { section: SectionOut; day: string; rows: Atten
 export interface Overview { as_of: string; students: number; average: number | null; attendance_rate: number | null; homework_rate: number | null; at_risk: number; watch: number; on_track: number; unknown: number; distribution: Record<string, number>; attention: StudentSummary[] }
 export interface Insight { as_of?: string; headline: string; strengths: string[]; concerns: string[]; actions: string[]; source: 'ai' | 'rules'; model: string | null; generated_at: string | null }
 export interface ImportResult { created: number; skipped: string[] }
-export type AuthMode = 'passcode' | 'accounts';
+export type AuthMode = 'passcode' | 'accounts' | 'public_demo';
 export interface AuthConfig { auth_mode: AuthMode }
 export interface AuthMe { authenticated: true; auth_required: boolean; email?: string | null }
 export interface AssessmentStat { id: string; title: string; kind: AssessmentKind; due_date: string; max_points: number; graded: number; average: number | null; median: number | null; min: number | null; max: number | null; missing_pct: number | null }

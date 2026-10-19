@@ -74,7 +74,7 @@ function Shell() {
         <button type="button" className="btn side-extra" onClick={toggleTheme} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>{dark ? '☀️ Light' : '🌙 Dark'}</button>
       </nav>
       <main className="main" id="main" tabIndex={-1} ref={main}>
-        {mode === 'accounts' && <DemoBanner />}
+        {(mode === 'accounts' || mode === 'public_demo') && <DemoBanner />}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<Loading />}>
             <Routes>
