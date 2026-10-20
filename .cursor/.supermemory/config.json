@@ -1,0 +1,7 @@
+{
+  "repoContainerTag": "superteacher",
+  "signalExtraction": false,
+  "injectProfile": true,
+  "similarityThreshold": 0.5,
+  "maxMemories": 15
+}
