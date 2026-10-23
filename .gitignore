@@ -79,3 +79,6 @@ web/playwright-report/
 # Managed synthetic local development environment
 .superteacher-dev/
 .superteacher-dev.lock
+
+# Local worktrees (JCK-2026)
+.worktrees/

@@ -6,7 +6,7 @@ VERSION="${VERSION:-$(git rev-parse --short HEAD)}"
 
 echo "🧪 Backend tests";  python -m pytest -q
 echo "🔨 Web build";      (cd web && npm ci && npm run build)
-echo "🐳 Image";          docker build -t superteacher:"$VERSION" .
+echo "🐳 Image";          depot build --load -t superteacher:"$VERSION" .  # project id in depot.json
 
 if [[ "${1:-}" == "run" ]]; then
   docker run --rm -p 8080:8080 -e VERSION="$VERSION" -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \

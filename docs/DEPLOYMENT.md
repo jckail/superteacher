@@ -133,7 +133,7 @@ who has an account). That makes a broken mail provider invisible from the outsid
 ## Docker
 
 ```bash
-docker build -t superteacher .
+depot build --load -t superteacher .   # Depot project id is in depot.json
 docker run -d --name superteacher -p 8080:8080 \
   -e AUTH_PASSWORD="$(openssl rand -base64 24)" \
   -e SESSION_SECRET="$(openssl rand -base64 48)" \
@@ -152,7 +152,7 @@ The accepted pilot uses SQLite replicated by pinned Litestream to the existing
 Cloud Storage bucket. No new paid Cloud SQL instance is needed for this release.
 The image build and CI install that pinned release with `scripts/install_litestream.py`,
 which refuses a download whose SHA-256 does not match; upgrading means changing both
-the version and checksum in the `Dockerfile` and in `.github/workflows/ci.yml`.
+the version and checksum in the `Dockerfile` and in `.depot/workflows/ci.yml`.
 See [current target/configuration evidence and the release sequence](DEPLOYMENT_STATUS.md).
 The direct `superteacher` service and custom domains currently serve different releases;
 choose the intended service explicitly.
@@ -292,6 +292,6 @@ See [the tested SQLite backup and recovery command](BACKUP_RECOVERY.md) for onli
 
 ## CI
 
-`.github/workflows/ci.yml` runs `ruff check`, `pytest`, the web build, and a Docker job that builds the image,
+`.depot/workflows/ci.yml` (Depot CI) runs `ruff check`, `pytest`, the web build, and a Docker job that builds the image,
 checks that `/api/health` is up, `/api/overview` is 401, the SPA is served, and that the container refuses
 to start without `AUTH_PASSWORD`.
