@@ -38,9 +38,9 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
 
   await page.getByRole('button', { name: 'Remove student' }).click();
   // Removing the student invalidates the still-mounted detail query, so the page may refetch
-  // GET /api/students/<id> once more and get the expected 404 (or be unmounted first and never send
-  // it). Tolerate exactly that one request instead of racing it; every other console error still fails.
-  allowConsole(new RegExp(`/api/students/${c.students[0].id}$`));
+  // GET /api/students/<id> (or a subresource such as /grade-history) once more and get the expected 404 (or be unmounted first and never send
+  // it). Tolerate that student's 404s instead of racing them; every other console error still fails.
+  allowConsole(new RegExp(`/api/students/${c.students[0].id}(/[a-z-]+)?$`));
   const removed = page.waitForResponse((r) => r.request().method() === 'DELETE' && r.url().endsWith(`/api/students/${c.students[0].id}`));
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove student' }).click();
   expect((await removed).ok()).toBe(true);
