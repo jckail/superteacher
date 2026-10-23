@@ -36,3 +36,5 @@ web/coverage/
 infra/
 
 .superdesign/
+.worktrees/
+.depot/
