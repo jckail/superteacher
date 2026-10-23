@@ -101,7 +101,7 @@ Keep PRs small and the title in commit-subject style with the issue key. Merge o
 
 ## Commands
 
-Prerequisites: Python 3.11+ (CI and image use 3.12), Node 22.12+ (`web/package.json` engines say >=22.22.2; CI uses 22), GNU Make and `uv` for the managed demo. Env var names (never commit values): `AUTH_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AUTH_DISABLED`, `AUTH_MODE`, `PUBLIC_DEMO`, `SEED_DEMO_DATA`, `AUTH_FORWARDED_FOR_TRUSTED_HOPS`, `AI_GLOBAL_DAILY_BUDGET`, `PORT`, `ST_TEST_POSTGRES_URL` (optional Postgres tests). Full list: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Prerequisites: Python 3.11+ (CI and image use 3.12), Node 22.22.2+ (`web/package.json` engines say >=22.22.2; CI uses 22), GNU Make and `uv` for the managed demo. Env var names (never commit values): `AUTH_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `AUTH_DISABLED`, `AUTH_MODE`, `PUBLIC_DEMO`, `SEED_DEMO_DATA`, `AUTH_FORWARDED_FOR_TRUSTED_HOPS`, `AI_GLOBAL_DAILY_BUDGET`, `PORT`, `ST_TEST_POSTGRES_URL` (optional Postgres tests). Full list: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 | Task | Command |
 | --- | --- |

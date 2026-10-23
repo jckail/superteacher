@@ -4,7 +4,7 @@ How to run Super Teacher locally: the managed demo launcher (`make dev`), its sa
 
 ## Managed demo (Linux/WSL)
 
-For a synthetic local demo on Linux/WSL, install [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22.12+ and GNU Make, then run:
+For a synthetic local demo on Linux/WSL, install [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22.22.2+ and GNU Make, then run:
 
 ```bash
 make dev-check            # tools/ports only; no installation or servers
@@ -17,7 +17,7 @@ The managed demo uses `.superteacher-dev/demo.db`, synthetic seeded data and dis
 
 ## Manual setup
 
-For other platforms, an existing environment, an empty classroom, or testing login/AI, use Python 3.11+ and Node 22.12+ with the manual flow. In separate terminals after installation:
+For other platforms, an existing environment, an empty classroom, or testing login/AI, use Python 3.11+ and Node 22.22.2+ with the manual flow. In separate terminals after installation:
 
 ```bash
 python3 -m venv .venv
