@@ -104,17 +104,32 @@ def test_unsupported_platform_points_at_manual_setup_guide(monkeypatch):
         dev.preflight()
 
 
-@pytest.mark.parametrize("version", ["v20.19.0", "v22.11.0"])
+@pytest.mark.parametrize("version", ["v20.19.0", "v22.11.0", "v22.12.0", "v22.22.0", "v22.22.1"])
 def test_rejects_unsupported_node(monkeypatch, version):
+    monkeypatch.setattr(dev.sys, "platform", "linux")
     monkeypatch.setattr(dev.shutil, "which", lambda tool: tool)
     monkeypatch.setattr(dev.subprocess, "check_output", lambda *a, **k: version)
-    with pytest.raises(RuntimeError, match=r"22\.12"):
+    with pytest.raises(RuntimeError, match=r"22\.22\.2"):
         dev.preflight()
 
 
-def test_occupied_port_rejected_without_touching_owner(monkeypatch):
+@pytest.mark.parametrize("version", ["v22.22.2", "v22.23.0", "v24.15.0", "v26.11.1"])
+def test_accepts_supported_node_floor(monkeypatch, version):
+    monkeypatch.setattr(dev.sys, "platform", "linux")
     monkeypatch.setattr(dev.shutil, "which", lambda tool: tool)
-    monkeypatch.setattr(dev.subprocess, "check_output", lambda *a, **k: "v22.12.0")
+    monkeypatch.setattr(dev.subprocess, "check_output", lambda *a, **k: version)
+    probe = Mock()
+    probe.__enter__ = Mock(return_value=probe)
+    probe.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(dev.socket, "socket", lambda: probe)
+    dev.preflight()
+    assert probe.bind.call_count == 2
+
+
+def test_occupied_port_rejected_without_touching_owner(monkeypatch):
+    monkeypatch.setattr(dev.sys, "platform", "linux")
+    monkeypatch.setattr(dev.shutil, "which", lambda tool: tool)
+    monkeypatch.setattr(dev.subprocess, "check_output", lambda *a, **k: "v22.22.2")
     with socket.socket() as owner:
         try:
             owner.bind(("127.0.0.1", 8080))
