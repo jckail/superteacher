@@ -138,3 +138,14 @@ Overrides to the shared standards:
 - [docs/PUBLIC_DEMO.md](docs/PUBLIC_DEMO.md): public demo budgets and ingress. [docs/AI_EVALUATION.md](docs/AI_EVALUATION.md): offline AI grounding evaluation.
 - [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md), [docs/ACCOUNT_ADMIN.md](docs/ACCOUNT_ADMIN.md), [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/plans/](docs/plans): security, account admin, performance, roadmap, per-feature plans.
 - [docs/README.md](docs/README.md): full docs index.
+
+## Git and worktree hygiene
+
+- Work on a short-lived branch cut from fresh origin/main; one concern per branch; reference the Linear issue (JCK-nnn) in branch, commits and PR.
+- Use a git worktree under ~/projects/.worktrees/superteacher-<topic> (never clone extra copies of this repo into ~/projects); remove it after the PR merges (`git worktree remove`, then `git branch -d`, `git worktree prune`).
+- Commit early, push often; no work should exist only on this machine. Open a draft PR as soon as there is a pushed commit.
+- Stage explicit paths; never `git add -A` blindly; never commit secrets, .env* files, keys, build output.
+- Never force-push shared branches, skip hooks (--no-verify) or bypass branch protection.
+- Before deleting any branch or worktree: confirm it is merged (ancestor of origin/main or a MERGED PR with the same head) or fully pushed; `git status` must be clean; if unsure keep it and record it in the cleanup ledger (quarg repo docs/hygiene/macbook-ledger).
+- Before ending a session: no uncommitted or unpushed work left behind; clean the worktrees you created.
+- Machine-local files (.supermemory.json, .claude/settings.local.json) stay untracked.
