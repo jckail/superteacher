@@ -1,6 +1,6 @@
 import { test, expect, uid } from '../support/fixtures';
 
-test('student page: rule-based insight, notes persist, remove asks for confirmation', async ({ page, api }) => {
+test('student page: rule-based insight, notes persist, remove asks for confirmation', async ({ page, api, allowConsole }) => {
   const name = uid('Eve ');
   const c = await api.classroom({ studentNames: [name] });
   const a = await api.assessment(c.sectionId, 'Test 1', 100, 'test');
@@ -37,7 +37,13 @@ test('student page: rule-based insight, notes persist, remove asks for confirmat
   await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
 
   await page.getByRole('button', { name: 'Remove student' }).click();
+  // Removing the student invalidates the still-mounted detail query, so the page may refetch
+  // GET /api/students/<id> once more and get the expected 404 (or be unmounted first and never send
+  // it). Tolerate exactly that one request instead of racing it; every other console error still fails.
+  allowConsole(new RegExp(`/api/students/${c.students[0].id}$`));
+  const removed = page.waitForResponse((r) => r.request().method() === 'DELETE' && r.url().endsWith(`/api/students/${c.students[0].id}`));
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove student' }).click();
+  expect((await removed).ok()).toBe(true);
   await expect(page).toHaveURL(/\/roster/);
   await expect(page.getByText('Student removed')).toBeVisible();
   expect((await page.request.get(`/api/students/${c.students[0].id}`)).status()).toBe(404);
