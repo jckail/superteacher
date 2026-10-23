@@ -1,4 +1,5 @@
 -r requirements.txt
 pytest>=8
+packaging>=24.2  # PEP 508 requirements and version/marker checks in the offline lock contract
 httpx>=0.27
 ruff>=0.6
