@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, api, advanceApiSession, clearSessionPrivacy } from '../api';
 import '../login.css';
+import BrandMark from '../components/BrandMark';
 
 // React StrictMode runs effects twice in development; a sign-in token works once, so share one request per token.
 const inflight = new Map<string, Promise<unknown>>();
@@ -33,7 +34,7 @@ export default function VerifyEmail() {
   return (
     <main className="login-wrap">
       <div className="card login-card" aria-live="polite">
-        <div className="brand"><span className="brand-mark" aria-hidden>🦸</span> Super Teacher</div>
+        <div className="brand"><BrandMark /> Super Teacher</div>
         {state.status === 'working' && <><h1>Signing you in…</h1><div className="skeleton" style={{ width: 200 }} /></>}
         {state.status === 'done' && <h1 tabIndex={-1} ref={heading}>Signed in. Taking you to your classroom…</h1>}
         {state.status === 'error' && (

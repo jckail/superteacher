@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { ApiError, api } from '../api';
 import DemoNoticeLink from '../components/DemoNoticeLink';
 import '../login.css';
+import BrandMark from '../components/BrandMark';
 
 const COOLDOWN = 60;
 
@@ -47,7 +48,7 @@ export default function EmailLogin() {
     return (
       <main className="login-wrap">
         <div className="card login-card">
-          <div className="brand"><span className="brand-mark" aria-hidden>🦸</span> Super Teacher</div>
+          <div className="brand"><BrandMark /> Super Teacher</div>
           <h1 tabIndex={-1} ref={heading}>Check your email</h1>
           <p role="status" style={{ margin: 0 }}>
             If <strong>{sentTo}</strong> can receive mail, a sign-in link is on its way. It works once and expires in 15 minutes.
@@ -67,7 +68,7 @@ export default function EmailLogin() {
   return (
     <main className="login-wrap">
       <div className="card login-card">
-        <div className="brand"><span className="brand-mark" aria-hidden>🦸</span> Super Teacher</div>
+        <div className="brand"><BrandMark /> Super Teacher</div>
         <h1>Sign in</h1>
         <p className="muted" style={{ margin: 0 }}>
           Enter your email and we&apos;ll send a one-time sign-in link. No password needed.

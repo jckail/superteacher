@@ -8,9 +8,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/Confirm';
 import { Loading } from './components/ui';
+import Icon, { type IconName } from './components/Icon';
 import AccountMenu from './components/AccountMenu';
 import DemoBanner from './components/DemoBanner';
 import DemoNoticeLink from './components/DemoNoticeLink';
+import BrandMark from './components/BrandMark';
 
 // Route-level code splitting keeps the first paint small; each page loads on demand.
 const Overview = lazy(() => import('./pages/Overview'));
@@ -23,12 +25,12 @@ const Chat = lazy(() => import('./components/Chat'));
 const Reports = lazy(() => import('./pages/Reports'));
 
 
-const NAV = [
-  ['/', '🏠', 'Today'],
-  ['/roster', '👥', 'Roster'],
-  ['/gradebook', '📒', 'Gradebook'],
-  ['/attendance', '✅', 'Attendance'],
-  ['/reports', '📄', 'Reports'],
+const NAV: [string, IconName, string][] = [
+  ['/', 'today', 'Today'],
+  ['/roster', 'roster', 'Roster'],
+  ['/gradebook', 'gradebook', 'Gradebook'],
+  ['/attendance', 'attendance', 'Attendance'],
+  ['/reports', 'reports', 'Reports'],
 ];
 
 const TITLES: Record<string, string> = { '/': 'Today', '/roster': 'Roster', '/gradebook': 'Gradebook', '/attendance': 'Attendance', '/reports': 'Reports' };
@@ -62,16 +64,16 @@ function Shell() {
     <div className={`shell ${chatOpen ? 'chat-open' : ''}`}>
       <a href="#main" className="skip-link" onClick={(e) => { e.preventDefault(); main.current?.focus(); }}>Skip to content</a>
       <nav className="sidebar" aria-label="Main">
-        <div className="brand"><span className="brand-mark" aria-hidden>🦸</span>Super Teacher</div>
+        <div className="brand"><BrandMark />Super Teacher</div>
         <div className="nav">
           {NAV.map(([to, icon, label]) => (
-            <NavLink key={to} to={to} end={to === '/'}><span aria-hidden>{icon}</span>{label}</NavLink>
+            <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} />{label}</NavLink>
           ))}
-          <button type="button" className={`nav-btn ${chatOpen ? 'active' : ''}`} aria-expanded={chatOpen} aria-controls="assistant-panel" onClick={() => setChatOpen((o) => !o)}><span aria-hidden>✨</span>Ask AI</button>
+          <button type="button" className={`nav-btn ${chatOpen ? 'active' : ''}`} aria-expanded={chatOpen} aria-controls="assistant-panel" onClick={() => setChatOpen((o) => !o)}><Icon name="sparkles" />Ask AI</button>
         </div>
         <div className="spacer" />
         {mode === 'accounts' ? <AccountMenu /> : authRequired && <button type="button" className="btn side-extra" onClick={logout}>Sign out</button>}
-        <button type="button" className="btn side-extra" onClick={toggleTheme} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>{dark ? '☀️ Light' : '🌙 Dark'}</button>
+        <button type="button" className="btn side-extra" onClick={toggleTheme} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}><Icon name={dark ? 'sun' : 'moon'} />{dark ? 'Light' : 'Dark'}</button>
       </nav>
       <main className="main" id="main" tabIndex={-1} ref={main}>
         {(mode === 'accounts' || mode === 'public_demo') && <DemoBanner />}

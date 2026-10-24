@@ -7,7 +7,7 @@ import { useScope } from '../scope';
 import { useSchoolCalendar } from '../schoolCalendar';
 import ScopePicker from '../components/ScopePicker';
 import ScopeStatus from '../components/ScopeStatus';
-import { Distribution } from '../components/charts';
+import { ActivityRings, Distribution } from '../components/charts';
 import { EmptyState, ErrorBox, Loading, RiskChip, Stat, gradeColor } from '../components/ui';
 
 export default function Overview() {
@@ -41,7 +41,7 @@ export default function Overview() {
     <>
       <div className="topbar">
         <div>
-          <h1>{hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'} 👋</h1>
+          <h1>{hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}</h1>
           <div className="page-sub">{o ? (o.students === 0 ? 'Build your classroom to get started.' : o.at_risk + o.watch ? `${o.at_risk + o.watch} students could use your attention.` : o.unknown ? `${o.unknown} student${o.unknown === 1 ? '' : 's'} need${o.unknown === 1 ? 's' : ''} more data to assess progress.` : 'Everyone is on track.') : 'Loading your classroom…'}</div>
         </div>
         <ScopePicker />
@@ -51,7 +51,7 @@ export default function Overview() {
         <ErrorBox error={calendar.error} />
         <button className="btn" disabled={calendar.isFetching} onClick={() => void calendar.refetch()}>Retry school calendar</button>
       </div>}
-      {o && <p className="muted">Progress calculated through {o.as_of}</p>}
+      {o && <p className="as-of">Progress calculated through {o.as_of}</p>}
       {ready && cutoff && schoolDay && cutoff < schoolDay && <p role="status">
         Progress is shown through {cutoff}. {fetching ? 'Updating school-day calculations…' : readError ? 'Refresh failed. Use Retry to update progress.' : 'Newer school-day calculations are available.'}
         {!fetching && !readError && <> <button className="btn small" onClick={() => void q.refetch()}>Refresh progress</button></>}
@@ -65,15 +65,23 @@ export default function Overview() {
         </EmptyState>
       ) : (
         <>
-          <div className="grid stats">
-            <Stat label="Students" value={o.students} />
-            <Stat label="Class average" value={fmt(o.average, '%')} hint={o.average != null && `Weighted across tests, quizzes, homework`} />
-            <Stat label="Attendance" value={fmt(o.attendance_rate, '%')} hint="Excused absences excluded" />
-            <Stat label="Homework in" value={fmt(o.homework_rate, '%')} />
-            <Stat label="At risk" value={o.at_risk} hint={`${o.watch} more on watch`} />
-            <Stat label="Not enough data" value={o.unknown} hint="Work or attendance evidence needed" />
-          </div>
-          <div className="grid two">
+          <div className="grid today">
+            <section className="card rings-card" aria-label="Class progress">
+              <ActivityRings rings={[
+                { label: 'Showing up', value: o.attendance_rate, color: 'var(--ring-attendance)' },
+                { label: 'Work handed in', value: o.homework_rate, color: 'var(--ring-homework)' },
+                { label: 'Overall grade', value: o.average, color: 'var(--ring-average)' },
+              ]} />
+              <ul className="rings-legend">
+                {[
+                  ['var(--ring-attendance)', 'Showing up', o.attendance_rate, 'of class time attended'],
+                  ['var(--ring-homework)', 'Work handed in', o.homework_rate, 'of assigned work'],
+                  ['var(--ring-average)', 'Overall grade', o.average, 'weighted across all work'],
+                ].map(([color, label, value, note]) => (
+                  <li key={label as string}><i style={{ background: color as string }} aria-hidden="true" /><b>{label as string}</b><span>{value == null ? 'No data yet' : `${Math.round(value as number)}% ${note as string}`}</span></li>
+                ))}
+              </ul>
+            </section>
             <section className="card">
               <h2>Needs your attention</h2>
               {o.unknown > 0 && <p className="muted">{o.unknown} student{o.unknown === 1 ? '' : 's'} lack{o.unknown === 1 ? 's' : ''} enough data to assess progress. <Link to="/roster?status=unknown">Review records needing data</Link>.</p>}
@@ -93,11 +101,19 @@ export default function Overview() {
                 </ul>
               )}
             </section>
-            <section className="card">
-              <h2 id="dist-h">Grade distribution</h2>
-              <Distribution dist={o.distribution} />
-            </section>
           </div>
+          <div className="grid stats">
+            <Stat label="Students" value={o.students} />
+            <Stat label="Class average" value={fmt(o.average, '%')} hint={o.average != null && `Weighted across tests, quizzes, homework`} />
+            <Stat label="Attendance" value={fmt(o.attendance_rate, '%')} hint="Excused absences excluded" />
+            <Stat label="Homework in" value={fmt(o.homework_rate, '%')} />
+            <Stat label="At risk" value={o.at_risk} hint={`${o.watch} more on watch`} />
+            <Stat label="Not enough data" value={o.unknown} hint="Work or attendance evidence needed" />
+          </div>
+          <section className="card">
+            <h2 id="dist-h">Grade distribution</h2>
+            <Distribution dist={o.distribution} />
+          </section>
         </>
       ))}
     </>

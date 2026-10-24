@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { api, ApiError } from '../api';
 import DemoNoticeLink from '../components/DemoNoticeLink';
 import '../login.css';
+import BrandMark from '../components/BrandMark';
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
   const errorId = useId();
@@ -27,7 +28,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
   return (
     <main className="login-wrap">
       <div className="card login-card">
-        <div className="brand"><span className="brand-mark">🦸</span> Super Teacher</div>
+        <div className="brand"><BrandMark /> Super Teacher</div>
         <h1>Sign in</h1>
         <p className="muted" style={{ margin: 0 }}>Enter the shared passcode to continue.</p>
         <form onSubmit={submit} aria-busy={busy}>
