@@ -1,0 +1,63 @@
+# Weekly refresh of requirements.lock (JCK-2355). Dependabot's pip updater edits requirements.txt
+# but never regenerates the hash lock, so every pip bump turned main red; pip is no longer in
+# .github/dependabot.yml. Instead this job runs scripts/update_lock.sh --upgrade (new releases
+# within the declared ranges) and, if the lock changed, pushes a Linear-keyed branch and opens a
+# PR. That PR gets the normal depot-ci run and merges only when `depot-ci / ci-result` is green.
+name: lock-refresh
+on:
+  schedule:
+    - cron: '17 14 * * 1' # Mondays 14:17 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: lock-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: depot-ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BRANCH_PREFIX: jck-2355-lock-refresh-
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version: '3.12' }
+      - name: Skip while an earlier refresh PR is still open
+        id: open
+        run: |
+          heads=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/pulls?state=open&per_page=100" | python3 -c '
+          import json, os, sys
+          print(" ".join(p["head"]["ref"] for p in json.load(sys.stdin) if p["head"]["ref"].startswith(os.environ["BRANCH_PREFIX"])))')
+          echo "open refresh PRs: ${heads:-none}"
+          echo "skip=$([ -n "$heads" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Regenerate requirements.lock with new releases
+        if: steps.open.outputs.skip == 'false'
+        run: |
+          pip install --quiet uv==0.13.1
+          bash scripts/update_lock.sh --upgrade
+          git diff --stat -- requirements.lock
+      - name: Push a keyed branch and open the PR
+        if: steps.open.outputs.skip == 'false'
+        run: |
+          if git diff --quiet -- requirements.lock; then echo "requirements.lock is current"; exit 0; fi
+          branch="${BRANCH_PREFIX}$(date -u +%Y%m%d)"
+          changes=$(git diff -U0 -- requirements.lock | sed -nE 's/^-([A-Za-z0-9_.-]+)==([^ ;]+).*/\1 \2/p' | sort > /tmp/old
+                    git diff -U0 -- requirements.lock | sed -nE 's/^\+([A-Za-z0-9_.-]+)==([^ ;]+).*/\1 \2/p' | sort > /tmp/new
+                    join -a2 /tmp/old /tmp/new | awk '{ print "- " $1 ": " (NF == 3 ? $2 " -> " $3 : "new " $2) }')
+          git config user.name "superteacher-lock-refresh"
+          git config user.email "lock-refresh@users.noreply.github.com"
+          git switch -c "$branch"
+          git add requirements.lock
+          printf 'chore(deps): weekly requirements.lock refresh (JCK-2355)\n\nscripts/update_lock.sh --upgrade picked up new releases inside the\nranges in requirements.txt; the hashes are regenerated for every platform.\n\n%s\n' "$changes" | git commit -q -F -
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/$branch"
+          printf '## Summary\nWeekly `requirements.lock` refresh from `.depot/workflows/lock-refresh.yml`.\n\n## Why\nDependabot no longer updates pip (it never regenerated the hash lock). Linear: JCK-2355.\n\n## Changes\n%s\n\n## Verification\n`scripts/update_lock.sh --upgrade`; this PR'"'"'s `depot-ci / ci-result` runs the full suite.\n\n## Risk and rollback\nMerge only when CI is green and the release notes of any major bump are read. Close the PR to skip a week.\n' "$changes" > /tmp/body.md
+          python3 -c 'import json,sys; print(json.dumps({"title": "chore(deps): weekly requirements.lock refresh (JCK-2355)", "head": sys.argv[1], "base": "main", "body": open("/tmp/body.md").read()}))' "$branch" \
+            | curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/pulls" -d @- | python3 -c 'import json,sys; print(json.load(sys.stdin)["html_url"])'

@@ -91,7 +91,7 @@ Keep PRs small and the title in commit-subject style with the issue key. Merge o
 - Accepted deployment shape is a Cloud Run pilot with single-writer SQLite + Litestream/GCS recovery (ADR 0001). `create_app` rejects Cloud Run SQLite unless the verified replicated-SQLite condition holds. Overlapping writers are unsafe, so cloudbuild.yaml builds only; promotion is separate, after drain/backup/migration checks.
 - `db.py` uses in-memory `create_all` for disposable schemas but Alembic for file/server databases; schema changes need a migration (`alembic/versions`).
 - Production image sets `SEED_DEMO_DATA=false`; the app default is true for local dev.
-- Dependencies are hash-pinned: edit `requirements.txt` (ranges), regenerate `requirements.lock` with `scripts/update_lock.sh`.
+- Dependencies are hash-pinned: edit `requirements.txt` (ranges), regenerate `requirements.lock` with `scripts/update_lock.sh`. A weekly Depot job (`.depot/workflows/lock-refresh.yml`) runs it with `--upgrade` and opens a keyed PR; Dependabot no longer handles pip.
 - AI tests must use fakes (`tests/ai_fakes.py`), never paid provider calls. Privacy rules for AI data: ADR 0003; grading policy: ADR 0004.
 - `server.py` binds `0.0.0.0` and `PORT` (default 8080), unlike loopback-only dev services.
 
@@ -139,7 +139,7 @@ Overrides to the shared standards:
 
 ## CI and local checks
 
-CI of record is Depot CI: `.depot/workflows/ci.yml` (workflow `depot-ci`) on every pull request and push to `main`. Require only `depot-ci / ci-result`; it fails unless every job succeeded. There are no GitHub Actions workflows left; Dependabot (`.github/dependabot.yml`) is unchanged.
+CI of record is Depot CI: `.depot/workflows/ci.yml` (workflow `depot-ci`) on every pull request and push to `main`. Require only `depot-ci / ci-result`; it fails unless every job succeeded. There are no GitHub Actions workflows left; Dependabot (`.github/dependabot.yml`) covers npm, GitHub Actions and Docker; pip lock refreshes come from `lock-refresh.yml`.
 
 | Job | What it runs | Local equivalent |
 | --- | --- | --- |
