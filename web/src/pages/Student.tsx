@@ -9,8 +9,8 @@ import { useToast } from '../components/Toast';
 import { AttendanceHeat, TrendChart } from '../components/charts';
 import { EmptyState, ErrorBox, Loading, Modal, RiskChip, Stat, gradeColor } from '../components/ui';
 
-export function Insight({ id }: { id: string }) {
-  const q = useQuery({ queryKey: ['insight', id], queryFn: ({ signal }) => api<InsightData>(`/students/${id}/insight`, { signal }), staleTime: 5 * 60_000 });
+export function Insight({ id, enabled = true }: { id: string; enabled?: boolean | (() => boolean) }) {
+  const q = useQuery({ queryKey: ['insight', id], queryFn: ({ signal }) => api<InsightData>(`/students/${id}/insight`, { signal }), staleTime: 5 * 60_000, enabled });
   const i = q.data;
   const calendar = useSchoolCalendar();
   const client = useQueryClient();
@@ -190,8 +190,8 @@ function HistorySection({ section }: { section: GradeHistorySection }) {
   </section>;
 }
 
-export function GradeHistory({ studentId, activeSectionId }: { studentId: string; activeSectionId: string }) {
-  const q = useQuery({ queryKey: ['grade-history', studentId, activeSectionId], queryFn: ({ signal }) => api<GradeHistoryOut>(`/students/${studentId}/grade-history`, { signal }) });
+export function GradeHistory({ studentId, activeSectionId, enabled = true }: { studentId: string; activeSectionId: string; enabled?: boolean | (() => boolean) }) {
+  const q = useQuery({ queryKey: ['grade-history', studentId, activeSectionId], queryFn: ({ signal }) => api<GradeHistoryOut>(`/students/${studentId}/grade-history`, { signal }), enabled });
   const data = q.data;
   // A stale response from before a transfer must not mix sections with the current profile.
   const current = data?.student_id === studentId && data.active_section_id === activeSectionId;
@@ -207,6 +207,11 @@ export function GradeHistory({ studentId, activeSectionId }: { studentId: string
 
 const short = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
+function isRemovedStudentQuery(queryKey: readonly unknown[], studentId: string) {
+  const [kind, keyId] = queryKey;
+  return (kind === 'student' || kind === 'insight' || kind === 'grade-history') && keyId === studentId;
+}
+
 export default function Student() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -214,12 +219,13 @@ export default function Student() {
   const toast = useToast();
   const confirm = useConfirm();
   const [kind, setKind] = useState<AssessmentKind | ''>('');
-  const deletionLifecycle = useMemo(() => ({ active: true, studentId: id, client: qc }), [id, qc]);
+  const deletionLifecycle = useMemo(() => ({ active: true, deleted: false, studentId: id, client: qc }), [id, qc]);
   useEffect(() => {
     deletionLifecycle.active = true;
     return () => { deletionLifecycle.active = false; };
   }, [deletionLifecycle]);
-  const q = useQuery({ queryKey: ['student', id], queryFn: ({ signal }) => {
+  const stillPresent = () => Boolean(id) && !deletionLifecycle.deleted;
+  const q = useQuery({ queryKey: ['student', id], enabled: stillPresent, queryFn: ({ signal }) => {
     if (!id) throw new ApiError(404, 'Student not found');
     return api<StudentDetail>(`/students/${id}`, { signal });
   }, retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 1 });
@@ -227,10 +233,12 @@ export default function Student() {
     mutationFn: ({ studentId }: { studentId: string; client: typeof qc; lifecycle: typeof deletionLifecycle }) => api<null>(`/students/${studentId}`, { method: 'DELETE' }),
     onSuccess: (_data, { studentId, client, lifecycle }) => {
       // Mutation observer options can change while DELETE is pending; its target and client cannot.
-      // Remove before invalidation so the still-mounted deleted page does not refetch and 404.
+      // Navigation is a transition, so the toast can re-render this page before it unmounts.
+      // Mark it deleted first: removing the query lets that render rebuild it and refetch a 404.
+      lifecycle.deleted = true;
       client.removeQueries({ queryKey: ['student', studentId] });
       client.removeQueries({ queryKey: ['insight', studentId] });
-      void client.invalidateQueries();
+      void client.invalidateQueries({ predicate: (query) => !isRemovedStudentQuery(query.queryKey, studentId) });
       if (lifecycle.active) {
         toast.success('Student removed');
         nav('/roster');
@@ -305,7 +313,7 @@ export default function Student() {
             <h2>Score trend</h2>
             <TrendChart points={graded.map((x) => ({ pct: x.pct, label: x.title, short: short(x.due_date), detail: `${x.points}/${x.max_points} · ${x.kind}` }))} />
           </section>
-          <Insight id={s.id} />
+          <Insight id={s.id} enabled={stillPresent} />
           <section className="card">
             <h2>Last {lastDays.length} school days</h2>
             <AttendanceHeat days={lastDays} />
@@ -338,7 +346,7 @@ export default function Student() {
           )}
         </section>
       </div>
-      <GradeHistory key={`${s.id}:${s.section_id}`} studentId={s.id} activeSectionId={s.section_id} />
+      <GradeHistory key={`${s.id}:${s.section_id}`} studentId={s.id} activeSectionId={s.section_id} enabled={stillPresent} />
     </>
   );
 }
