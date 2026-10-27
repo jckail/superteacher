@@ -121,7 +121,7 @@ Prerequisites: Python 3.11+ (CI and image use 3.12), Node 22.22.2+ (`web/package
 | Web | `cd web && npm run lint && npm test -- --maxWorkers=2 && npm run build` (`build` runs `tsc --noEmit` first; `npm run typecheck` alone) |
 | Browser/E2E | `cd web && npm run test:e2e` (builds first); `cd e2e && npx playwright test` after `npm ci` in `web/` and `e2e/` (see [docs/E2E.md](docs/E2E.md)) |
 | Benchmark | `python scripts/bench.py --sizes 1000 --runs 15 --fixed-runs --json bench-1k.json` then `python scripts/check_bench_budgets.py bench-1k.json` |
-| Image | `depot build --load -t superteacher:dev .` (project id in `depot.json`); `./deploy.sh` runs tests, web build and image build |
+| Image | `docker --context default buildx build --builder default --load -t superteacher:dev .`; `./deploy.sh` runs tests, web build and image build |
 
 Verification status: none of these were run for this documentation change (docs-only; `ruff` was not installed in the authoring environment). Commands are taken from `Makefile`, `web/package.json`, `pytest.ini`, `pyproject.toml`, `.github/workflows/ci.yml` and the docs; treat them as unverified until run. Postgres-backed and Litestream round-trip tests need `ST_TEST_POSTGRES_URL` and a Litestream binary (CI installs one via `scripts/install_litestream.py`), otherwise they skip.
 
@@ -158,7 +158,7 @@ CI of record is Depot CI: `.depot/workflows/ci.yml` (workflow `depot-ci`) on eve
 | `browser` | `npm run test:e2e` in `web/` | `cd web && npm run test:e2e` |
 | `e2e` | Playwright + axe in `e2e/` | `cd e2e && npx playwright test` |
 | `bench-smoke` | latency, SQL-count and memory budgets | see the Benchmark row under Commands |
-| `docker` | `depot build` image, runtime and user checks, compatibility tests, auth smoke test | `depot build --load -t superteacher:ci .` |
+| `docker` | local Docker BuildKit image, runtime and user checks, compatibility tests, auth smoke test | `docker --context default buildx build --builder default --load -t superteacher:ci .` |
 | `ci-result` | fails unless every job above succeeded | none |
 
 Run it before pushing: `depot ci run --workflow .depot/workflows/ci.yml [--job <id>]` (uploads your uncommitted diff). GitHub remnants: none. Secrets the owner must add: none.
@@ -166,7 +166,7 @@ Run it before pushing: `depot ci run --workflow .depot/workflows/ci.yml [--job <
 ## Git, CI and release notes for this repo
 
 - Default branch `main`, no branch protection (API returns 404). Merge commit, squash and rebase are all allowed. History mixes squash-style PR titles (`Open public demo ... (#95)`, `docs: ... (#96)`) with merge commits from release branches; squash merge is the sensible default for a small change.
-- CI (Depot CI, `.depot/workflows/ci.yml`, on PRs and pushes to `main`; branch protection should require only `depot-ci / ci-result`; see "CI and local checks"): `lint` (ruff), `api` (pytest against Postgres 17 service plus pinned Litestream), `web` (`npm ci`, lint, vitest, build), `browser` (`npm run test:e2e`), `e2e` (Playwright + axe in `e2e/`), `bench-smoke` (latency/SQL-count/memory budgets in `scripts/bench_budgets.json`), and `branch-name`, `gitleaks` and `ci-result` (added by the Depot migration), and `docker` (needs the others; `depot build` image, runtime/user checks, focused compatibility tests, smoke test with auth on, refuses to start without a password). Commits marked `[skip ci]` in history are not a pattern to follow for PRs.
+- CI (Depot CI, `.depot/workflows/ci.yml`, on PRs and pushes to `main`; branch protection should require only `depot-ci / ci-result`; see "CI and local checks"): `lint` (ruff), `api` (pytest against Postgres 17 service plus pinned Litestream), `web` (`npm ci`, lint, vitest, build), `browser` (`npm run test:e2e`), `e2e` (Playwright + axe in `e2e/`), `bench-smoke` (latency/SQL-count/memory budgets in `scripts/bench_budgets.json`), and `branch-name`, `gitleaks` and `ci-result` (added by the Depot migration), and `docker` (needs the others; local Docker BuildKit image, runtime/user checks, focused compatibility tests, smoke test with auth on, refuses to start without a password). Commits marked `[skip ci]` in history are not a pattern to follow for PRs.
 - No git hooks or husky/pre-commit config were found in the repo.
 - Releases: `cloudbuild.yaml` only builds and pushes an image; staging, traffic promotion and domain cutover are manual, owned by the release operator, via `scripts/deploy_cloud_run.sh`, `scripts/verify_candidate.py` and the [operator runbook](docs/OPERATOR_RUNBOOK.md). Do not deploy or change traffic without explicit instruction.
 - Linear: follow the shared standards; every pushed branch names its `jck-<n>` key (enforced by the `branch-name` CI job).
