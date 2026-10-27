@@ -226,18 +226,31 @@ async def remember(user_id: str, session_id: str, user_text: str, reply: str, na
         log.warning("supermemory add failed: %s", type(exc).__name__)
 
 
+class MemoryErasureIncompleteError(RuntimeError):
+    """The provider has not confirmed removal of every selected document."""
+
+
 def _forget_user_sync(user_id: str) -> int:
     """Delete every chat document stored for this teacher (documents.delete takes at most 100 ids per call)."""
-    c, ns, deleted = _client(), namespace(user_id), 0
-    for _ in range(50):  # hard cap: 5000 documents
-        page = c.list(ns, "documents", limit=100, filter=_source_filter())
-        ids = [d.id for d in page.documents or []]
-        if not ids:
-            break
-        deleted += c.documents.delete(ns, ids=ids).count
-    _prepared.discard(ns)
-    _profile_cache.pop(ns, None)
-    return deleted
+    ns, deleted = namespace(user_id), 0
+    try:
+        c = _client()
+        for batch in range(51):  # at most 50 deletes, then one final empty-scope check
+            page = c.list(ns, "documents", limit=100, filter=_source_filter())
+            ids = [d.id for d in page.documents or []]
+            if not ids:
+                return deleted
+            if batch == 50:
+                raise MemoryErasureIncompleteError("Memory erasure batch limit reached")
+            result = c.documents.delete(ns, ids=ids)
+            if result.errors or result.count != len(ids):
+                # Provider error bodies may contain private content. Stop this failed
+                # batch without replaying it or including its details in diagnostics.
+                raise MemoryErasureIncompleteError("Memory erasure batch incomplete")
+            deleted += result.count
+    finally:
+        _prepared.discard(ns)
+        _profile_cache.pop(ns, None)
 
 
 async def forget_user(user_id: str) -> None:

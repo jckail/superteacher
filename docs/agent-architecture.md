@@ -31,6 +31,10 @@ flowchart LR
 
 Sources: [server](../server.py), [app composition](../superteacher/main.py), [database](../superteacher/db.py), [AI](../superteacher/ai.py), [test policy](../pytest.ini), [web scripts](../web/package.json).
 
+## Optional hosted memory cleanup
+
+`superteacher/memory.py` keeps hosted memory off by default and disabled in the public demo. Account deletion schedules best-effort cleanup in the teacher namespace, filtered to the chat source. Cleanup checks per-document errors and exact deletion counts, stops an incomplete batch, and verifies an empty scope after at most 50 batches of 100 documents. Partial failure or remaining documents produce a class-only warning; the local account deletion still succeeds. This is bounded failure detection, not guaranteed remote erasure or a durable retry queue. Cached profiles are invalidated even on failure.
+
 ## Evidence and verification scope
 
 Reviewed 2026-10-02 against this canonical checkout's live entry points and manifests. This is a navigation map, not proof of deployment, complete test coverage, or native harness qualification. Recheck source and Git status before implementation; sibling worktrees can contain newer behavior. Shared Graphify was queried first: the CLI returned Agent Hub symbols, but the broad query also matched unrelated repositories and was truncated; the direct HTTP request timed out. Other repositories below were verified through live source rather than assuming graph coverage.

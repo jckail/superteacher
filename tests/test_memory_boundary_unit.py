@@ -82,3 +82,61 @@ class MemoryBoundaryTests(unittest.TestCase):
         db = SimpleNamespace(scalars=lambda statement: ["Fixture Student"] * 1001)
         with self.assertRaises(ValueError):
             self.memory.student_names(db, "fixture")
+
+    def test_partial_erasure_is_not_replayed_and_logs_no_provider_details(self):
+        for errors, count in [([{"error": "private-provider-body", "id": "private-id"}], 1), ([], 1), ([], 0)]:
+            with self.subTest(errors=bool(errors), count=count):
+                delete = MagicMock(return_value=SimpleNamespace(count=count, errors=errors))
+                listing = MagicMock(
+                    return_value=SimpleNamespace(documents=[SimpleNamespace(id="a"), SimpleNamespace(id="b")])
+                )
+                self.memory._client = MagicMock(
+                    return_value=SimpleNamespace(list=listing, documents=SimpleNamespace(delete=delete))
+                )
+                ns = self.memory.namespace("fixture")
+                self.memory._prepared.add(ns)
+                self.memory._profile_cache[ns] = (0, ["cached"])
+                with self.assertLogs(self.memory.log, level="WARNING") as logs:
+                    asyncio.run(self.memory.forget_user("fixture"))
+                self.assertEqual(delete.call_count, 1)
+                self.assertEqual(listing.call_count, 1)
+                self.assertEqual(delete.call_args.args, (ns,))
+                self.assertEqual(
+                    listing.call_args.kwargs["filter"],
+                    {"field": "source", "operator": "eq", "value": self.memory.SOURCE},
+                )
+                self.assertNotIn(ns, self.memory._prepared)
+                self.assertNotIn(ns, self.memory._profile_cache)
+                self.assertIn("MemoryErasureIncompleteError", " ".join(logs.output))
+                self.assertNotIn("private-provider-body", " ".join(logs.output))
+                self.assertNotIn("private-id", " ".join(logs.output))
+
+    def test_erasure_verifies_empty_scope_after_the_last_allowed_batch(self):
+        for total in [205, 5000, 5001]:
+            with self.subTest(total=total):
+                stored = [str(i) for i in range(total)]
+                batches = []
+
+                def listing(ns, kind, _stored=stored, **kwargs):
+                    self.assertEqual(ns, self.memory.namespace("fixture"))
+                    self.assertEqual(kind, "documents")
+                    self.assertEqual(kwargs["limit"], 100)
+                    return SimpleNamespace(documents=[SimpleNamespace(id=i) for i in _stored[:100]])
+
+                def delete(ns, *, ids, _stored=stored, _batches=batches):
+                    _batches.append(list(ids))
+                    del _stored[: len(ids)]
+                    return SimpleNamespace(count=len(ids), errors=[])
+
+                self.memory._client = MagicMock(
+                    return_value=SimpleNamespace(list=listing, documents=SimpleNamespace(delete=delete))
+                )
+                if total > 5000:
+                    with self.assertRaises(self.memory.MemoryErasureIncompleteError):
+                        self.memory._forget_user_sync("fixture")
+                    self.assertEqual(stored, ["5000"])
+                    self.assertEqual(len(batches), 50)
+                else:
+                    self.assertEqual(self.memory._forget_user_sync("fixture"), total)
+                    self.assertEqual(stored, [])
+                self.assertTrue(all(0 < len(batch) <= 100 for batch in batches))
