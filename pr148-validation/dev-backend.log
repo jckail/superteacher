@@ -1,0 +1,22 @@
+INFO:     Started server process [87275]
+INFO:     Waiting for application startup.
+{"ts":"2026-10-30T01:38:12.688+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.schemas","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.692+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.tables","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.692+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.types","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.692+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.constraints","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.692+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.defaults","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.692+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.comments","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.693+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.ext.checkconstraint_byname","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.728+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Context impl SQLiteImpl.","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.732+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Will assume non-transactional DDL.","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.737+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade  -> 0001, initial schema","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.746+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0001 -> 0002, Enforce the existing API's numeric and enum domains in storage.","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.785+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0002 -> 0003, accounts: users, server-side sessions, login tokens, quotas, courses.owner_id","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.794+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0003 -> 0004, IDs-only account action audit, retained after account deletion.","severity":"INFO"}
+{"ts":"2026-10-30T01:38:12.795+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0004 -> 0005demo, Durable anonymous demo budgets.","severity":"INFO"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18766 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [87275]

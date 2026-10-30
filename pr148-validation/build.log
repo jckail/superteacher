@@ -1,0 +1,34 @@
+
+> superteacher-web@2.0.0 build
+> npm run typecheck && vite build
+
+
+> superteacher-web@2.0.0 typecheck
+> tsc --noEmit
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 261 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.77 kB │ gzip:  0.44 kB
+dist/assets/ConferenceSheet-BcZ9QZ46.css    1.80 kB │ gzip:  0.59 kB
+dist/assets/Reports-C93Hrxoo.css            1.85 kB │ gzip:  0.73 kB
+dist/assets/index-D8-qYT8k.css             17.69 kB │ gzip:  4.74 kB
+dist/assets/schoolCalendar-BwHTnqQ_.js      0.45 kB │ gzip:  0.32 kB
+dist/assets/rolldown-runtime-XKyaHtl9.js    0.72 kB │ gzip:  0.42 kB
+dist/assets/ScopeStatus-HQ0ersRX.js         2.12 kB │ gzip:  0.78 kB
+dist/assets/useRosterPage-BpV33_Qm.js       2.84 kB │ gzip:  1.19 kB
+dist/assets/Overview-DXpKj13e.js            4.60 kB │ gzip:  1.92 kB
+dist/assets/Attendance-DYhxN9vd.js          4.97 kB │ gzip:  1.81 kB
+dist/assets/charts-kormpvVi.js              5.44 kB │ gzip:  2.11 kB
+dist/assets/ConferenceSheet-3UP9yhi-.js     5.69 kB │ gzip:  2.15 kB
+dist/assets/Roster-D4dzJ4Fb.js             13.47 kB │ gzip:  4.18 kB
+dist/assets/Student-D3DUEotb.js            17.44 kB │ gzip:  5.34 kB
+dist/assets/Reports-B9F03yja.js            19.44 kB │ gzip:  5.85 kB
+dist/assets/Gradebook-BJhXsBZD.js          24.53 kB │ gzip:  7.92 kB
+dist/assets/index-BpoXncFC.js              42.11 kB │ gzip: 13.32 kB
+dist/assets/Chat-JVRwBhJY.js              124.83 kB │ gzip: 38.42 kB
+dist/assets/vendor-a-G23dPX.js            207.17 kB │ gzip: 67.30 kB
+
+✓ built in 277ms

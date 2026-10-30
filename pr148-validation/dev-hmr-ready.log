@@ -1,0 +1,16 @@
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('heading', { name: 'Roster', exact: true }) to be visible[22m
+
+    at /Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/[eval1]:16:61 {
+  log: [
+    "  - waiting for getByRole('heading', { name: 'Roster', exact: true }) to be visible"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v26.13.0

@@ -1,0 +1,1 @@
+PASS Vite actual configuration: HTML/module transforms and websocket HMR 1→2, no page exceptions. Synthetic probe; production app behavior covered separately.

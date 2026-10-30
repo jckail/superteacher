@@ -1,0 +1,31 @@
+INFO:     Started server process [37915]
+INFO:     Waiting for application startup.
+{"ts":"2026-10-30T01:40:02.188+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.schemas","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.188+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.tables","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.188+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.types","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.188+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.constraints","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.188+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.defaults","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.189+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.autogenerate.comments","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.189+00:00","level":"INFO","logger":"alembic.runtime.plugins","request_id":null,"msg":"setup plugin alembic.ext.checkconstraint_byname","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.223+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Context impl SQLiteImpl.","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.223+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Will assume non-transactional DDL.","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.228+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade  -> 0001, initial schema","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.244+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0001 -> 0002, Enforce the existing API's numeric and enum domains in storage.","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.283+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0002 -> 0003, accounts: users, server-side sessions, login tokens, quotas, courses.owner_id","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.290+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0003 -> 0004, IDs-only account action audit, retained after account deletion.","severity":"INFO"}
+{"ts":"2026-10-30T01:40:02.290+00:00","level":"INFO","logger":"alembic.runtime.migration","request_id":null,"msg":"Running upgrade 0004 -> 0005demo, Durable anonymous demo budgets.","severity":"INFO"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18766 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51609 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51623 - "GET /api/auth/config HTTP/1.1" 200 OK
+{"ts":"2026-10-30T01:40:04.736+00:00","level":"INFO","logger":"superteacher.access","request_id":"aa6ded75590e4625beb56352459be8bb","event":"http_request","method":"GET","route":"/api/auth/config","status":200,"duration_ms":11.93,"severity":"INFO"}
+INFO:     127.0.0.1:51624 - "GET /api/auth/config HTTP/1.1" 200 OK
+{"ts":"2026-10-30T01:40:04.753+00:00","level":"INFO","logger":"superteacher.access","request_id":"141e71bbfe7241e2aaaa386680e0c9dd","event":"http_request","method":"GET","route":"/api/auth/config","status":200,"duration_ms":8.35,"severity":"INFO"}
+INFO:     127.0.0.1:51625 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+{"ts":"2026-10-30T01:40:04.767+00:00","level":"INFO","logger":"superteacher.access","request_id":"fa0383f1f1754897a3e383cd23a8d73a","event":"http_request","method":"GET","route":"/api/auth/me","status":401,"duration_ms":14.11,"severity":"INFO"}
+INFO:     127.0.0.1:51626 - "POST /api/auth/login HTTP/1.1" 403 Forbidden
+{"ts":"2026-10-30T01:40:04.890+00:00","level":"INFO","logger":"superteacher.access","request_id":"4d95c39e71ec4879906df688d4f49ab3","event":"http_request","method":"POST","route":"/api/auth/login","status":403,"duration_ms":24.92,"severity":"INFO"}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37915]
