@@ -1,0 +1,284 @@
+
+> superteacher-web@2.0.0 test
+> vitest run --maxWorkers=2
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.5 [39m[90m/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web[39m
+
+ [32m✓[39m src/test/StudentCalendar.test.tsx [2m([22m[2m35 tests[22m[2m)[22m[33m 4682[2mms[22m[39m
+   [33m[2m✓[22m[39m refreshes recorded metrics on a validated calendar advance without changing raw points or independent reads[33m 315[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root expiry/relogin isolates late Student mutation and aborted reads from the new client and preserves theme[33m 503[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root logout/relogin isolates late Student mutation and aborted reads from the new client and preserves theme[33m 302[2mms[22m[39m
+ [32m✓[39m src/test/ReportPicker.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 3502[2mms[22m[39m
+   [33m[2m✓[22m[39m fetches bounded pages with header cursors, pins one selected student and keeps edited draft through search[33m 967[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects an old error after a student ABA change and coalesces pending clicks[33m 303[2mms[22m[39m
+   [33m[2m✓[22m[39m retains at most the active 50 rows plus one pinned snapshot and clears it when the section is genuinely empty[33m 379[2mms[22m[39m
+   [33m[2m✓[22m[39m accepts the captured draft while only search changes and ignores superseded page responses[33m 560[2mms[22m[39m
+ [32m✓[39m src/test/ParentDraftSettlement.test.tsx [2m([22m[2m31 tests[22m[2m)[22m[33m 10554[2mms[22m[39m
+   [33m[2m✓[22m[39m replaces an unchanged parent draft after the actual Regenerate POST settles[33m 361[2mms[22m[39m
+   [33m[2m✓[22m[39m retains both latest raw teacher fields and their source when Regenerate settles after pending edits[33m 345[2mms[22m[39m
+   [33m[2m✓[22m[39m review and further editing keep current copy/email until an explicit replacement installs the whole alternative[33m 447[2mms[22m[39m
+   [33m[2m✓[22m[39m discarding an alternative keeps current raw fields and source without another generation[33m 306[2mms[22m[39m
+   [33m[2m✓[22m[39m keyboard discard returns focus to Subject and keeps the current raw draft and source[33m 332[2mms[22m[39m
+   [33m[2m✓[22m[39m keyboard review and replace returns focus to Subject with the whole generated alternative[33m 362[2mms[22m[39m
+   [33m[2m✓[22m[39m a deliberate later regeneration replaces the bounded alternative only after its own settlement[33m 439[2mms[22m[39m
+   [33m[2m✓[22m[39m failed regeneration retains current fields (changed=true) and a deliberate retry stays manual[33m 333[2mms[22m[39m
+   [33m[2m✓[22m[39m alternative arrival preserves current clipboard error feedback[33m 438[2mms[22m[39m
+   [33m[2m✓[22m[39m late clipboard completion cannot claim copying the current draft after edit[33m 387[2mms[22m[39m
+   [33m[2m✓[22m[39m late clipboard completion cannot claim copying the current draft after replace[33m 331[2mms[22m[39m
+   [33m[2m✓[22m[39m late pending regeneration is discarded after actual tone ABA[33m 310[2mms[22m[39m
+   [33m[2m✓[22m[39m a retained alternative is cleared on actual student reset[33m 354[2mms[22m[39m
+   [33m[2m✓[22m[39m a retained alternative is cleared on actual tone reset[33m 414[2mms[22m[39m
+   [33m[2m✓[22m[39m a retained alternative is cleared on actual section reset[33m 534[2mms[22m[39m
+   [33m[2m✓[22m[39m a retained alternative is cleared on actual selection reset[33m 334[2mms[22m[39m
+   [33m[2m✓[22m[39m summary day refresh success keeps edited fields and the reviewable alternative without another POST[33m 572[2mms[22m[39m
+   [33m[2m✓[22m[39m summary day refresh error keeps edited fields and the reviewable alternative without another POST[33m 312[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root expiry/pending discards private alternative ownership and isolates the next same-student draft[33m 534[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root logout/pending discards private alternative ownership and isolates the next same-student draft[33m 406[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root expiry/ready discards private alternative ownership and isolates the next same-student draft[33m 376[2mms[22m[39m
+   [33m[2m✓[22m[39m actual Root logout/ready discards private alternative ownership and isolates the next same-student draft[33m 380[2mms[22m[39m
+ [32m✓[39m src/test/ScopeHydration.test.tsx [2m([22m[2m30 tests[22m[2m)[22m[33m 1464[2mms[22m[39m
+ [32m✓[39m src/test/Roster.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 4107[2mms[22m[39m
+   [32m✓[39m server-paged roster [2m(24)[22m
+     [33m[2m✓[22m[39m fetches only clicked pages and refetches Previous with private cursor stack, retaining bounded rows[33m 604[2mms[22m[39m
+     [33m[2m✓[22m[39m aborts stale filter responses and never applies stale rows or cursors[33m 331[2mms[22m[39m
+     [33m[2m✓[22m[39m restores filter history while discarding page position[33m 759[2mms[22m[39m
+     [33m[2m✓[22m[39m coalesces batched Previous clicks to one valid visited cursor[33m 333[2mms[22m[39m
+ [32m✓[39m src/test/StudentDeletionIdentity.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1809[2mms[22m[39m
+ [32m✓[39m src/test/SchoolCalendar.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 601[2mms[22m[39m
+ [32m✓[39m src/test/ReportsCalendar.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 850[2mms[22m[39m
+ [32m✓[39m src/test/StudentNoteSettlement.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 3770[2mms[22m[39m
+   [33m[2m✓[22m[39m same-ID day refresh preserves the pending draft through error/read-first[33m 1192[2mms[22m[39m
+ [32m✓[39m src/test/OverviewCalendar.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 338[2mms[22m[39m
+ [32m✓[39m src/test/AttendanceSummaryFreshness.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 487[2mms[22m[39m
+ [32m✓[39m src/test/SmallGroupIntegration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 531[2mms[22m[39m
+ [32m✓[39m src/test/InsightProvenance.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m✓[39m src/test/Chat.test.tsx [2m([22m[2m35 tests[22m[2m)[22m[33m 1960[2mms[22m[39m
+[90mstderr[2m | src/test/RosterWrite.test.tsx[2m > [22m[2mroster creation[2m > [22m[2mfreezes a student write, blocks duplicate submits and all modal close paths, and retries a failed draft
+[22m[39mWarning: An update to NewStudentDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at NewStudentDialog (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/Roster.tsx:91:29)
+    at ToastProvider (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/components/Toast.tsx:15:26)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/RosterWrite.test.tsx[2m > [22m[2mroster creation[2m > [22m[2mfreezes section creation and prevents duplicate submits and dismissal until it settles
+[22m[39mWarning: An update to NewClassDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at NewClassDialog (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/Roster.tsx:271:27)
+    at ToastProvider (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/components/Toast.tsx:15:26)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/RosterWrite.test.tsx[2m > [22m[2mCSV import writes and file reads[2m > [22m[2mcaptures the draft once, blocks pending edits and dismissal, and preserves a failed import for retry
+[22m[39mWarning: An update to ImportDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ImportDialog (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/Roster.tsx:432:25)
+    at ToastProvider (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/components/Toast.tsx:15:26)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+ [32m✓[39m src/test/RiskEvidence.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 290[2mms[22m[39m
+ [32m✓[39m src/test/RosterWrite.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 641[2mms[22m[39m
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a changed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a changed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+Warning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a changed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+ [32m✓[39m src/test/SmallGroupBuilder.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 300[2mms[22m[39m
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a removed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a removed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+Warning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+[90mstderr[2m | src/test/ConferenceSheet.test.tsx[2m > [22m[2mdoes not revive consent after a removed note returns
+[22m[39mWarning: An update to Conference inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Conference (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:28:23)
+    at ConferenceSheet (/Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/src/pages/ConferenceSheet.tsx:21:52)
+    at RenderedRoute (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:6309:26)
+    at Routes (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7195:3)
+    at Router (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+    at QueryClientProvider (file:///Users/jordankail/projects/superteacher/.worktrees/jck-1912-pr148-review/web/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:41:32)
+
+ [32m✓[39m src/test/ConferenceSheet.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 511[2mms[22m[39m
+ [32m✓[39m src/test/AssessmentAnalysis.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 178[2mms[22m[39m
+ [32m✓[39m src/test/Operations.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 300[2mms[22m[39m
+ [32m✓[39m src/test/Accounts.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 267[2mms[22m[39m
+ [32m✓[39m src/test/Auth.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 236[2mms[22m[39m
+ [32m✓[39m src/test/StudentEdit.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 458[2mms[22m[39m
+ [32m✓[39m src/test/ReportsAttendanceAccessibility.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 335[2mms[22m[39m
+ [32m✓[39m src/test/DemoNotice.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 256[2mms[22m[39m
+ [32m✓[39m src/test/Accessibility.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m src/test/api.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/test/StudentNotes.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 350[2mms[22m[39m
+ [32m✓[39m src/test/smallGroups.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/test/StudentHistory.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m src/test/ScoreCellAccessibility.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m src/test/AssessmentEdit.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 354[2mms[22m[39m
+ [32m✓[39m src/test/ScoreCell.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 350[2mms[22m[39m
+ [32m✓[39m src/test/Modal.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+ [32m✓[39m src/test/LoginAccessibility.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 337[2mms[22m[39m
+ [32m✓[39m src/components/TrendChart.numeric.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/test/PublicDemoChat.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 203[2mms[22m[39m
+ [32m✓[39m src/test/GradebookMean.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+ [32m✓[39m src/test/AuthTransport.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 164[2mms[22m[39m
+ [32m✓[39m src/test/AccountMenuFocus.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m      Tests [22m [1m[32m441 passed[39m[22m[90m (441)[39m
+[2m   Start at [22m 18:32:31
+[2m   Duration [22m 37.01s[2m (tests 63%, environment 25%, setup 4%, import 4%, transform 3%)[22m
+
+[2m    Isolate [22m [33m40 workers spawned[39m[2m · ~591ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~11.24s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
