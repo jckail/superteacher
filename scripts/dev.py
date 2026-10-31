@@ -74,9 +74,9 @@ def preflight():
         if not shutil.which(tool):
             raise RuntimeError(f"Missing {tool}; install it using its official instructions first.")
     version = subprocess.check_output(["node", "--version"], text=True).strip()
-    major, minor, *_ = map(int, version.lstrip("v").split("."))
-    if major < 22 or (major == 22 and minor < 12):
-        raise RuntimeError("Node 22.12+ is required.")
+    node_version = tuple(map(int, version.lstrip("v").split(".")))
+    if node_version < (22, 22, 2):
+        raise RuntimeError("Node 22.22.2+ is required.")
     for port in (8080, 4000):
         with socket.socket() as probe:
             try:

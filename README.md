@@ -16,7 +16,7 @@ A teacher workspace for finding students who need attention and acting on grades
 
 ## Quickstart
 
-For a synthetic local demo on Linux/WSL, install [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22.12+ and GNU Make, then run:
+For a synthetic local demo on Linux/WSL, install [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22.22.2+ and GNU Make, then run:
 
 ```bash
 make dev-check            # tools/ports only; no installation or servers
@@ -25,7 +25,7 @@ make dev                  # first run installs; later runs reuse matching locks
 
 This starts the API on loopback port 8080 and Vite on loopback port 4000 with synthetic seeded data, disabled auth and no AI or email credentials; open http://localhost:4000. `./local_test.sh` is an alias.
 
-For other platforms, an existing environment, an empty classroom, or testing login and AI, follow the [manual setup](docs/LOCAL_DEVELOPMENT.md#manual-setup) (Python 3.11+, Node 22.12+). The managed demo's safety checks and settings are in the same [local development guide](docs/LOCAL_DEVELOPMENT.md). `ANTHROPIC_API_KEY` is optional; keep credentials outside Git.
+For other platforms, an existing environment, an empty classroom, or testing login and AI, follow the [manual setup](docs/LOCAL_DEVELOPMENT.md#manual-setup) (Python 3.11+, Node 22.22.2+). The managed demo's safety checks and settings are in the same [local development guide](docs/LOCAL_DEVELOPMENT.md). `ANTHROPIC_API_KEY` is optional; keep credentials outside Git.
 
 ## Architecture
 
