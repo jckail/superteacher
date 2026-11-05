@@ -1,14 +1,18 @@
 """Real PostgreSQL acceptance checks; CI provides an isolated server."""
 
 import os
+import threading
+import time
 import uuid
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
-from superteacher.db import run_migrations
+from superteacher.db import ROOT, run_migrations
 from superteacher.models import OWNER_EMAIL, OWNER_ID
 
 
@@ -38,6 +42,52 @@ def _seed_owner(conn):
         text("INSERT INTO users (id, email, created_at, disabled) VALUES (:id, :email, CURRENT_TIMESTAMP, false)"),
         {"id": OWNER_ID, "email": OWNER_EMAIL},
     )
+
+
+def _alembic_head() -> str:
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "alembic"))
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+    assert isinstance(head, str)
+    return head
+
+
+def test_postgres_concurrent_startup_migrations(postgres_engine, monkeypatch):
+    """Five overlapping boots on one fresh schema must all reach a single head row.
+
+    The pause is inside upgrade, after the migration transaction has started, so
+    callers overlap in the DDL window unless a transaction advisory lock serializes them.
+    """
+    from alembic import command
+
+    real_upgrade = command.upgrade
+
+    def overlapping_upgrade(*args, **kwargs):
+        time.sleep(0.3)
+        real_upgrade(*args, **kwargs)
+
+    monkeypatch.setattr(command, "upgrade", overlapping_upgrade)
+    workers = 5
+    barrier = threading.Barrier(workers)
+    errors: list[BaseException] = []
+
+    def migrate() -> None:
+        try:
+            barrier.wait(timeout=30)
+            run_migrations(postgres_engine)
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=migrate) for _ in range(workers)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=60)
+    assert [thread.is_alive() for thread in threads] == [False] * workers
+    assert errors == []
+    with postgres_engine.connect() as conn:
+        versions = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+    assert versions == [_alembic_head()]
 
 
 def test_postgres_migration_persistence_and_grade_constraints(postgres_engine):
