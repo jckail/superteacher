@@ -12,3 +12,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["superteacher"]
+
+[tool.ruff.lint.per-file-ignores]
+# Generators embed HTML/SVG templates; long markup lines are inherent there.
+"brand/tools/*.py" = ["E501"]
