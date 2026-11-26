@@ -8,7 +8,7 @@ COPY web/ ./
 RUN npm run build
 
 # --- runtime ---
-FROM python:3.12.15-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
+FROM python:3.15.1-slim-bookworm@sha256:575f8bc12ec26542e0678bc6b60e385218248019d433157ec327264a78c3a853
 ARG VERSION=dev
 ARG GIT_COMMIT=development
 ENV VERSION=$VERSION GIT_COMMIT=$GIT_COMMIT
